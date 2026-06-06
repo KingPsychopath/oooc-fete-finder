@@ -33,7 +33,7 @@ export const TICKET_EXCHANGE_RULES_COPY = [
 	"OOOC does not sell, verify, transfer, hold, or guarantee tickets.",
 	"Ticket Exchange only helps people find and contact each other.",
 	"Any payment, transfer, refund, or dispute is handled directly between users.",
-	"List tickets at face value or less. You can include the original fees you paid, but no markup.",
+	"Sell tickets for what you paid or less. Original fees are fine, but no markup.",
 	"Use official ticket transfer tools where possible and do your own checks before sending money.",
 ] as const;
 

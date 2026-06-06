@@ -10,10 +10,7 @@ import {
 	TICKET_EXCHANGE_RULES_VERSION,
 } from "./constants";
 import { sendTicketExchangeInterestEmail } from "./email";
-import {
-	parseTicketExchangePriceLabel,
-	validateTicketExchangeFairPricePolicy,
-} from "./pricing";
+import { parseTicketExchangePriceLabel } from "./pricing";
 import { getTicketExchangeRepository } from "./repository";
 import {
 	findTicketExchangeEventByKey,
@@ -181,11 +178,6 @@ export async function createTicketExchangeListing(input: {
 			input.quantityLabel,
 		);
 		const priceLabel = validateTicketExchangePriceLabel(input.priceLabel);
-		validateTicketExchangeFairPricePolicy({
-			event,
-			listingType,
-			priceLabel,
-		});
 		const parsedPrice = parseTicketExchangePriceLabel(priceLabel);
 		await repository.createListing({
 			eventKey: event.eventKey,

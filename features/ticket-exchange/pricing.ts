@@ -151,30 +151,6 @@ export const getTicketExchangeFairPriceContext = (
 	};
 };
 
-export const validateTicketExchangeFairPricePolicy = (input: {
-	event: Pick<Event, "price">;
-	listingType: TicketExchangeListingType;
-	priceLabel: string;
-}): void => {
-	if (input.listingType !== "selling") return;
-	const context = getTicketExchangeFairPriceContext(input.event);
-	if (context.eventMaxAmountMinor === null || !context.eventCurrency) return;
-
-	const parsed = parseTicketExchangePriceLabel(input.priceLabel, {
-		fallbackCurrency: context.eventCurrency,
-	});
-	if (parsed.amountMinor === null || !parsed.currency) return;
-	if (parsed.currency !== context.eventCurrency) return;
-	if (parsed.amountMinor <= context.eventMaxAmountMinor) return;
-
-	const listedLabel = context.eventPriceLabel
-		? ` OOOC listed this event at ${context.eventPriceLabel}.`
-		: "";
-	throw new Error(
-		`List tickets at face value or less, including only the original fees you paid.${listedLabel}`,
-	);
-};
-
 const getMedian = (values: number[]): number | null => {
 	if (values.length === 0) return null;
 	const sorted = [...values].sort((left, right) => left - right);
@@ -234,11 +210,11 @@ export const buildTicketExchangePricingSuggestion = (input: {
 	const helperText =
 		input.listingType === "selling"
 			? context.eventPriceLabel
-				? `OOOC listed this at ${context.eventPriceLabel}. List at face value or less; original fees are fine, no markup.`
-				: "List at face value or less. You can include original fees you paid, but no markup."
+				? `OOOC has this as ${context.eventPriceLabel}. Sell for what you paid or less, including original fees. No markup.`
+				: "Sell for what you paid or less, including original fees. No markup."
 			: context.eventPriceLabel
-				? `OOOC listed this at ${context.eventPriceLabel}. Use it as a fair budget guide.`
-				: "Use face value as your budget guide where you can.";
+				? `OOOC has this as ${context.eventPriceLabel}. Use it as a fair budget guide.`
+				: "Use the original ticket price as your budget guide where you can.";
 
 	return {
 		eventPriceLabel: context.eventPriceLabel,

@@ -35,7 +35,7 @@ import {
 } from "@/features/ticket-exchange/listing-visibility";
 import {
 	buildTicketExchangePricingSuggestion,
-	validateTicketExchangeFairPricePolicy,
+	parseTicketExchangePriceLabel,
 } from "@/features/ticket-exchange/pricing";
 import { requestTicketExchangeTour } from "@/features/ticket-exchange/tour-onboarding";
 import type {
@@ -74,6 +74,7 @@ import {
 	ArrowUpRight,
 	AtSign,
 	Check,
+	ChevronDown,
 	CircleHelp,
 	Clock,
 	ExternalLink,
@@ -110,7 +111,7 @@ import { TicketExchangeTour } from "./TicketExchangeTour";
 
 type TabKey = "all" | "selling" | "looking" | "mine";
 type MarketplaceTabKey = Exclude<TabKey, "mine">;
-type ListingSortDirection = "newest" | "oldest";
+type ListingSortMode = "newest" | "price";
 
 type TicketExchangeClientProps = {
 	initialData: TicketExchangePageData;
@@ -440,6 +441,19 @@ const getListingSortTime = (listing: TicketExchangeListingView): number => {
 	return Number.isFinite(ms) ? ms : 0;
 };
 
+const getListingPriceSortRank = (listing: TicketExchangeListingView): number => {
+	if (listing.priceAmountMinor !== null && listing.priceCurrency) return 0;
+	if (listing.priceSource === "face_value") return 1;
+	return 2;
+};
+
+const getListingPriceSortValue = (listing: TicketExchangeListingView): number => {
+	if (listing.priceAmountMinor === null || !listing.priceCurrency) {
+		return Number.POSITIVE_INFINITY;
+	}
+	return listing.priceAmountMinor;
+};
+
 const getMyActivityStatusRank = (
 	status: TicketExchangeListingStatus,
 ): number => {
@@ -482,6 +496,14 @@ const getPreferredMarketplaceTab = (
 	summaries: TicketExchangeSummary[],
 	selectedEventKey: string | null,
 ): MarketplaceTabKey => {
+	if (selectedEventKey) {
+		const summary = summaries.find(
+			(item) => item.eventKey === selectedEventKey,
+		);
+		if ((summary?.sellingCount ?? 0) > 0) return "selling";
+		if ((summary?.lookingCount ?? 0) > 0) return "looking";
+		return "selling";
+	}
 	const relevantSummaries = selectedEventKey
 		? summaries.filter((summary) => summary.eventKey === selectedEventKey)
 		: summaries;
@@ -496,6 +518,28 @@ const getContactSetupPrompt = (
 	actionLabel: "reply" | "post" | "use Ticket Exchange" = "use Ticket Exchange",
 ): string =>
 	`To ${actionLabel}, you need ${TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT} contact methods. Your account email counts as one, so add WhatsApp, Instagram, or Twitter as a backup.`;
+
+const isSuggestedPriceApplied = (
+	value: string,
+	suggestedLabel: string | null,
+): boolean => {
+	if (!suggestedLabel) return false;
+	const normalizedValue = value.trim().toLowerCase();
+	const normalizedSuggestion = suggestedLabel.trim().toLowerCase();
+	if (!normalizedValue) return false;
+	if (normalizedValue === normalizedSuggestion) return true;
+
+	const suggestedPrice = parseTicketExchangePriceLabel(suggestedLabel);
+	const currentPrice = parseTicketExchangePriceLabel(value, {
+		fallbackCurrency: suggestedPrice.currency,
+	});
+	return Boolean(
+		suggestedPrice.amountMinor !== null &&
+			currentPrice.amountMinor !== null &&
+			suggestedPrice.amountMinor === currentPrice.amountMinor &&
+			suggestedPrice.currency === currentPrice.currency,
+	);
+};
 
 export function TicketExchangeClient({
 	initialData,
@@ -515,8 +559,8 @@ export function TicketExchangeClient({
 	const lastMarketplaceTabRef = useRef<MarketplaceTabKey>(
 		initialMarketplaceTab,
 	);
-	const [listingSortDirection, setListingSortDirection] =
-		useState<ListingSortDirection>("newest");
+	const [listingSortMode, setListingSortMode] =
+		useState<ListingSortMode>("newest");
 	const [isLoginOpen, setIsLoginOpen] = useState(false);
 	const [isProfileOpen, setIsProfileOpen] = useState(!initialData.profile);
 	const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -576,6 +620,15 @@ export function TicketExchangeClient({
 		lastMarketplaceTabRef.current = preferredTab;
 		setActiveTab(preferredTab);
 	}, [data.summaries, selectedEventKey]);
+
+	const canSortListingsByPrice = Boolean(
+		selectedEventKey && (activeTab === "selling" || activeTab === "looking"),
+	);
+
+	useEffect(() => {
+		if (canSortListingsByPrice || listingSortMode !== "price") return;
+		setListingSortMode("newest");
+	}, [canSortListingsByPrice, listingSortMode]);
 
 	useEffect(() => {
 		trackTicketExchangeAnalytics({
@@ -724,6 +777,17 @@ export function TicketExchangeClient({
 	);
 	const priceHelperId = "ticket-exchange-price-helper";
 	const priceCommunityId = "ticket-exchange-price-community";
+	const shouldShowPriceSuggestionAction = Boolean(
+		listingPricingSuggestion.eventSuggestedLabel &&
+			!isSuggestedPriceApplied(
+				listingForm.priceLabel,
+				listingPricingSuggestion.eventSuggestedLabel,
+			),
+	);
+	const priceSuggestionActionLabel =
+		listingPricingSuggestion.eventSuggestedLabel
+			? `use ${listingPricingSuggestion.eventSuggestedLabel}`
+			: "use listed";
 	const activeMarketplaceTab =
 		activeTab === "mine"
 			? null
@@ -764,7 +828,6 @@ export function TicketExchangeClient({
 				: listingsForEvent.filter((listing) =>
 						isPublicTicketExchangeListingVisible(listing, activeTab, nowMs),
 					);
-		const sortMultiplier = listingSortDirection === "newest" ? -1 : 1;
 		return [...filteredListings].sort((left, right) => {
 			if (activeTab === "mine") {
 				const statusDelta =
@@ -772,11 +835,27 @@ export function TicketExchangeClient({
 					getMyActivityStatusRank(right.effectiveStatus);
 				if (statusDelta !== 0) return statusDelta;
 			}
+			if (listingSortMode === "price" && canSortListingsByPrice) {
+				const priceRankDelta =
+					getListingPriceSortRank(left) - getListingPriceSortRank(right);
+				if (priceRankDelta !== 0) return priceRankDelta;
+				const priceDelta =
+					getListingPriceSortValue(left) - getListingPriceSortValue(right);
+				if (priceDelta !== 0) {
+					return activeTab === "looking" ? -priceDelta : priceDelta;
+				}
+			}
 			const createdDelta = getListingSortTime(left) - getListingSortTime(right);
-			if (createdDelta !== 0) return createdDelta * sortMultiplier;
-			return left.id.localeCompare(right.id) * sortMultiplier;
+			if (createdDelta !== 0) return createdDelta * -1;
+			return left.id.localeCompare(right.id) * -1;
 		});
-	}, [activeTab, data.listings, listingSortDirection, selectedEventKey]);
+	}, [
+		activeTab,
+		canSortListingsByPrice,
+		data.listings,
+		listingSortMode,
+		selectedEventKey,
+	]);
 	const firstReplyTourListingId = useMemo(
 		() =>
 			visibleListings.find(
@@ -788,9 +867,11 @@ export function TicketExchangeClient({
 		[visibleListings],
 	);
 	const sortListingsButtonLabel =
-		listingSortDirection === "newest"
-			? "Showing newest listings first"
-			: "Showing oldest listings first";
+		listingSortMode === "price"
+			? activeTab === "looking"
+				? "Showing highest budgets first"
+				: "Showing lowest prices first"
+			: "Showing newest listings first";
 	const trackExchangeFriction = ({
 		reason,
 		surface,
@@ -844,16 +925,13 @@ export function TicketExchangeClient({
 		});
 	};
 
-	const toggleListingSortDirection = () => {
-		setListingSortDirection((current) => {
-			const next = current === "newest" ? "oldest" : "newest";
-			trackTicketExchangeAnalytics({
-				actionType: "sort_change",
-				eventKey: selectedEventKey,
-				surface: "marketplace",
-				detail: next,
-			});
-			return next;
+	const selectListingSortMode = (next: ListingSortMode) => {
+		setListingSortMode(next);
+		trackTicketExchangeAnalytics({
+			actionType: "sort_change",
+			eventKey: selectedEventKey,
+			surface: "marketplace",
+			detail: next,
 		});
 	};
 
@@ -1307,7 +1385,6 @@ export function TicketExchangeClient({
 	};
 
 	const selectEvent = (eventKey: string | null) => {
-		setSelectedEventKey(eventKey);
 		trackTicketExchangeAnalytics({
 			actionType: "event_select",
 			eventKey,
@@ -1413,13 +1490,6 @@ export function TicketExchangeClient({
 			validateTicketExchangeQuantityLabel(listingForm.quantityLabel);
 			setListingQuantityError(null);
 			validateTicketExchangePriceLabel(listingForm.priceLabel);
-			if (selectedListingEvent) {
-				validateTicketExchangeFairPricePolicy({
-					event: selectedListingEvent,
-					listingType: listingForm.listingType,
-					priceLabel: listingForm.priceLabel,
-				});
-			}
 			setListingPriceError(null);
 		} catch (error) {
 			const message =
@@ -2110,7 +2180,7 @@ export function TicketExchangeClient({
 							<X className="h-4 w-4" />
 						</Button>
 					</div>
-					<div className="grid gap-x-3 gap-y-4 lg:grid-cols-2">
+					<div className="grid items-start gap-x-3 gap-y-4 lg:grid-cols-2">
 						<Field label="What are you doing?" className="gap-2">
 							<div className="grid grid-cols-2 gap-2">
 								{(["selling", "looking"] as const).map((type) => (
@@ -2198,36 +2268,61 @@ export function TicketExchangeClient({
 							error={listingPriceError}
 							errorId="ticket-exchange-price-error"
 						>
-							<Input
-								id="ticket-exchange-price-label"
-								value={listingForm.priceLabel}
-								onChange={(event) => {
-									if (listingPriceError) setListingPriceError(null);
-									setListingForm((current) => ({
-										...current,
-										priceLabel: event.target.value,
-									}));
-								}}
-								placeholder={
-									listingForm.listingType === "selling"
-										? "Required - £35 each / face value"
-										: "Required - £35 / face value"
-								}
-								required
-								aria-invalid={Boolean(listingPriceError)}
-								aria-describedby={
-									[
-										priceHelperId,
-										listingPricingSuggestion.communityRangeLabel
-											? priceCommunityId
+							<div className="relative">
+								<Input
+									id="ticket-exchange-price-label"
+									value={listingForm.priceLabel}
+									onChange={(event) => {
+										if (listingPriceError) setListingPriceError(null);
+										setListingForm((current) => ({
+											...current,
+											priceLabel: event.target.value,
+										}));
+									}}
+									placeholder={
+										listingForm.listingType === "selling"
+											? "Required - £35 each / face value"
+											: "Required - £35 / face value"
+									}
+									required
+									aria-invalid={Boolean(listingPriceError)}
+									aria-describedby={
+										[
+											priceHelperId,
+											listingPricingSuggestion.communityRangeLabel
+												? priceCommunityId
+												: null,
+											listingPriceError ? "ticket-exchange-price-error" : null,
+										]
+											.filter(Boolean)
+											.join(" ") || undefined
+									}
+									className={cn(
+										CREATE_LISTING_CONTROL_CLASS,
+										shouldShowPriceSuggestionAction
+											? "pr-24"
 											: null,
-										listingPriceError ? "ticket-exchange-price-error" : null,
-									]
-										.filter(Boolean)
-										.join(" ") || undefined
-								}
-								className={CREATE_LISTING_CONTROL_CLASS}
-							/>
+									)}
+								/>
+								{shouldShowPriceSuggestionAction ? (
+									<button
+										type="button"
+										disabled={isCreatingListing}
+										aria-label={`Use listed price ${listingPricingSuggestion.eventSuggestedLabel}`}
+										onClick={() => {
+											setListingPriceError(null);
+											setListingForm((current) => ({
+												...current,
+												priceLabel:
+													listingPricingSuggestion.eventSuggestedLabel ?? "",
+											}));
+										}}
+										className="absolute right-2 top-1/2 inline-flex h-6 max-w-20 -translate-y-1/2 items-center rounded-md bg-muted/55 px-2 text-[11px] font-medium leading-none text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+									>
+										<span className="truncate">{priceSuggestionActionLabel}</span>
+									</button>
+								) : null}
+							</div>
 							<div className="grid gap-1.5 text-xs leading-5 text-muted-foreground">
 								<p id={priceHelperId}>{listingPricingSuggestion.helperText}</p>
 								{listingPricingSuggestion.communityRangeLabel ? (
@@ -2235,45 +2330,28 @@ export function TicketExchangeClient({
 										{listingPricingSuggestion.communityRangeLabel}
 									</p>
 								) : null}
-								{listingPricingSuggestion.eventSuggestedLabel ? (
-									<div>
-										<button
-											type="button"
-											disabled={isCreatingListing}
-											onClick={() => {
-												setListingPriceError(null);
-												setListingForm((current) => ({
-													...current,
-													priceLabel:
-														listingPricingSuggestion.eventSuggestedLabel ?? "",
-												}));
-											}}
-											className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-border bg-background/70 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
-										>
-											<Check className="h-3.5 w-3.5" />
-											Use listed price
-										</button>
-									</div>
-								) : null}
 							</div>
 						</Field>
 						<Field label="Expires after">
-							<select
-								value={listingForm.expiryHours}
-								onChange={(event) =>
-									setListingForm((current) => ({
-										...current,
-										expiryHours: Number(event.target.value),
-									}))
-								}
-								className="h-11 w-full rounded-xl border border-input bg-transparent px-3 text-sm"
-							>
-								{TICKET_EXCHANGE_EXPIRY_OPTIONS.map((option) => (
-									<option key={option.hours} value={option.hours}>
-										{option.label}
-									</option>
-								))}
-							</select>
+							<div className="relative">
+								<select
+									value={listingForm.expiryHours}
+									onChange={(event) =>
+										setListingForm((current) => ({
+											...current,
+											expiryHours: Number(event.target.value),
+										}))
+									}
+									className="h-11 w-full appearance-none rounded-xl border border-input bg-transparent px-3 pr-10 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+								>
+									{TICKET_EXCHANGE_EXPIRY_OPTIONS.map((option) => (
+										<option key={option.hours} value={option.hours}>
+											{option.label}
+										</option>
+									))}
+								</select>
+								<ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+							</div>
 						</Field>
 						<Field label="Contact people can see">
 							<ContactMethodPicker
@@ -2559,25 +2637,34 @@ export function TicketExchangeClient({
 								))}
 							</div>
 							<div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-1.5 sm:flex sm:shrink-0">
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									aria-label={sortListingsButtonLabel}
-									title={sortListingsButtonLabel}
-									onClick={toggleListingSortDirection}
-									className={cn(
-										"h-9 w-9 border-border/65 bg-background/48 p-0 text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-xl",
-										CONTROL_TRANSITION,
-										"hover:border-foreground/20 hover:bg-background/70 hover:text-foreground",
-									)}
-								>
-									{listingSortDirection === "newest" ? (
-										<SortDesc className="h-3.5 w-3.5" />
-									) : (
-										<SortAsc className="h-3.5 w-3.5" />
-									)}
-								</Button>
+								{canSortListingsByPrice ? (
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										aria-label={sortListingsButtonLabel}
+										aria-pressed={listingSortMode === "price"}
+										title={sortListingsButtonLabel}
+										onClick={() =>
+											selectListingSortMode(
+												listingSortMode === "newest" ? "price" : "newest",
+											)
+										}
+										className={cn(
+											"h-9 w-9 border-border/65 bg-background/48 p-0 text-muted-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-xl",
+											CONTROL_TRANSITION,
+											listingSortMode === "price"
+												? "border-foreground/18 bg-foreground/8 text-foreground shadow-[0_12px_28px_-24px_rgba(20,16,12,0.76),inset_0_1px_0_rgba(255,255,255,0.58)]"
+												: "hover:border-foreground/20 hover:bg-background/70 hover:text-foreground",
+										)}
+									>
+										{listingSortMode === "price" ? (
+											<SortAsc className="h-3.5 w-3.5" />
+										) : (
+											<SortDesc className="h-3.5 w-3.5" />
+										)}
+									</Button>
+								) : null}
 								<Button
 									type="button"
 									variant="outline"

@@ -2,7 +2,6 @@ import {
 	buildTicketExchangePricingSuggestion,
 	getTicketExchangeFairPriceContext,
 	parseTicketExchangePriceLabel,
-	validateTicketExchangeFairPricePolicy,
 } from "@/features/ticket-exchange/pricing";
 import type { TicketExchangeListingType } from "@/features/ticket-exchange/types";
 import { describe, expect, it } from "vitest";
@@ -39,39 +38,15 @@ describe("ticket exchange pricing", () => {
 		});
 	});
 
-	it("blocks clear selling markup above the listed event price", () => {
-		expect(() =>
-			validateTicketExchangeFairPricePolicy({
-				event,
-				listingType: "selling",
-				priceLabel: "£43",
-			}),
-		).toThrow("face value or less");
+	it("keeps OOOC event pricing as guidance rather than enforcement", () => {
+		const suggestion = buildTicketExchangePricingSuggestion({
+			event,
+			listingType: "selling",
+			listings: [listing("selling", 5000, "GBP")],
+		});
 
-		expect(() =>
-			validateTicketExchangeFairPricePolicy({
-				event,
-				listingType: "selling",
-				priceLabel: "£42.50 including fees",
-			}),
-		).not.toThrow();
-	});
-
-	it("does not block looking budgets or ambiguous face-value labels", () => {
-		expect(() =>
-			validateTicketExchangeFairPricePolicy({
-				event,
-				listingType: "looking",
-				priceLabel: "£100",
-			}),
-		).not.toThrow();
-		expect(() =>
-			validateTicketExchangeFairPricePolicy({
-				event,
-				listingType: "selling",
-				priceLabel: "FV",
-			}),
-		).not.toThrow();
+		expect(suggestion.eventSuggestedLabel).toBe("£42.50");
+		expect(suggestion.helperText).toContain("Sell for what you paid or less");
 	});
 
 	it("builds subtle event and community guidance from clean same-currency listings", () => {
@@ -91,7 +66,7 @@ describe("ticket exchange pricing", () => {
 		expect(suggestion.communityRangeLabel).toBe(
 			"Recent listings: usually £35-£42.50",
 		);
-		expect(suggestion.helperText).toContain("no markup");
+		expect(suggestion.helperText).toContain("No markup");
 	});
 });
 
