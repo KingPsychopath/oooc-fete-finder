@@ -39,6 +39,11 @@ const revalidateAdminAndTickets = (eventKey?: string | null) => {
 	}
 };
 
+const ticketListingAdminHref = (listingId: string): string =>
+	`/admin/content#ticket-listing-${encodeURIComponent(listingId)}`;
+
+const ticketModerationAdminHref = "/admin/content#ticket-exchange-moderation";
+
 export async function getTicketExchangeAdminDashboard(): Promise<{
 	success: boolean;
 	dashboard?: TicketExchangeAdminDashboard;
@@ -91,7 +96,7 @@ export async function updateTicketExchangeListingStatusAsAdmin(input: {
 			summary: `Ticket Exchange listing marked ${status}`,
 			metadata: { status },
 			severity: status === "removed" ? "destructive" : "info",
-			href: "/admin/content#ticket-exchange-moderation",
+			href: ticketListingAdminHref(listingId),
 		});
 		revalidateAdminAndTickets(updateResult.eventKey);
 		return {
@@ -137,7 +142,9 @@ export async function reviewTicketExchangeReportAsAdmin(input: {
 				reviewNote: input.reviewNote ?? "",
 				listingId: reviewResult.listingId,
 			},
-			href: "/admin/content#ticket-exchange-moderation",
+			href: reviewResult.listingId
+				? ticketListingAdminHref(reviewResult.listingId)
+				: ticketModerationAdminHref,
 		});
 		revalidateAdminAndTickets(reviewResult.eventKey);
 		return {

@@ -130,6 +130,14 @@ type UserSummaryRow = {
 	event_submission_count: number;
 	plan_count: number;
 	saved_event_count: number;
+	audience_signal_count: number;
+	audience_search_count: number;
+	audience_filter_count: number;
+	audience_plan_signal_count: number;
+	audience_event_count: number;
+	audience_genre_count: number;
+	audience_last_signal_at: Date | string | null;
+	audience_has_context: boolean;
 	total_count?: number;
 };
 
@@ -287,6 +295,14 @@ const toUserSummary = (row: UserSummaryRow): AdminUserSummary => ({
 	eventSubmissionCount: row.event_submission_count,
 	planCount: row.plan_count,
 	savedEventCount: row.saved_event_count,
+	audienceSignalCount: row.audience_signal_count,
+	audienceSearchCount: row.audience_search_count,
+	audienceFilterCount: row.audience_filter_count,
+	audiencePlanSignalCount: row.audience_plan_signal_count,
+	audienceEventCount: row.audience_event_count,
+	audienceGenreCount: row.audience_genre_count,
+	audienceLastSignalAt: toIso(row.audience_last_signal_at),
+	audienceHasContext: row.audience_has_context,
 });
 
 export class UserPolicyRepository {

@@ -30,6 +30,18 @@ const STATUS_TABS: Array<{ key: EventSubmissionStatus; label: string }> = [
 	{ key: "declined", label: "Declined" },
 ];
 
+const isSubmissionStatus = (
+	value: string | null,
+): value is EventSubmissionStatus =>
+	value === "pending" || value === "accepted" || value === "declined";
+
+const getInitialSubmissionStatus = (): EventSubmissionStatus => {
+	if (typeof window === "undefined") return "pending";
+	const params = new URLSearchParams(window.location.search);
+	const requestedStatus = params.get("submissionStatus");
+	return isSubmissionStatus(requestedStatus) ? requestedStatus : "pending";
+};
+
 type ReviewQueueFilter =
 	| "all"
 	| "new_event"
@@ -153,8 +165,9 @@ export const EventSubmissionsCard = ({
 	const [payload, setPayload] = useState<DashboardPayload | null>(
 		initialPayload ?? null,
 	);
-	const [activeStatus, setActiveStatus] =
-		useState<EventSubmissionStatus>("pending");
+	const [activeStatus, setActiveStatus] = useState<EventSubmissionStatus>(
+		getInitialSubmissionStatus,
+	);
 	const [activeQueueFilter, setActiveQueueFilter] =
 		useState<ReviewQueueFilter>("all");
 	const [isLoading, setIsLoading] = useState(false);
@@ -190,10 +203,36 @@ export const EventSubmissionsCard = ({
 		void loadDashboard();
 	}, [initialPayload?.success, loadDashboard]);
 
+	const findSubmissionStatus = useCallback(
+		(submissionId: string): EventSubmissionStatus | null => {
+			if (!payload?.success) return null;
+			for (const status of ["pending", "accepted", "declined"] as const) {
+				if (
+					getSubmissionRowsByStatus(payload, status).some(
+						(row) => row.id === submissionId,
+					)
+				) {
+					return status;
+				}
+			}
+			return null;
+		},
+		[payload],
+	);
+
 	useEffect(() => {
 		const revealHashedSubmission = () => {
 			if (!window.location.hash.startsWith("#submission-")) return;
-			setActiveStatus("pending");
+			const submissionId = window.location.hash
+				.replace(/^#submission-/, "")
+				.trim();
+			const params = new URLSearchParams(window.location.search);
+			const requestedStatus = params.get("submissionStatus");
+			const targetStatus =
+				(isSubmissionStatus(requestedStatus) ? requestedStatus : null) ??
+				findSubmissionStatus(submissionId) ??
+				"pending";
+			setActiveStatus(targetStatus);
 			setActiveQueueFilter("all");
 			window.setTimeout(() => {
 				document
@@ -206,7 +245,7 @@ export const EventSubmissionsCard = ({
 		window.addEventListener("hashchange", revealHashedSubmission);
 		return () =>
 			window.removeEventListener("hashchange", revealHashedSubmission);
-	}, []);
+	}, [findSubmissionStatus]);
 
 	const withMutation = useCallback(
 		async (

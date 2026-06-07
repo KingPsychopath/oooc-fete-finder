@@ -200,16 +200,16 @@ export function AdminActivityTimelineCard({
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap gap-2">
-						<Badge variant="outline">{totalCount} loaded</Badge>
+						<Badge variant="outline">{totalCount} audit events loaded</Badge>
 						{warningCount > 0 && (
 							<Badge variant="secondary">
-								{warningCount} warning action
-								{warningCount === 1 ? "" : "s"}
+								{warningCount} warning event
+								{warningCount === 1 ? "" : "s"} in history
 							</Badge>
 						)}
 						{destructiveCount > 0 && (
 							<Badge variant="outline">
-								{destructiveCount} destructive action
+								{destructiveCount} destructive event
 								{destructiveCount === 1 ? "" : "s"} in history
 							</Badge>
 						)}
@@ -252,6 +252,7 @@ export function AdminActivityTimelineCard({
 									setVisibleLimit(18);
 								}}
 								className="h-8 bg-transparent text-xs outline-none"
+								title="Filter audit history by admin area"
 							>
 								{CATEGORY_OPTIONS.map((category) => (
 									<option key={category} value={category}>
@@ -269,6 +270,7 @@ export function AdminActivityTimelineCard({
 								setVisibleLimit(18);
 							}}
 							className="h-8 rounded-md border bg-background px-2 text-xs"
+							title="Filter audit history by severity"
 						>
 							{SEVERITY_OPTIONS.map((severity) => (
 								<option key={severity} value={severity}>
@@ -283,6 +285,7 @@ export function AdminActivityTimelineCard({
 							variant="outline"
 							size="sm"
 							className="gap-1.5"
+							title={`Sort audit history ${sortMode === "newest" ? "oldest first" : "newest first"}`}
 							onClick={() =>
 								setSortMode((current) =>
 									current === "newest" ? "oldest" : "newest",
@@ -323,6 +326,7 @@ export function AdminActivityTimelineCard({
 								variant="ghost"
 								size="sm"
 								className="h-7 px-2 text-xs"
+								title="Clear audit history filters"
 								onClick={clearFilters}
 							>
 								Clear filters
@@ -330,8 +334,8 @@ export function AdminActivityTimelineCard({
 						</>
 					) : (
 						<span>
-							Showing the latest audit events. Use filters to narrow by
-							actor, target, category, or severity.
+							Showing the latest audit events. Use filters to narrow by actor,
+							target, category, or severity.
 						</span>
 					)}
 				</div>
@@ -350,6 +354,11 @@ export function AdminActivityTimelineCard({
 									setVisibleLimit(18);
 								}}
 								disabled={categoryCount === 0}
+								title={
+									categoryCount === 0
+										? `No ${CATEGORY_LABELS[category].toLowerCase()} audit events loaded`
+										: `Show ${CATEGORY_LABELS[category].toLowerCase()} audit events`
+								}
 								className={cn(
 									"rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted/40 disabled:cursor-default disabled:opacity-55 disabled:hover:bg-transparent",
 									categoryFilter === category &&
@@ -441,6 +450,7 @@ export function AdminActivityTimelineCard({
 														<Link
 															href={withAdminBasePath(event.href)}
 															className="inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-xs font-medium transition-colors hover:bg-muted"
+															title={`${openLabelForEvent(event)} from audit history`}
 														>
 															{openLabelForEvent(event)}
 															<ExternalLink className="h-3 w-3" />
@@ -462,6 +472,7 @@ export function AdminActivityTimelineCard({
 							type="button"
 							variant="outline"
 							size="sm"
+							title="Load more audit events into the visible history"
 							onClick={() => setVisibleLimit((current) => current + 18)}
 						>
 							Show More Activity

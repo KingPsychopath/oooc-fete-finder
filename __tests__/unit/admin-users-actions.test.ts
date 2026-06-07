@@ -6,6 +6,7 @@ type RepositoryMock = {
 	listGlobalNotices: ReturnType<typeof vi.fn>;
 	listRecentAdminNotes: ReturnType<typeof vi.fn>;
 	createNotice: ReturnType<typeof vi.fn>;
+	updateUserStatus: ReturnType<typeof vi.fn>;
 };
 
 const createRepositoryMock = (): RepositoryMock => ({
@@ -75,6 +76,31 @@ const createRepositoryMock = (): RepositoryMock => ({
 		revokedBy: null,
 		internalNote: "",
 		isActive: false,
+	}),
+	updateUserStatus: vi.fn().mockResolvedValue({
+		userId: "019b0000-0000-7000-8000-000000000001",
+		email: "owner@example.com",
+		firstName: "Owner",
+		lastName: "One",
+		status: "deleted",
+		source: "auth",
+		firstSeenAt: "2026-06-01T09:00:00.000Z",
+		lastSeenAt: "2026-06-02T09:00:00.000Z",
+		lastAuthenticatedAt: "2026-06-02T09:00:00.000Z",
+		marketingConsent: true,
+		eventUpdateConsent: true,
+		activeRestrictionCount: 0,
+		openNoticeCount: 0,
+		adminNoteCount: 0,
+		ticketListingCount: 0,
+		activeTicketListingCount: 0,
+		openTicketReportCount: 0,
+		ticketReportCount: 0,
+		ticketReportsMadeCount: 0,
+		ticketReportsAgainstListingCount: 0,
+		eventSubmissionCount: 0,
+		planCount: 0,
+		savedEventCount: 0,
 	}),
 });
 
@@ -208,6 +234,40 @@ describe("admin user actions", () => {
 				ctaLabel: "Cta goes here",
 				ctaHref: "https://google.com/",
 			}),
+		);
+	});
+
+	it("marks managed users deleted through the status action with audit metadata", async () => {
+		const repository = createRepositoryMock();
+		const { actions, recordAdminActivity, revalidatePath } =
+			await loadActions(repository);
+
+		const result = await actions.updateManagedUserStatusAsAdmin({
+			userId: "019b0000-0000-7000-8000-000000000001",
+			email: "owner@example.com",
+			status: "deleted",
+			reason: "User requested account closure.",
+		});
+
+		expect(result).toEqual({ success: true });
+		expect(repository.updateUserStatus).toHaveBeenCalledWith({
+			userId: "019b0000-0000-7000-8000-000000000001",
+			email: "owner@example.com",
+			status: "deleted",
+		});
+		expect(recordAdminActivity).toHaveBeenCalledWith(
+			expect.objectContaining({
+				action: "user.status.updated",
+				metadata: {
+					status: "deleted",
+					reason: "User requested account closure.",
+				},
+				severity: "warning",
+			}),
+		);
+		expect(revalidatePath).toHaveBeenCalledWith("/admin/users");
+		expect(revalidatePath).toHaveBeenCalledWith(
+			"/admin/users/019b0000-0000-7000-8000-000000000001",
 		);
 	});
 });

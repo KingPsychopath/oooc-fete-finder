@@ -71,6 +71,9 @@ export const SearchChipSettingsCard = ({
 	const [errorMessage, setErrorMessage] = useState(
 		initialSettings?.success ? "" : (initialSettings?.error ?? ""),
 	);
+	const toggleTitle = enabled
+		? "Disable dynamic homepage chips; curated static chips stay visible"
+		: "Enable dynamic homepage chips from anonymous aggregate search signals";
 
 	const applySettings = useCallback(
 		(
@@ -333,6 +336,7 @@ export const SearchChipSettingsCard = ({
 						variant={enabled ? "outline" : "default"}
 						disabled={isSaving || isRefreshing}
 						onClick={handleToggleEnabled}
+						title={toggleTitle}
 					>
 						{enabled ? "Turn Off Dynamic Chips" : "Turn On Dynamic Chips"}
 					</Button>
@@ -341,6 +345,7 @@ export const SearchChipSettingsCard = ({
 						variant="outline"
 						onClick={handleRefresh}
 						disabled={isSaving || isRefreshing}
+						title="Reload dynamic chip settings and signal debug data"
 					>
 						{isRefreshing ? "Refreshing..." : "Refresh"}
 					</Button>

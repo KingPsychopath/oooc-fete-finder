@@ -108,6 +108,11 @@ export const LiveEventsSnapshotCard = ({
 						variant="outline"
 						disabled={isLoading}
 						onClick={() => void loadSnapshot("runtime")}
+						title={
+							isLoading
+								? "Wait for the current snapshot check to finish"
+								: "Read the event payload currently served by the runtime"
+						}
 					>
 						{isLoading && lastCheckMode === "runtime"
 							? "Refreshing..."
@@ -119,6 +124,11 @@ export const LiveEventsSnapshotCard = ({
 						variant="outline"
 						disabled={isLoading}
 						onClick={() => void loadSnapshot("source")}
+						title={
+							isLoading
+								? "Wait for the current snapshot check to finish"
+								: "Dry-run the configured source without mutating runtime state"
+						}
 					>
 						{isLoading && lastCheckMode === "source"
 							? "Checking..."
@@ -188,6 +198,11 @@ export const LiveEventsSnapshotCard = ({
 									size="sm"
 									variant="outline"
 									onClick={() => setIsExpanded((current) => !current)}
+									title={
+										isExpanded
+											? `Collapse to the first ${DEFAULT_VISIBLE_ROWS} rows`
+											: `Show all ${rows.length} snapshot rows`
+									}
 								>
 									{isExpanded ? "Show less" : "Show more"}
 								</Button>

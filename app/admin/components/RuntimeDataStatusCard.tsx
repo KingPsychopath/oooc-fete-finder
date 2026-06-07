@@ -158,7 +158,15 @@ export const RuntimeDataStatusCard = ({
 				)}
 
 				<div className="flex flex-wrap items-center gap-3">
-					<Button onClick={onRefresh} disabled={refreshing}>
+					<Button
+						onClick={onRefresh}
+						disabled={refreshing}
+						title={
+							refreshing
+								? "Homepage revalidation is already running"
+								: "Revalidate the public homepage using the current runtime data source"
+						}
+					>
 						{refreshing ? "Revalidating..." : "Revalidate Homepage"}
 					</Button>
 				</div>

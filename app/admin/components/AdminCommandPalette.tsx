@@ -114,6 +114,7 @@ export function AdminCommandPalette({
 				size="sm"
 				onClick={openPalette}
 				className={cn("gap-2", triggerClassName)}
+				title="Open admin command palette"
 			>
 				<Search className="h-3.5 w-3.5" />
 				<span>Command</span>
@@ -151,6 +152,7 @@ export function AdminCommandPalette({
 							placeholder="Try: submissions, factory reset, featured, csv"
 							value={query}
 							onChange={(event) => setQuery(event.target.value)}
+							title="Search admin areas and section anchors"
 							onKeyDown={(event) => {
 								if (event.key === "Enter" && filteredCommands.length > 0) {
 									event.preventDefault();
@@ -176,6 +178,7 @@ export function AdminCommandPalette({
 												<button
 													type="button"
 													onClick={() => navigateToCommand(item.path)}
+													title={`Jump to ${item.label}`}
 													className={cn(
 														"w-full px-3 py-2.5 text-left transition-colors hover:bg-muted/70",
 														isCurrent && "bg-muted/50",

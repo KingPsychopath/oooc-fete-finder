@@ -28,6 +28,12 @@ const assertAdmin = async () => {
 	}
 };
 
+const paidOrderAdminHref = (
+	activationId: string,
+	status: PartnerActivationStatus,
+): string =>
+	`/admin/placements?activationStatus=${encodeURIComponent(status)}#partner-activation-${encodeURIComponent(activationId)}`;
+
 const toPercent = (numerator: number, denominator: number): number => {
 	if (denominator <= 0) return 0;
 	return Math.round((numerator / denominator) * 1000) / 10;
@@ -276,7 +282,7 @@ export async function fulfillPartnerActivation(input: {
 				startAt: effectiveStartAt,
 				endAt: effectiveEndAt,
 			},
-			href: "/admin/placements#paid-orders-inbox",
+			href: paidOrderAdminHref(updated.id, "activated"),
 		});
 
 		return {
@@ -332,7 +338,7 @@ export async function updatePartnerActivationStatus(input: {
 			summary: `Paid order marked ${input.status}`,
 			metadata: { status: input.status },
 			severity: input.status === "dismissed" ? "warning" : "info",
-			href: "/admin/placements#paid-orders-inbox",
+			href: paidOrderAdminHref(updated.id, input.status),
 		});
 		return {
 			success: true,
@@ -392,7 +398,7 @@ export async function revokePartnerStatsLink(input: {
 			targetLabel: updated.eventName ?? updated.fulfilledEventKey,
 			summary: "Partner stats link revoked",
 			severity: "warning",
-			href: "/admin/placements#paid-orders-inbox",
+			href: paidOrderAdminHref(updated.id, "activated"),
 		});
 		return {
 			success: true,
@@ -458,7 +464,7 @@ export async function regeneratePartnerStatsLink(input: {
 			targetId: updated.id,
 			targetLabel: updated.eventName ?? updated.fulfilledEventKey,
 			summary: "Partner stats link regenerated",
-			href: "/admin/placements#paid-orders-inbox",
+			href: paidOrderAdminHref(updated.id, "activated"),
 		});
 		return {
 			success: true,
@@ -572,7 +578,7 @@ export async function generatePartnerStatsTestLink(input: {
 				startAt: reportWindow.startAt,
 				endAt: reportWindow.endAt,
 			},
-			href: "/admin/placements#paid-orders-inbox",
+			href: paidOrderAdminHref(updated.id, "activated"),
 		});
 
 		return {
@@ -716,7 +722,7 @@ export async function getOrCreatePartnerReportForPlacement(input: {
 				startAt,
 				endAt,
 			},
-			href: "/admin/placements#featured-events-manager",
+			href: paidOrderAdminHref(updated.id, "activated"),
 		});
 
 		return {

@@ -76,6 +76,7 @@ export default async function AdminPage() {
 					<Link
 						href={withAdminBasePath("/admin/operations#events-data-status")}
 						className="block rounded-md border bg-background/60 p-3 transition-colors hover:border-foreground/30 hover:bg-muted/35"
+						title="Open runtime data status"
 					>
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Runtime Source
@@ -85,10 +86,14 @@ export default async function AdminPage() {
 								runtimeDataStatus?.dataSource ?? "unknown",
 							)}
 						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Open runtime status
+						</p>
 					</Link>
 					<Link
 						href={withAdminBasePath("/admin/operations#live-site-snapshot")}
 						className="block rounded-md border bg-background/60 p-3 transition-colors hover:border-foreground/30 hover:bg-muted/35"
+						title="Open live runtime snapshot"
 					>
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							This Year&apos;s Events
@@ -96,10 +101,14 @@ export default async function AdminPage() {
 						<p className="mt-1 text-sm font-medium">
 							{runtimeDataStatus?.currentYearEventCount ?? 0}
 						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Open live snapshot
+						</p>
 					</Link>
 					<Link
 						href={withAdminBasePath("/admin/operations#data-store-controls")}
 						className="block rounded-md border bg-background/60 p-3 transition-colors hover:border-foreground/30 hover:bg-muted/35"
+						title="Open event store controls"
 					>
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Store Rows
@@ -107,13 +116,23 @@ export default async function AdminPage() {
 						<p className="mt-1 text-sm font-medium">
 							{runtimeDataStatus?.storeRowCount ?? 0}
 						</p>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Open store controls
+						</p>
 					</Link>
-					<div className="rounded-md border bg-background/60 p-3">
+					<Link
+						href={withAdminBasePath("/admin#admin-areas")}
+						className="block rounded-md border bg-background/60 p-3 transition-colors hover:border-foreground/30 hover:bg-muted/35"
+						title="Jump to admin area cards"
+					>
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Admin Areas
 						</p>
 						<p className="mt-1 text-sm font-medium">{adminAreas.length}</p>
-					</div>
+						<p className="mt-1 text-xs text-muted-foreground">
+							Jump to area cards
+						</p>
+					</Link>
 				</CardContent>
 			</Card>
 
@@ -135,7 +154,7 @@ export default async function AdminPage() {
 				error={activityOverview.success ? undefined : activityOverview.error}
 			/>
 
-			<div className="grid gap-4 xl:grid-cols-2">
+			<div id="admin-areas" className="grid scroll-mt-44 gap-4 xl:grid-cols-2">
 				{adminAreas.map((route) => (
 					<Card
 						key={route.key}

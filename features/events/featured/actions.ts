@@ -49,6 +49,9 @@ const normalizeEventKeys = (eventKeys: readonly string[]): string[] => [
 	...new Set(eventKeys.map((key) => key.trim()).filter(Boolean)),
 ];
 
+const featuredManagerHref = (entryId?: string): string =>
+	`/admin/placements?placementMode=spotlight#${entryId ? `placement-${encodeURIComponent(entryId)}` : "featured-events-manager"}`;
+
 export async function listFeaturedQueue(): Promise<{
 	success: boolean;
 	slotConfig?: ReturnType<typeof getFeatureSlotConfig>;
@@ -161,6 +164,15 @@ export async function scheduleFeaturedEvents(
 		const scheduledEventKeys = keys.filter(
 			(_, index) => results[index]?.status === "fulfilled",
 		);
+		const scheduledEntries = results
+			.filter(
+				(
+					result,
+				): result is PromiseFulfilledResult<
+					Awaited<ReturnType<typeof scheduleFeaturedEntry>>
+				> => result.status === "fulfilled",
+			)
+			.map((result) => result.value);
 		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.spotlight.scheduled",
@@ -179,9 +191,10 @@ export async function scheduleFeaturedEvents(
 				requestedStartAt,
 				durationHours,
 				eventKeys: scheduledEventKeys,
+				entryIds: scheduledEntries.map((entry) => entry.id),
 				failedEventKeys,
 			},
-			href: "/admin/placements#featured-events-manager",
+			href: featuredManagerHref(scheduledEntries[0]?.id),
 		});
 
 		if (failedEventKeys.length > 0) {
@@ -243,7 +256,7 @@ export async function cancelFeaturedSchedule(entryId: string): Promise<{
 			targetLabel: entryId,
 			summary: "Spotlight placement cancelled",
 			severity: "warning",
-			href: "/admin/placements#featured-events-manager",
+			href: featuredManagerHref(entryId),
 		});
 
 		return {
@@ -290,7 +303,7 @@ export async function rescheduleFeaturedEvent(
 			targetLabel: entryId,
 			summary: "Spotlight placement rescheduled",
 			metadata: { requestedStartAt, durationHours },
-			href: "/admin/placements#featured-events-manager",
+			href: featuredManagerHref(entryId),
 		});
 
 		return {
@@ -324,7 +337,7 @@ export async function clearFeaturedQueueHistory(): Promise<{
 			summary: `Cleared ${clearedCount} Spotlight queue/history entr${clearedCount === 1 ? "y" : "ies"}`,
 			metadata: { clearedCount },
 			severity: "destructive",
-			href: "/admin/placements#featured-events-manager",
+			href: featuredManagerHref(),
 		});
 
 		return {
@@ -357,7 +370,7 @@ export async function clearFeaturedQueue(): Promise<{
 			summary: `Cleared ${clearedCount} scheduled Spotlight entr${clearedCount === 1 ? "y" : "ies"}`,
 			metadata: { clearedCount },
 			severity: "destructive",
-			href: "/admin/placements#featured-events-manager",
+			href: featuredManagerHref(),
 		});
 		return {
 			success: true,
@@ -390,7 +403,7 @@ export async function clearFeaturedHistory(): Promise<{
 			summary: `Cleared ${clearedCount} Spotlight history entr${clearedCount === 1 ? "y" : "ies"}`,
 			metadata: { clearedCount },
 			severity: "destructive",
-			href: "/admin/placements#featured-events-manager",
+			href: featuredManagerHref(),
 		});
 		return {
 			success: true,

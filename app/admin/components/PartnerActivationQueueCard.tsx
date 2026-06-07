@@ -81,6 +81,23 @@ const STATUS_ORDER: PartnerActivationStatus[] = [
 	"dismissed",
 ];
 
+const isPartnerActivationStatus = (
+	value: string | null,
+): value is PartnerActivationStatus =>
+	value === "pending" ||
+	value === "processing" ||
+	value === "activated" ||
+	value === "dismissed";
+
+const getInitialActivationStatus = (): PartnerActivationStatus => {
+	if (typeof window === "undefined") return "pending";
+	const params = new URLSearchParams(window.location.search);
+	const requestedStatus = params.get("activationStatus");
+	return isPartnerActivationStatus(requestedStatus)
+		? requestedStatus
+		: "pending";
+};
+
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const inferTierFromPackageKey = (
@@ -170,8 +187,9 @@ export const PartnerActivationQueueCard = ({
 	);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isMutating, setIsMutating] = useState(false);
-	const [activeStatus, setActiveStatus] =
-		useState<PartnerActivationStatus>("pending");
+	const [activeStatus, setActiveStatus] = useState<PartnerActivationStatus>(
+		getInitialActivationStatus,
+	);
 	const [busyId, setBusyId] = useState<string | null>(null);
 	const [statusMessage, setStatusMessage] = useState("");
 	const [errorMessage, setErrorMessage] = useState("");
@@ -248,6 +266,28 @@ export const PartnerActivationQueueCard = ({
 		}
 		void loadDashboard();
 	}, [initialPayload, loadDashboard]);
+
+	useEffect(() => {
+		const revealHashedActivation = () => {
+			if (!window.location.hash.startsWith("#partner-activation-")) return;
+			const params = new URLSearchParams(window.location.search);
+			const requestedStatus = params.get("activationStatus");
+			if (isPartnerActivationStatus(requestedStatus)) {
+				setActiveStatus(requestedStatus);
+			}
+			setActivationSearchTerm("");
+			window.setTimeout(() => {
+				document
+					.getElementById(window.location.hash.slice(1))
+					?.scrollIntoView({ behavior: "smooth", block: "center" });
+			}, 120);
+		};
+
+		revealHashedActivation();
+		window.addEventListener("hashchange", revealHashedActivation);
+		return () =>
+			window.removeEventListener("hashchange", revealHashedActivation);
+	}, []);
 
 	const withMutation = useCallback(
 		async (id: string, status: PartnerActivationStatus) => {
@@ -917,9 +957,7 @@ export const PartnerActivationQueueCard = ({
 					{STATUS_LABEL[activeStatus].toLowerCase()}.
 				</p>
 				<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-					<Badge variant="secondary">
-						View: {STATUS_LABEL[activeStatus]}
-					</Badge>
+					<Badge variant="secondary">View: {STATUS_LABEL[activeStatus]}</Badge>
 					{activeFilterCount > 0 ? (
 						<>
 							<Badge variant="outline">
@@ -1002,6 +1040,7 @@ export const PartnerActivationQueueCard = ({
 							return (
 								<div
 									key={item.id}
+									id={`partner-activation-${item.id}`}
 									className="rounded-md border bg-background/60 p-3"
 								>
 									<div className="flex flex-wrap items-start justify-between gap-2">

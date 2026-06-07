@@ -48,6 +48,9 @@ const normalizeEventKeys = (eventKeys: readonly string[]): string[] => [
 	...new Set(eventKeys.map((key) => key.trim()).filter(Boolean)),
 ];
 
+const promotedManagerHref = (entryId?: string): string =>
+	`/admin/placements?placementMode=promoted#${entryId ? `placement-${encodeURIComponent(entryId)}` : "featured-events-manager"}`;
+
 export async function listPromotedQueue(): Promise<{
 	success: boolean;
 	slotConfig?: ReturnType<typeof getPromotedSlotConfig>;
@@ -156,6 +159,15 @@ export async function schedulePromotedEvents(
 		const scheduledEventKeys = keys.filter(
 			(_, index) => results[index]?.status === "fulfilled",
 		);
+		const scheduledEntries = results
+			.filter(
+				(
+					result,
+				): result is PromiseFulfilledResult<
+					Awaited<ReturnType<typeof schedulePromotedEntry>>
+				> => result.status === "fulfilled",
+			)
+			.map((result) => result.value);
 		revalidateEventsPaths(["/", "/feature-event"], { scope: "placements" });
 		await recordAdminActivity({
 			action: "placement.promoted.scheduled",
@@ -174,9 +186,10 @@ export async function schedulePromotedEvents(
 				requestedStartAt,
 				durationHours,
 				eventKeys: scheduledEventKeys,
+				entryIds: scheduledEntries.map((entry) => entry.id),
 				failedEventKeys,
 			},
-			href: "/admin/placements#featured-events-manager",
+			href: promotedManagerHref(scheduledEntries[0]?.id),
 		});
 		if (failedEventKeys.length > 0) {
 			return {
@@ -233,7 +246,7 @@ export async function cancelPromotedSchedule(entryId: string): Promise<{
 			targetLabel: entryId,
 			summary: "Promoted placement cancelled",
 			severity: "warning",
-			href: "/admin/placements#featured-events-manager",
+			href: promotedManagerHref(entryId),
 		});
 		return {
 			success: true,
@@ -276,7 +289,7 @@ export async function reschedulePromotedEvent(
 			targetLabel: entryId,
 			summary: "Promoted placement rescheduled",
 			metadata: { requestedStartAt, durationHours },
-			href: "/admin/placements#featured-events-manager",
+			href: promotedManagerHref(entryId),
 		});
 		return {
 			success: true,
@@ -309,7 +322,7 @@ export async function clearPromotedQueueHistory(): Promise<{
 			summary: `Cleared ${clearedCount} promoted queue/history entr${clearedCount === 1 ? "y" : "ies"}`,
 			metadata: { clearedCount },
 			severity: "destructive",
-			href: "/admin/placements#featured-events-manager",
+			href: promotedManagerHref(),
 		});
 		return {
 			success: true,
@@ -341,7 +354,7 @@ export async function clearPromotedQueue(): Promise<{
 			summary: `Cleared ${clearedCount} scheduled promoted entr${clearedCount === 1 ? "y" : "ies"}`,
 			metadata: { clearedCount },
 			severity: "destructive",
-			href: "/admin/placements#featured-events-manager",
+			href: promotedManagerHref(),
 		});
 		return {
 			success: true,
@@ -374,7 +387,7 @@ export async function clearPromotedHistory(): Promise<{
 			summary: `Cleared ${clearedCount} promoted history entr${clearedCount === 1 ? "y" : "ies"}`,
 			metadata: { clearedCount },
 			severity: "destructive",
-			href: "/admin/placements#featured-events-manager",
+			href: promotedManagerHref(),
 		});
 		return {
 			success: true,

@@ -254,7 +254,7 @@ export async function declineEventSubmission(
 			summary: `${reviewed.payload.eventName} submission declined`,
 			metadata: { reason: normalizedReason },
 			severity: "warning",
-			href: "/admin/content#event-submissions",
+			href: `/admin/content?submissionStatus=declined#submission-${encodeURIComponent(reviewed.id)}`,
 		});
 
 		return {
@@ -377,7 +377,7 @@ export async function acceptEventSubmission(
 			targetLabel: reviewed.payload.eventName,
 			summary: `${reviewed.payload.eventName} submission accepted and published`,
 			metadata: { acceptedEventKey },
-			href: "/admin/content#event-submissions",
+			href: `/admin/content?submissionStatus=accepted#submission-${encodeURIComponent(reviewed.id)}`,
 		});
 
 		return {

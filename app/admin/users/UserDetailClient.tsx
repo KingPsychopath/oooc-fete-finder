@@ -541,6 +541,36 @@ export function UserDetailClient({
 		});
 	};
 
+	const submitStatusChange = () => {
+		if (!userId || !hasStatusReason) return;
+		if (nextStatus === user?.status) {
+			setErrorMessage("Choose a different status before updating.");
+			setStatusMessage("");
+			return;
+		}
+		if (
+			nextStatus === "deleted" &&
+			!window.confirm(
+				`Mark ${email ?? userId} as deleted? This is a managed-user status change, not a hard delete. The user may be blocked from account actions until restored.`,
+			)
+		) {
+			return;
+		}
+		runMutation(
+			() =>
+				updateManagedUserStatusAsAdmin({
+					userId,
+					email,
+					status: nextStatus,
+					reason: statusReason,
+				}),
+			nextStatus === "deleted"
+				? "User marked deleted"
+				: `User status changed to ${statusLabel(nextStatus)}`,
+			() => setStatusReason(""),
+		);
+	};
+
 	const setNoticeAcknowledgementRequired = (checked: boolean) => {
 		setNoticeRequiresAck(checked);
 		setNoticeDismissible(!checked);
@@ -1703,6 +1733,10 @@ export function UserDetailClient({
 						<CardContent className="space-y-4 pt-4">
 							<div className="space-y-2 rounded-lg border p-3">
 								<p className="text-sm font-semibold">Status</p>
+								<p className="text-xs text-muted-foreground">
+									Change the managed account state. Deleted is a soft status,
+									not a hard data erase.
+								</p>
 								<select
 									value={nextStatus}
 									onChange={(event) =>
@@ -1719,29 +1753,28 @@ export function UserDetailClient({
 								<Input
 									value={statusReason}
 									onChange={(event) => setStatusReason(event.target.value)}
-									placeholder="Reason required"
+									placeholder={
+										nextStatus === "deleted"
+											? "Reason for marking deleted"
+											: "Reason required"
+									}
 								/>
 								<Button
 									type="button"
-									variant="outline"
+									variant={nextStatus === "deleted" ? "destructive" : "outline"}
 									size="sm"
-									disabled={isPending || !userId || !hasStatusReason}
-									onClick={() =>
-										runMutation(
-											() =>
-												updateManagedUserStatusAsAdmin({
-													userId,
-													email,
-													status: nextStatus,
-													reason: statusReason,
-												}),
-											"User status updated",
-											() => setStatusReason(""),
-										)
+									disabled={
+										isPending ||
+										!userId ||
+										!hasStatusReason ||
+										nextStatus === user?.status
 									}
+									onClick={submitStatusChange}
 								>
 									<UserRound />
-									Update Status
+									{nextStatus === "deleted"
+										? "Mark User Deleted"
+										: "Update Status"}
 								</Button>
 							</div>
 

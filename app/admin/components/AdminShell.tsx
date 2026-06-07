@@ -156,6 +156,7 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 
 	const navigateToSection = (pathWithHash: string): void => {
 		const [targetPath, hashPart] = pathWithHash.split("#");
+		const [targetPathname] = targetPath.split("?");
 		const anchorId = hashPart?.trim();
 		const nextPath = withAdminBasePath(targetPath);
 
@@ -165,9 +166,10 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 			return;
 		}
 
-		setPendingAnchor({ pathname: targetPath, anchorId });
+		setPendingAnchor({ pathname: targetPathname || targetPath, anchorId });
 		if (
 			typeof window !== "undefined" &&
+			!targetPath.includes("?") &&
 			stripAdminBasePath(window.location.pathname) === targetPath
 		) {
 			window.history.replaceState(null, "", `${nextPath}#${anchorId}`);
@@ -520,6 +522,7 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 								}
 							}}
 							disabled={isRefreshingCounts}
+							title="Refresh Action Center counts from the current admin data"
 						>
 							{isRefreshingCounts ? "Refreshing..." : "Refresh counts"}
 						</Button>
@@ -534,9 +537,16 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 						<button
 							type="button"
 							onClick={() =>
-								navigateToSection("/admin/content#event-submissions")
+								navigateToSection(
+									"/admin/content?submissionStatus=pending#event-submissions",
+								)
 							}
 							disabled={!hasPendingSubmissions && !notificationCountsDegraded}
+							title={
+								hasPendingSubmissions || notificationCountsDegraded
+									? "Open event submissions needing review"
+									: "No pending event submissions"
+							}
 							className={cn(
 								"block w-full rounded-lg border p-3 text-left transition-colors",
 								hasPendingSubmissions || notificationCountsDegraded
@@ -564,9 +574,16 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 						<button
 							type="button"
 							onClick={() =>
-								navigateToSection("/admin/content#ticket-exchange-moderation")
+								navigateToSection(
+									"/admin/content?ticketModeration=review#ticket-exchange-moderation",
+								)
 							}
 							disabled={!hasPendingTicketReports && !notificationCountsDegraded}
+							title={
+								hasPendingTicketReports || notificationCountsDegraded
+									? "Open Ticket Exchange reports needing review"
+									: "No pending ticket reports"
+							}
 							className={cn(
 								"block w-full rounded-lg border p-3 text-left transition-colors",
 								hasPendingTicketReports || notificationCountsDegraded
@@ -594,9 +611,16 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 						<button
 							type="button"
 							onClick={() =>
-								navigateToSection("/admin/placements#paid-orders-inbox")
+								navigateToSection(
+									"/admin/placements?activationStatus=pending#paid-orders-inbox",
+								)
 							}
 							disabled={!hasPendingPlacements && !notificationCountsDegraded}
+							title={
+								hasPendingPlacements || notificationCountsDegraded
+									? "Open paid orders needing fulfillment"
+									: "No pending paid orders"
+							}
 							className={cn(
 								"block w-full rounded-lg border p-3 text-left transition-colors",
 								hasPendingPlacements || notificationCountsDegraded

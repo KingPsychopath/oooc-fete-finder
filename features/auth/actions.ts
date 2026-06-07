@@ -601,7 +601,7 @@ export async function importCollectedEmails(
 			skippedCount,
 			totalCount: status.totalUsers,
 		},
-		href: "/admin/insights#collected-users",
+		href: "/admin/users#user-search",
 	});
 	clearCollectedEmailsCache();
 	return {
@@ -636,7 +636,7 @@ export async function deleteCollectedEmails(
 		category: "insights",
 		targetType: "collected_users",
 		targetLabel: "Collected users",
-		summary: `Deleted ${deletedCount} collected user record${deletedCount === 1 ? "" : "s"}`,
+		summary: `Removed ${deletedCount} collected user record${deletedCount === 1 ? "" : "s"}`,
 		metadata: {
 			requestedCount: emails.length,
 			deletedCount,

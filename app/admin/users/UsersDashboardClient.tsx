@@ -26,7 +26,10 @@ import {
 	getCollectedUserProfile,
 	importCollectedEmails,
 } from "@/features/auth/actions";
-import type { CollectedEmailsResponse } from "@/features/auth/types";
+import type {
+	CollectedEmailsResponse,
+	CollectedUserProfile,
+} from "@/features/auth/types";
 import {
 	createUserNoticeAsAdmin,
 	createUserRestrictionAsAdmin,
@@ -61,25 +64,39 @@ import {
 	AlertTriangle,
 	Ban,
 	Bell,
+	CheckSquare,
 	ChevronLeft,
 	ChevronRight,
 	ChevronsLeft,
 	ChevronsRight,
 	Copy,
+	Download,
+	ExternalLink,
 	Eye,
+	FileUp,
 	Filter,
 	Fingerprint,
 	RefreshCw,
 	Search,
 	Send,
 	ShieldAlert,
+	Trash2,
+	Upload,
 	UserRound,
 	X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { EmailCollectionCard } from "../components/EmailCollectionCard";
+import {
+	type ChangeEvent,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useTransition,
+} from "react";
+import { buildAdminUserHref } from "../components/audience-profile-utils";
 import { withAdminBasePath } from "../config";
 import type {
 	EmailRecord,
@@ -207,6 +224,17 @@ const userDisplayName = (user: AdminUserSummary): string => {
 	return name || user.email;
 };
 
+const collectedProfileDisplayName = (profile: CollectedUserProfile): string => {
+	const name = [profile.user.firstName, profile.user.lastName]
+		.filter(Boolean)
+		.join(" ")
+		.trim();
+	return name || profile.user.email;
+};
+
+const compactContextValue = (value: string | null | undefined): string =>
+	value?.trim() || "Unknown";
+
 const userSectionHref = (
 	user: Pick<AdminUserSummary, "userId">,
 	sectionId: "ticket-exchange" | "submissions-plans" | "identity",
@@ -243,6 +271,150 @@ const UserStat = ({
 	) : (
 		<span>{label}</span>
 	);
+};
+
+const TEST_EMAIL_HINTS = [
+	"test",
+	"example",
+	"demo",
+	"fake",
+	"dummy",
+	"localhost",
+	"invalid",
+];
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const SEVEN_DAYS_MS = 7 * ONE_DAY_MS;
+const RETURNED_AFTER_ACTION_THRESHOLD_MS = 30 * 60 * 1000;
+
+const isLikelyTestEmail = (email: string): boolean => {
+	const normalized = email.toLowerCase();
+	return TEST_EMAIL_HINTS.some((hint) => normalized.includes(hint));
+};
+
+const getParsedTime = (value?: string | null): number => {
+	const parsed = Date.parse(value ?? "");
+	return Number.isFinite(parsed) ? parsed : Number.NaN;
+};
+
+const getFirstVerifiedAt = (user: EmailRecord): string | undefined =>
+	user.firstVerifiedAt || user.firstSignInAt || user.timestamp;
+
+const getLastVerifiedAt = (user: EmailRecord): string | undefined =>
+	user.lastVerifiedAt || user.lastAuthenticatedAt || user.timestamp;
+
+const hasUsefulAudienceContext = (user: EmailRecord): boolean =>
+	Boolean(
+		user.deviceClass ||
+			user.platform ||
+			user.browserFamily ||
+			user.timezone ||
+			user.locale,
+	);
+
+const hasReturnedWithoutNewActivity = (user: EmailRecord): boolean => {
+	const lastSeen = getParsedTime(user.lastSeenAt ?? user.lastAuthenticatedAt);
+	const lastSignal = getParsedTime(user.lastSignalAt);
+	if (Number.isNaN(lastSeen) || Number.isNaN(lastSignal)) return false;
+	return lastSeen - lastSignal >= RETURNED_AFTER_ACTION_THRESHOLD_MS;
+};
+
+const matchesAudienceSignal = (
+	user: EmailRecord,
+	signal: AdminUsersAudienceSignalFilter,
+): boolean => {
+	const linkedSignalCount = user.linkedSignalCount ?? 0;
+	const sevenDaysAgo = Date.now() - SEVEN_DAYS_MS;
+	switch (signal) {
+		case "has-activity":
+			return linkedSignalCount > 0;
+		case "no-activity":
+			return linkedSignalCount <= 0;
+		case "recently-active":
+			return getParsedTime(user.lastSignalAt) >= sevenDaysAgo;
+		case "searches":
+			return (user.searchSignalCount ?? 0) > 0;
+		case "filters":
+			return (user.filterSignalCount ?? 0) > 0;
+		case "plan-actions":
+			return (user.planActionSignalCount ?? 0) > 0;
+		case "event-actions":
+			return (user.eventActionSignalCount ?? 0) > 0;
+		case "genre-prefs":
+			return (user.genrePreferenceSignalCount ?? 0) > 0;
+		case "returned-no-activity":
+			return hasReturnedWithoutNewActivity(user);
+		case "has-context":
+			return hasUsefulAudienceContext(user);
+		case "missing-context":
+			return !hasUsefulAudienceContext(user);
+		case "all":
+		default:
+			return true;
+	}
+};
+
+const csvEscape = (value: string | number | boolean | null | undefined) =>
+	`"${String(value ?? "").replace(/"/g, '""')}"`;
+
+const exportAdminUsersCsv = (
+	users: AdminUserSummary[],
+	filenamePrefix: string,
+) => {
+	if (users.length === 0 || typeof document === "undefined") return;
+	const header = [
+		"User ID",
+		"Email",
+		"First Name",
+		"Last Name",
+		"Status",
+		"Source",
+		"First Seen",
+		"Last Seen",
+		"Marketing Consent",
+		"Event Update Consent",
+		"Restrictions",
+		"Pending Notices",
+		"Listings",
+		"Submissions",
+		"Routes",
+		"Saved Events",
+	];
+	const rows = users.map((user) =>
+		[
+			user.userId,
+			user.email,
+			user.firstName,
+			user.lastName,
+			user.status,
+			user.source,
+			user.firstSeenAt,
+			user.lastSeenAt,
+			user.marketingConsent,
+			user.eventUpdateConsent,
+			user.activeRestrictionCount,
+			user.openNoticeCount,
+			user.ticketListingCount,
+			user.eventSubmissionCount,
+			user.planCount,
+			user.savedEventCount,
+		]
+			.map(csvEscape)
+			.join(","),
+	);
+	const blob = new Blob(
+		[[header.map(csvEscape).join(","), ...rows].join("\n")],
+		{
+			type: "text/csv;charset=utf-8;",
+		},
+	);
+	const url = URL.createObjectURL(blob);
+	const anchor = document.createElement("a");
+	anchor.href = url;
+	anchor.download = `${filenamePrefix}-${new Date().toISOString().split("T")[0]}.csv`;
+	document.body.appendChild(anchor);
+	anchor.click();
+	document.body.removeChild(anchor);
+	URL.revokeObjectURL(url);
 };
 
 const STATUS_OPTIONS: Array<{
@@ -383,6 +555,11 @@ export function UsersDashboardClient({
 				? (initialEmailsResult.analytics ?? null)
 				: null,
 		);
+	const [isAudienceLoading, setIsAudienceLoading] = useState(false);
+	const [hasAudienceLoaded, setHasAudienceLoaded] = useState(
+		Boolean(initialEmailsResult?.success),
+	);
+	const [audienceSnapshotMessage, setAudienceSnapshotMessage] = useState("");
 	const [dashboard, setDashboard] = useState(initialDashboard);
 	const [query, setQuery] = useState(initialDashboard.query.query ?? "");
 	const [status, setStatus] = useState<ManagedUserStatus | "all">(
@@ -406,6 +583,19 @@ export function UsersDashboardClient({
 		initialDashboard.error ?? "",
 	);
 	const [statusMessage, setStatusMessage] = useState("");
+	const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+	const [isAudienceImportOpen, setIsAudienceImportOpen] = useState(false);
+	const [audienceImportText, setAudienceImportText] = useState("");
+	const [audienceImportStatus, setAudienceImportStatus] = useState("");
+	const [isAudienceMutationPending, setIsAudienceMutationPending] =
+		useState(false);
+	const [quickProfileUser, setQuickProfileUser] =
+		useState<AdminUserSummary | null>(null);
+	const [quickProfile, setQuickProfile] = useState<CollectedUserProfile | null>(
+		null,
+	);
+	const [quickProfileStatus, setQuickProfileStatus] = useState("");
+	const [isQuickProfileLoading, setIsQuickProfileLoading] = useState(false);
 	const [noticeComposerError, setNoticeComposerError] = useState("");
 	const [quickActionError, setQuickActionError] = useState("");
 	const [quickActionUser, setQuickActionUser] =
@@ -433,6 +623,8 @@ export function UsersDashboardClient({
 	const [quickRestrictionExpiresAt, setQuickRestrictionExpiresAt] =
 		useState("");
 	const [isPending, startTransition] = useTransition();
+	const audienceImportFileInputRef = useRef<HTMLInputElement | null>(null);
+	const quickProfileRequestIdRef = useRef(0);
 
 	const normalizeDateTimeForAction = (value: string): string | null => {
 		if (!value) return null;
@@ -447,11 +639,41 @@ export function UsersDashboardClient({
 	}, []);
 
 	const loadEmails = useCallback(async () => {
-		const result = await getCollectedEmails();
-		if (result.success) {
-			setEmails(result.emails ?? []);
-			setEmailStore(result.store ?? null);
-			setEmailAnalytics(result.analytics ?? null);
+		let timeoutId: number | null = null;
+		setIsAudienceLoading(true);
+		setAudienceSnapshotMessage("");
+		if (typeof window !== "undefined") {
+			timeoutId = window.setTimeout(() => {
+				setIsAudienceLoading(false);
+				setAudienceSnapshotMessage(
+					"Audience export data is still loading. The user list and Quick Profile remain available.",
+				);
+			}, 8000);
+		}
+		try {
+			const result = await getCollectedEmails();
+			if (result.success) {
+				setEmails(result.emails ?? []);
+				setEmailStore(result.store ?? null);
+				setEmailAnalytics(result.analytics ?? null);
+				setHasAudienceLoaded(true);
+				setAudienceSnapshotMessage("");
+			} else {
+				setHasAudienceLoaded(false);
+				setAudienceSnapshotMessage(
+					result.error ?? "Audience export data failed to load.",
+				);
+			}
+		} catch (error) {
+			setHasAudienceLoaded(false);
+			setAudienceSnapshotMessage(
+				error instanceof Error
+					? error.message
+					: "Audience export data failed to load.",
+			);
+		} finally {
+			if (timeoutId) window.clearTimeout(timeoutId);
+			setIsAudienceLoading(false);
 		}
 	}, []);
 
@@ -478,10 +700,181 @@ export function UsersDashboardClient({
 		URL.revokeObjectURL(url);
 	}, []);
 
-	const copyVisibleEmails = useCallback((visibleEmails: EmailRecord[]) => {
-		const emailList = visibleEmails.map((entry) => entry.email).join("\n");
-		navigator.clipboard.writeText(emailList);
-	}, []);
+	const emailRecordsByEmail = useMemo(
+		() =>
+			new Map(emails.map((entry) => [entry.email.trim().toLowerCase(), entry])),
+		[emails],
+	);
+	const selectedUserIdSet = useMemo(
+		() => new Set(selectedUserIds),
+		[selectedUserIds],
+	);
+	const selectedUsers = useMemo(
+		() => dashboard.users.filter((user) => selectedUserIdSet.has(user.userId)),
+		[dashboard.users, selectedUserIdSet],
+	);
+	const selectedAudienceRecords = useMemo(
+		() =>
+			selectedUsers
+				.map((user) => emailRecordsByEmail.get(user.email.trim().toLowerCase()))
+				.filter((entry): entry is EmailRecord => Boolean(entry)),
+		[emailRecordsByEmail, selectedUsers],
+	);
+	const visibleSelectedCount = dashboard.users.filter((user) =>
+		selectedUserIdSet.has(user.userId),
+	).length;
+	const allVisibleSelected =
+		dashboard.users.length > 0 &&
+		visibleSelectedCount === dashboard.users.length;
+	const likelyTestCount = emails.filter((entry) =>
+		isLikelyTestEmail(entry.email),
+	).length;
+	const newRegistrations = useMemo(() => {
+		const cutoff24h = Date.now() - ONE_DAY_MS;
+		const cutoff7d = Date.now() - SEVEN_DAYS_MS;
+		let last24h = 0;
+		let last7d = 0;
+		for (const entry of emails) {
+			const parsed = getParsedTime(
+				getFirstVerifiedAt(entry) ?? getLastVerifiedAt(entry),
+			);
+			if (Number.isNaN(parsed)) continue;
+			if (parsed >= cutoff24h) last24h++;
+			if (parsed >= cutoff7d) last7d++;
+		}
+		return { last24h, last7d };
+	}, [emails]);
+	const audienceSegmentCounts = useMemo(
+		() =>
+			new Map(
+				AUDIENCE_SIGNAL_OPTIONS.filter((option) => option.value !== "all").map(
+					(option) => [
+						option.value,
+						emails.filter((entry) => matchesAudienceSignal(entry, option.value))
+							.length,
+					],
+				),
+			),
+		[emails],
+	);
+	const audienceCount = (value: number | null | undefined): string =>
+		isAudienceLoading
+			? "Loading"
+			: hasAudienceLoaded
+				? String(value ?? 0)
+				: "Pending";
+	const audiencePairCount = (
+		first: number | null | undefined,
+		second: number | null | undefined,
+	): string =>
+		isAudienceLoading
+			? "Loading"
+			: hasAudienceLoaded
+				? `${first ?? 0} / ${second ?? 0}`
+				: "Pending";
+	const audienceContextSummary = (): string => {
+		if (isAudienceLoading) return "Loading";
+		if (!hasAudienceLoaded) return "Pending";
+		return `${emailAnalytics?.topDeviceClasses?.[0]?.label ?? "Unknown"} / ${
+			emailAnalytics?.topPlatforms?.[0]?.label ?? "Unknown"
+		}`;
+	};
+	const audienceContextDetail = (): string => {
+		if (isAudienceLoading) return "behavior context";
+		if (!hasAudienceLoaded) return "export data";
+		return `${emailAnalytics?.topBrowserFamilies?.[0]?.label ?? "Unknown"} / ${
+			emailAnalytics?.topTimezones?.[0]?.label ?? "Unknown"
+		}`;
+	};
+
+	const toggleUserSelection = (userId: string) => {
+		setSelectedUserIds((current) =>
+			current.includes(userId)
+				? current.filter((selectedUserId) => selectedUserId !== userId)
+				: [...current, userId],
+		);
+	};
+
+	const toggleVisibleSelection = () => {
+		setSelectedUserIds((current) => {
+			const visibleIds = dashboard.users.map((user) => user.userId);
+			if (allVisibleSelected) {
+				return current.filter((userId) => !visibleIds.includes(userId));
+			}
+			return Array.from(new Set([...current, ...visibleIds]));
+		});
+	};
+
+	const copySelectedUserEmails = async () => {
+		if (selectedUsers.length === 0) return;
+		await copyValue(
+			"Selected emails",
+			selectedUsers.map((user) => user.email).join("\n"),
+		);
+	};
+
+	const handleAudienceImport = async (
+		rawInput: string,
+		sourceLabel: string,
+	) => {
+		if (!rawInput.trim()) return;
+		setIsAudienceMutationPending(true);
+		setAudienceImportStatus(`Importing ${sourceLabel} records...`);
+		const result = await importCollectedEmails(rawInput);
+		if (result.success) {
+			setAudienceImportStatus(
+				`Added ${result.importedCount ?? 0}, updated ${
+					result.updatedCount ?? 0
+				}, skipped ${result.skippedCount ?? 0}.`,
+			);
+			setAudienceImportText("");
+			await loadEmails();
+		} else {
+			setAudienceImportStatus(result.error ?? "Import failed.");
+		}
+		setIsAudienceMutationPending(false);
+	};
+
+	const handleAudienceCsvSelected = async (
+		event: ChangeEvent<HTMLInputElement>,
+	) => {
+		const file = event.target.files?.[0];
+		event.target.value = "";
+		if (!file) return;
+		try {
+			await handleAudienceImport(await file.text(), file.name);
+		} catch (error) {
+			setAudienceImportStatus(
+				`Failed to read CSV: ${
+					error instanceof Error ? error.message : "Unknown error"
+				}`,
+			);
+		}
+	};
+
+	const deleteSelectedAudienceRecords = async () => {
+		if (selectedAudienceRecords.length === 0) return;
+		const confirmed = window.confirm(
+			`Remove ${selectedAudienceRecords.length} selected audience record(s) from the collected email store? This does not delete canonical user accounts.`,
+		);
+		if (!confirmed) return;
+		setIsAudienceMutationPending(true);
+		const result = await deleteCollectedEmails(
+			selectedAudienceRecords.map((entry) => entry.email),
+		);
+		if (result.success) {
+			setStatusMessage(
+				`Removed ${result.deletedCount ?? 0} audience record(s).`,
+			);
+			setSelectedUserIds((current) =>
+				current.filter((userId) => !selectedUserIdSet.has(userId)),
+			);
+			await loadEmails();
+		} else {
+			setErrorMessage(result.error ?? "Unable to delete audience records.");
+		}
+		setIsAudienceMutationPending(false);
+	};
 
 	const resetNoticeComposer = (severity: UserNoticeSeverity = "info") => {
 		setNoticeSeverity(severity);
@@ -581,6 +974,7 @@ export function UsersDashboardClient({
 				pageSize: nextPageSize,
 			});
 			setDashboard(result);
+			setSelectedUserIds([]);
 			setErrorMessage(result.error ?? "");
 			setStatusMessage(result.supported ? "Users refreshed." : "");
 		});
@@ -597,6 +991,55 @@ export function UsersDashboardClient({
 		} catch {
 			setErrorMessage(`Could not copy ${label.toLowerCase()}.`);
 		}
+	};
+
+	const openQuickProfile = async (user: AdminUserSummary) => {
+		const requestId = quickProfileRequestIdRef.current + 1;
+		let timeoutId: number | null = null;
+		quickProfileRequestIdRef.current = requestId;
+		setQuickProfileUser(user);
+		setQuickProfile(null);
+		setQuickProfileStatus("");
+		setIsQuickProfileLoading(true);
+		if (typeof window !== "undefined") {
+			timeoutId = window.setTimeout(() => {
+				if (quickProfileRequestIdRef.current !== requestId) return;
+				setIsQuickProfileLoading(false);
+				setQuickProfileStatus(
+					"Behavior profile is still loading. Open Full Detail for the canonical user page, or try Quick Profile again.",
+				);
+			}, 8000);
+		}
+		try {
+			const result = await getCollectedUserProfile({
+				userId: user.userId,
+				email: user.email,
+			});
+			if (quickProfileRequestIdRef.current !== requestId) return;
+			if (result.success && result.profile) {
+				setQuickProfile(result.profile);
+			} else {
+				setQuickProfileStatus(result.error ?? "No behavior profile found.");
+			}
+		} catch (error) {
+			if (quickProfileRequestIdRef.current !== requestId) return;
+			setQuickProfileStatus(
+				error instanceof Error ? error.message : "No behavior profile found.",
+			);
+		} finally {
+			if (timeoutId) window.clearTimeout(timeoutId);
+			if (quickProfileRequestIdRef.current === requestId) {
+				setIsQuickProfileLoading(false);
+			}
+		}
+	};
+
+	const closeQuickProfile = () => {
+		quickProfileRequestIdRef.current += 1;
+		setQuickProfileUser(null);
+		setQuickProfile(null);
+		setQuickProfileStatus("");
+		setIsQuickProfileLoading(false);
 	};
 
 	const openQuickAction = (
@@ -747,7 +1190,7 @@ export function UsersDashboardClient({
 	if (appliedAudienceSignal !== "all") {
 		activeFilterChips.push({
 			key: "audience-signal",
-			label: "Audience",
+			label: "Segment",
 			value: getOptionLabel(AUDIENCE_SIGNAL_OPTIONS, appliedAudienceSignal),
 			clear: () => {
 				setAudienceSignal("all");
@@ -933,32 +1376,6 @@ export function UsersDashboardClient({
 									{ADMIN_USER_ATTENTION_SUMMARY.toLowerCase()}
 								</p>
 							</div>
-							<div className="min-w-0 space-y-1.5 lg:col-span-3">
-								<Label htmlFor="user-audience-signal-filter">
-									Audience Signal
-								</Label>
-								<select
-									id="user-audience-signal-filter"
-									value={audienceSignal}
-									onChange={(event) => {
-										const nextAudienceSignal = event.target
-											.value as AdminUsersAudienceSignalFilter;
-										setAudienceSignal(nextAudienceSignal);
-										refresh({ nextAudienceSignal, nextPage: 1 });
-									}}
-									className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
-								>
-									{AUDIENCE_SIGNAL_OPTIONS.map((option) => (
-										<option key={option.value} value={option.value}>
-											{option.label}
-										</option>
-									))}
-								</select>
-								<p className="text-xs text-muted-foreground">
-									Cohorts from search, filter, event, route, genre, and context
-									tracking.
-								</p>
-							</div>
 							<div className="min-w-0 space-y-1.5 lg:col-span-4">
 								<Label htmlFor="user-sort-key">Sort</Label>
 								<select
@@ -1022,44 +1439,124 @@ export function UsersDashboardClient({
 								Search
 							</Button>
 						</div>
-						<div className="flex flex-wrap items-center gap-2">
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								title={ADMIN_USER_ATTENTION_DETAIL}
-								onClick={() => {
-									setActivity("needs_attention");
-									refresh({ nextActivity: "needs_attention", nextPage: 1 });
-								}}
-							>
-								<Filter />
-								Needs attention
-							</Button>
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() => {
-									setQuery("");
-									setStatus("all");
-									setActivity("all");
-									setAudienceSignal("all");
-									setSortKey("last_seen");
-									setSortDirection("desc");
-									refresh({
-										nextQuery: "",
-										nextStatus: "all",
-										nextActivity: "all",
-										nextAudienceSignal: "all",
-										nextSortKey: "last_seen",
-										nextSortDirection: "desc",
-										nextPage: 1,
-									});
-								}}
-							>
-								Reset filters
-							</Button>
+						<div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+							<div className="flex flex-wrap items-center gap-2">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									title={ADMIN_USER_ATTENTION_DETAIL}
+									onClick={() => {
+										setActivity("needs_attention");
+										refresh({ nextActivity: "needs_attention", nextPage: 1 });
+									}}
+								>
+									<Filter />
+									Needs attention
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => {
+										setQuery("");
+										setStatus("all");
+										setActivity("all");
+										setAudienceSignal("all");
+										setSortKey("last_seen");
+										setSortDirection("desc");
+										refresh({
+											nextQuery: "",
+											nextStatus: "all",
+											nextActivity: "all",
+											nextAudienceSignal: "all",
+											nextSortKey: "last_seen",
+											nextSortDirection: "desc",
+											nextPage: 1,
+										});
+									}}
+								>
+									Reset filters
+								</Button>
+							</div>
+							<div className="flex flex-wrap items-center gap-2">
+								<p className="text-xs text-muted-foreground">
+									Selected {selectedUsers.length}
+								</p>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={toggleVisibleSelection}
+									disabled={dashboard.users.length === 0}
+								>
+									<CheckSquare />
+									{allVisibleSelected ? "Clear Page" : "Select Page"}
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() =>
+										selectedUsers.length > 0
+											? exportAdminUsersCsv(
+													selectedUsers,
+													"fete-finder-selected-users",
+												)
+											: exportAdminUsersCsv(
+													dashboard.users,
+													"fete-finder-visible-users",
+												)
+									}
+									disabled={dashboard.users.length === 0}
+								>
+									<Download />
+									{selectedUsers.length > 0 ? "Export Selected" : "Export Page"}
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => void copySelectedUserEmails()}
+									disabled={selectedUsers.length === 0}
+								>
+									<Copy />
+									Copy Selected
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => void exportAsCSV()}
+									disabled={emails.length === 0}
+								>
+									<Download />
+									Export Audience CSV
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									onClick={() => setIsAudienceImportOpen(true)}
+								>
+									<Upload />
+									Import
+								</Button>
+								<Button
+									type="button"
+									variant="destructive"
+									size="sm"
+									onClick={() => void deleteSelectedAudienceRecords()}
+									disabled={
+										isAudienceMutationPending ||
+										selectedAudienceRecords.length === 0
+									}
+									title="Removes selected records from the collected audience store, not canonical user accounts."
+								>
+									<Trash2 />
+									Remove Audience Records
+								</Button>
+							</div>
 						</div>
 						<div className="rounded-lg border bg-muted/20 p-3">
 							<div className="flex flex-wrap items-center justify-between gap-2">
@@ -1126,18 +1623,181 @@ export function UsersDashboardClient({
 							)}
 						</div>
 
+						<div className="rounded-lg border bg-muted/10 p-3">
+							<div className="flex flex-wrap items-start justify-between gap-3">
+								<div>
+									<p className="text-sm font-medium">Audience Snapshot</p>
+									<p className="mt-1 text-xs text-muted-foreground">
+										Use cohorts here to narrow the canonical user list. Open
+										Quick Profile for per-user behavior and device context.
+									</p>
+								</div>
+								<div className="flex flex-wrap gap-2">
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										disabled={isAudienceLoading}
+										onClick={() => void loadEmails()}
+									>
+										<RefreshCw />
+										Refresh data
+									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										disabled={audienceSignal === "all" || isPending}
+										onClick={() => {
+											setAudienceSignal("all");
+											refresh({ nextAudienceSignal: "all", nextPage: 1 });
+										}}
+									>
+										Clear segment
+									</Button>
+								</div>
+							</div>
+							{audienceSnapshotMessage ? (
+								<p className="mt-3 rounded-md border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+									{audienceSnapshotMessage}
+								</p>
+							) : null}
+							<div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 xl:grid-cols-5">
+								<div className="rounded-md border bg-background/55 px-2.5 py-2">
+									<span className="block uppercase tracking-[0.14em]">New</span>
+									<span className="mt-1 block font-medium text-foreground tabular-nums">
+										{audiencePairCount(
+											newRegistrations.last24h,
+											newRegistrations.last7d,
+										)}
+									</span>
+									<span>24h / 7d</span>
+								</div>
+								<div className="rounded-md border bg-background/55 px-2.5 py-2">
+									<span className="block uppercase tracking-[0.14em]">
+										Seen
+									</span>
+									<span className="mt-1 block font-medium text-foreground tabular-nums">
+										{audiencePairCount(
+											emailAnalytics?.submissionsLast24Hours,
+											emailAnalytics?.submissionsLast7Days,
+										)}
+									</span>
+									<span>24h / 7d</span>
+								</div>
+								<div className="rounded-md border bg-background/55 px-2.5 py-2">
+									<span className="block uppercase tracking-[0.14em]">
+										Linked
+									</span>
+									<span className="mt-1 block font-medium text-foreground tabular-nums">
+										{isAudienceLoading
+											? "Loading"
+											: hasAudienceLoaded
+												? `${emailAnalytics?.linkedBehaviorUsers ?? 0}/${emails.length}`
+												: "Pending"}
+									</span>
+									<span>activity records</span>
+								</div>
+								<div className="rounded-md border bg-background/55 px-2.5 py-2">
+									<span className="block uppercase tracking-[0.14em]">
+										Tests
+									</span>
+									<span className="mt-1 block font-medium text-foreground tabular-nums">
+										{audienceCount(likelyTestCount)}
+									</span>
+									<span>subtle row badge</span>
+								</div>
+								<div className="rounded-md border bg-background/55 px-2.5 py-2">
+									<span className="block uppercase tracking-[0.14em]">
+										Common Context
+									</span>
+									<span className="mt-1 block truncate font-medium text-foreground">
+										{audienceContextSummary()}
+									</span>
+									<span className="block truncate">
+										{audienceContextDetail()}
+									</span>
+								</div>
+							</div>
+							<div className="mt-3 flex flex-wrap gap-2">
+								{AUDIENCE_SIGNAL_OPTIONS.filter(
+									(option) => option.value !== "all",
+								).map((option) => (
+									<Button
+										key={option.value}
+										type="button"
+										variant={
+											audienceSignal === option.value ? "default" : "outline"
+										}
+										size="sm"
+										onClick={() => {
+											const nextAudienceSignal =
+												audienceSignal === option.value ? "all" : option.value;
+											setAudienceSignal(nextAudienceSignal);
+											refresh({ nextAudienceSignal, nextPage: 1 });
+										}}
+										disabled={isPending}
+									>
+										{option.label}
+										<span className="tabular-nums">
+											{audienceCount(audienceSegmentCounts.get(option.value))}
+										</span>
+									</Button>
+								))}
+							</div>
+						</div>
+
 						<div className="grid gap-3">
 							{dashboard.users.length > 0 ? (
 								dashboard.users.map((user) => {
 									const attentionReasons = getAdminUserAttentionReasons(user);
 									const ticketReportHistory = ticketReportHistoryLabel(user);
+									const isSelected = selectedUserIdSet.has(user.userId);
+									const audienceRecord = emailRecordsByEmail.get(
+										user.email.trim().toLowerCase(),
+									);
+									const behaviorSignalCount =
+										audienceRecord?.linkedSignalCount ??
+										user.audienceSignalCount ??
+										0;
+									const behaviorSignalTitle = `Searches ${
+										audienceRecord?.searchSignalCount ??
+										user.audienceSearchCount ??
+										0
+									}; filters ${
+										audienceRecord?.filterSignalCount ??
+										user.audienceFilterCount ??
+										0
+									}; plans ${
+										audienceRecord?.planActionSignalCount ??
+										user.audiencePlanSignalCount ??
+										0
+									}; events ${
+										audienceRecord?.eventActionSignalCount ??
+										user.audienceEventCount ??
+										0
+									}; genres ${
+										audienceRecord?.genrePreferenceSignalCount ??
+										user.audienceGenreCount ??
+										0
+									}`;
 									return (
 										<div
 											key={user.userId}
-											className="grid gap-3 rounded-lg border bg-background/70 p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+											className="grid gap-3 rounded-lg border bg-background/70 p-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center"
 										>
+											<input
+												type="checkbox"
+												checked={isSelected}
+												onChange={() => toggleUserSelection(user.userId)}
+												className="mt-1 size-4 rounded border-input lg:mt-0"
+												aria-label={`Select ${user.email}`}
+											/>
 											<div className="min-w-0 space-y-2">
 												<div className="flex flex-wrap items-center gap-2">
+													{isLikelyTestEmail(user.email) ? (
+														<Badge variant="outline">Likely test</Badge>
+													) : null}
 													{user.status !== "active" ? (
 														<Badge variant={statusVariant(user.status)}>
 															{statusLabel(user.status)}
@@ -1186,6 +1846,11 @@ export function UsersDashboardClient({
 													<span>
 														Last seen {formatDateTime(user.lastSeenAt)}
 													</span>
+													{behaviorSignalCount > 0 ? (
+														<span title={behaviorSignalTitle}>
+															Behavior {behaviorSignalCount}
+														</span>
+													) : null}
 													<UserStat
 														count={user.ticketListingCount}
 														singular="listing"
@@ -1244,6 +1909,16 @@ export function UsersDashboardClient({
 													onClick={() => void copyValue("User ID", user.userId)}
 												>
 													<Fingerprint />
+												</Button>
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() => void openQuickProfile(user)}
+													disabled={isQuickProfileLoading}
+												>
+													<Eye />
+													Quick Profile
 												</Button>
 												<Button
 													type="button"
@@ -1358,20 +2033,6 @@ export function UsersDashboardClient({
 						</div>
 					</CardContent>
 				</Card>
-			</section>
-
-			<section id="audience-records" className="scroll-mt-44">
-				<EmailCollectionCard
-					emails={emails}
-					store={emailStore}
-					analytics={emailAnalytics}
-					onCopyEmails={copyVisibleEmails}
-					onExportCSV={() => void exportAsCSV()}
-					onRefresh={loadEmails}
-					onDeleteEmails={deleteCollectedEmails}
-					onImportEmails={importCollectedEmails}
-					onGetUserProfile={getCollectedUserProfile}
-				/>
 			</section>
 
 			<section id="active-restrictions" className="scroll-mt-44">
@@ -1742,6 +2403,263 @@ export function UsersDashboardClient({
 					</CardContent>
 				</Card>
 			</section>
+
+			<Dialog
+				open={isAudienceImportOpen}
+				onOpenChange={(open) => {
+					setIsAudienceImportOpen(open);
+					if (!open) setAudienceImportStatus("");
+				}}
+			>
+				<DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
+					<DialogHeader>
+						<DialogTitle>Import Audience Records</DialogTitle>
+						<DialogDescription>
+							Append or update collected email records. This feeds exports and
+							behavior signals without replacing the canonical user list.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="space-y-3">
+						<div className="rounded-lg border bg-muted/25 px-3 py-2 text-xs text-muted-foreground">
+							Source: {emailStore?.provider ?? "unknown"} · Records:{" "}
+							{emails.length}
+						</div>
+						<Textarea
+							value={audienceImportText}
+							onChange={(event) => setAudienceImportText(event.target.value)}
+							placeholder="Paste CSV with an Email column, or one email per line"
+							rows={7}
+						/>
+						<input
+							ref={audienceImportFileInputRef}
+							type="file"
+							accept=".csv,text/csv"
+							onChange={(event) => void handleAudienceCsvSelected(event)}
+							className="hidden"
+						/>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => audienceImportFileInputRef.current?.click()}
+								disabled={isAudienceMutationPending}
+							>
+								<FileUp />
+								Upload CSV
+							</Button>
+							<Button
+								type="button"
+								onClick={() =>
+									void handleAudienceImport(audienceImportText, "pasted")
+								}
+								disabled={
+									isAudienceMutationPending || !audienceImportText.trim()
+								}
+							>
+								<Upload />
+								Import Paste
+							</Button>
+						</div>
+						{audienceImportStatus ? (
+							<div className="rounded-lg border bg-muted/25 p-3 text-sm text-muted-foreground">
+								{audienceImportStatus}
+							</div>
+						) : null}
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog
+				open={Boolean(quickProfileUser)}
+				onOpenChange={(open) => {
+					if (!open) closeQuickProfile();
+				}}
+			>
+				<DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>Quick Profile</DialogTitle>
+						<DialogDescription>
+							Fast behavior and context check for this user.
+						</DialogDescription>
+					</DialogHeader>
+					{isQuickProfileLoading ? (
+						<div className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
+							Loading behavior profile...
+						</div>
+					) : quickProfile ? (
+						<div className="space-y-4">
+							<div className="flex flex-wrap items-start justify-between gap-3 rounded-lg border bg-muted/20 p-3">
+								<div className="min-w-0">
+									<p className="truncate text-sm font-semibold">
+										{collectedProfileDisplayName(quickProfile)}
+									</p>
+									<p className="truncate text-xs text-muted-foreground">
+										{quickProfile.user.email}
+									</p>
+								</div>
+								<Link
+									href={buildAdminUserHref(
+										quickProfile.user.userId,
+										quickProfile.user.email,
+									)}
+								>
+									<Button type="button" variant="outline" size="sm">
+										<ExternalLink />
+										Full Detail
+									</Button>
+								</Link>
+							</div>
+							<div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+								{[
+									{
+										label: "Linked Activity",
+										value: quickProfile.user.linkedSignalCount ?? 0,
+									},
+									{
+										label: "Searches",
+										value: quickProfile.user.searchSignalCount ?? 0,
+									},
+									{
+										label: "Filters",
+										value: quickProfile.user.filterSignalCount ?? 0,
+									},
+									{
+										label: "Plans",
+										value: quickProfile.user.planActionSignalCount ?? 0,
+									},
+									{
+										label: "Events",
+										value: quickProfile.user.eventActionSignalCount ?? 0,
+									},
+									{
+										label: "Genres",
+										value: quickProfile.user.genrePreferenceSignalCount ?? 0,
+									},
+								].map((item) => (
+									<div
+										key={item.label}
+										className="rounded-md border bg-muted/20 px-3 py-2"
+									>
+										<p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+											{item.label}
+										</p>
+										<p className="mt-1 text-sm font-medium tabular-nums">
+											{item.value}
+										</p>
+									</div>
+								))}
+							</div>
+							<div className="rounded-lg border bg-muted/20 p-3">
+								<p className="text-sm font-medium">Context</p>
+								<div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-5">
+									{[
+										{
+											label: "Device",
+											value: quickProfile.user.deviceClass,
+										},
+										{
+											label: "Platform",
+											value: quickProfile.user.platform,
+										},
+										{
+											label: "Browser",
+											value: quickProfile.user.browserFamily,
+										},
+										{
+											label: "Timezone",
+											value: quickProfile.user.timezone,
+										},
+										{
+											label: "Locale",
+											value: quickProfile.user.locale,
+										},
+									].map((item) => (
+										<p
+											key={item.label}
+											className="rounded-md border bg-background/55 px-2.5 py-2"
+										>
+											<span className="block text-[10px] uppercase tracking-[0.14em]">
+												{item.label}
+											</span>
+											<span className="mt-1 block truncate font-medium text-foreground">
+												{compactContextValue(item.value)}
+											</span>
+										</p>
+									))}
+								</div>
+							</div>
+							<div className="grid gap-3 lg:grid-cols-2">
+								<div className="rounded-lg border bg-muted/20 p-3">
+									<p className="text-sm font-medium">Top Genres</p>
+									<div className="mt-2 space-y-1.5 text-xs">
+										{quickProfile.genrePreferences.length > 0 ? (
+											quickProfile.genrePreferences.slice(0, 6).map((item) => (
+												<p
+													key={item.genre}
+													className="flex justify-between gap-2"
+												>
+													<span className="truncate">{item.genre}</span>
+													<span className="text-muted-foreground">
+														score {item.score}
+													</span>
+												</p>
+											))
+										) : (
+											<p className="text-muted-foreground">
+												No genre activity.
+											</p>
+										)}
+									</div>
+								</div>
+								<div className="rounded-lg border bg-muted/20 p-3">
+									<p className="text-sm font-medium">Recent Event Actions</p>
+									<div className="mt-2 space-y-1.5 text-xs">
+										{quickProfile.recentEventActions.length > 0 ? (
+											quickProfile.recentEventActions
+												.slice(0, 6)
+												.map((item) => (
+													<p
+														key={`${item.eventKey}-${item.actionType}-${item.recordedAt}`}
+														className="flex justify-between gap-2"
+													>
+														<span className="truncate">
+															{item.actionType} ·{" "}
+															{item.eventName ?? item.eventKey}
+														</span>
+														<span className="shrink-0 text-muted-foreground">
+															{formatDateTime(item.recordedAt)}
+														</span>
+													</p>
+												))
+										) : (
+											<p className="text-muted-foreground">
+												No event actions linked.
+											</p>
+										)}
+									</div>
+								</div>
+							</div>
+						</div>
+					) : (
+						<div className="space-y-3 rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
+							<p>{quickProfileStatus || "No behavior profile available."}</p>
+							{quickProfileUser ? (
+								<Link
+									href={buildAdminUserHref(
+										quickProfileUser.userId,
+										quickProfileUser.email,
+									)}
+								>
+									<Button type="button" variant="outline" size="sm">
+										<ExternalLink />
+										Full Detail
+									</Button>
+								</Link>
+							) : null}
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 
 			<Dialog
 				open={Boolean(quickActionUser && quickActionMode === "notice")}

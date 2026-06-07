@@ -1,4 +1,3 @@
-import { getCollectedEmails } from "@/features/auth/actions";
 import { getAdminUsersDashboard } from "@/features/users/admin-actions";
 import {
 	ADMIN_USERS_ACTIVITY_FILTERS,
@@ -42,32 +41,24 @@ export default async function AdminUsersPage({
 
 	const page = Number(readParam(params, "page"));
 	const pageSize = Number(readParam(params, "pageSize"));
-	const [initialDashboard, emailsResult] = await Promise.all([
-		getAdminUsersDashboard({
-			query: readParam(params, "q"),
-			status: readOption(params, "status", ["all", ...MANAGED_USER_STATUSES]) as
-				| ManagedUserStatus
-				| "all"
-				| undefined,
-			activity: readOption(params, "activity", ADMIN_USERS_ACTIVITY_FILTERS),
-			audienceSignal: readOption(
-				params,
-				"audienceSignal",
-				ADMIN_USERS_AUDIENCE_SIGNAL_FILTERS,
-			),
-			sortKey: readOption(params, "sort", ADMIN_USERS_SORT_KEYS),
-			sortDirection: readOption(params, "dir", ["asc", "desc"]) as
-				| AdminUsersSortDirection
-				| undefined,
-			page: Number.isFinite(page) ? page : undefined,
-			pageSize: Number.isFinite(pageSize) ? pageSize : undefined,
-		}),
-		getCollectedEmails(),
-	]);
-	return (
-		<UsersDashboardClient
-			initialDashboard={initialDashboard}
-			initialEmailsResult={emailsResult}
-		/>
-	);
+	const initialDashboard = await getAdminUsersDashboard({
+		query: readParam(params, "q"),
+		status: readOption(params, "status", ["all", ...MANAGED_USER_STATUSES]) as
+			| ManagedUserStatus
+			| "all"
+			| undefined,
+		activity: readOption(params, "activity", ADMIN_USERS_ACTIVITY_FILTERS),
+		audienceSignal: readOption(
+			params,
+			"audienceSignal",
+			ADMIN_USERS_AUDIENCE_SIGNAL_FILTERS,
+		),
+		sortKey: readOption(params, "sort", ADMIN_USERS_SORT_KEYS),
+		sortDirection: readOption(params, "dir", ["asc", "desc"]) as
+			| AdminUsersSortDirection
+			| undefined,
+		page: Number.isFinite(page) ? page : undefined,
+		pageSize: Number.isFinite(pageSize) ? pageSize : undefined,
+	});
+	return <UsersDashboardClient initialDashboard={initialDashboard} />;
 }

@@ -402,7 +402,7 @@ export async function reportTicketExchangeListing(input: {
 				hasDetails: Boolean(input.details.trim()),
 			},
 			severity: "warning",
-			href: "/admin/content#ticket-exchange-moderation",
+			href: `/admin/content?ticketModeration=review#ticket-report-${encodeURIComponent(report.reportId)}`,
 		});
 		revalidatePath("/admin");
 		revalidatePath("/admin/content");

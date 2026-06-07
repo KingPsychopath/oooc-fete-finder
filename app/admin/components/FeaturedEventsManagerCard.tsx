@@ -122,6 +122,16 @@ const MODE_LABEL: Record<PlacementMode, string> = {
 	promoted: "Promoted",
 };
 
+const isPlacementMode = (value: string | null): value is PlacementMode =>
+	value === "spotlight" || value === "promoted";
+
+const getInitialPlacementMode = (): PlacementMode => {
+	if (typeof window === "undefined") return "spotlight";
+	const params = new URLSearchParams(window.location.search);
+	const requestedMode = params.get("placementMode");
+	return isPlacementMode(requestedMode) ? requestedMode : "spotlight";
+};
+
 export const FeaturedEventsManagerCard = ({
 	initialPayload,
 	initialPromotedPayload,
@@ -131,8 +141,9 @@ export const FeaturedEventsManagerCard = ({
 	initialPromotedPayload?: PromotedQueuePayload;
 	onScheduleUpdated?: () => Promise<void> | void;
 }) => {
-	const [placementMode, setPlacementMode] =
-		useState<PlacementMode>("spotlight");
+	const [placementMode, setPlacementMode] = useState<PlacementMode>(
+		getInitialPlacementMode,
+	);
 	const [placementScope, setPlacementScope] =
 		useState<PlacementScope>("single");
 	const [featuredPayload, setFeaturedPayload] =
@@ -250,6 +261,29 @@ export const FeaturedEventsManagerCard = ({
 		}
 	}, [canTargetSeries, placementScope]);
 
+	useEffect(() => {
+		const revealHashedPlacement = () => {
+			if (!window.location.hash.startsWith("#placement-")) return;
+			const params = new URLSearchParams(window.location.search);
+			const requestedMode = params.get("placementMode");
+			if (isPlacementMode(requestedMode)) {
+				setPlacementMode(requestedMode);
+			}
+			setTimelineSearchTerm("");
+			setTimelineStateFilter("all");
+			window.setTimeout(() => {
+				document
+					.getElementById(window.location.hash.slice(1))
+					?.scrollIntoView({ behavior: "smooth", block: "center" });
+			}, 120);
+		};
+
+		revealHashedPlacement();
+		window.addEventListener("hashchange", revealHashedPlacement);
+		return () =>
+			window.removeEventListener("hashchange", revealHashedPlacement);
+	}, []);
+
 	const scheduleTimezone =
 		currentPayload?.slotConfig?.timezone || "Europe/Paris";
 	const timezoneDisplayLabel = `${scheduleTimezone} (CET / GMT+1)`;
@@ -287,10 +321,7 @@ export const FeaturedEventsManagerCard = ({
 		parsedDurationHours >= 1 &&
 		parsedDurationHours <= 168;
 	const canScheduleNow =
-		!isMutating &&
-		!isLoading &&
-		Boolean(selectedEventKey) &&
-		hasValidDuration;
+		!isMutating && !isLoading && Boolean(selectedEventKey) && hasValidDuration;
 	const canScheduleForLater =
 		canScheduleNow &&
 		scheduleAt.trim().length > 0 &&
@@ -318,6 +349,15 @@ export const FeaturedEventsManagerCard = ({
 		[filteredTimelineRows, timelineVisibleLimit],
 	);
 	const hasVisibleTimelineRows = visibleTimelineRows.length > 0;
+	const activeTimelineFilterCount = [
+		timelineSearchTerm.trim().length > 0,
+		timelineStateFilter !== "all",
+	].filter(Boolean).length;
+	const clearTimelineFilters = () => {
+		setTimelineSearchTerm("");
+		setTimelineStateFilter("all");
+		setTimelineVisibleLimit(TIMELINE_LIMIT_OPTIONS[1]);
+	};
 	const clearQueueTitle =
 		scheduledCount > 0
 			? `Clear ${scheduledCount} scheduled ${MODE_LABEL[placementMode].toLowerCase()} entr${scheduledCount === 1 ? "y" : "ies"}`
@@ -446,7 +486,11 @@ export const FeaturedEventsManagerCard = ({
 		}
 		await withMutation(() =>
 			targetEventKeys.length > 1
-				? schedulePromotedEvents(targetEventKeys, scheduleAt, parsedDurationHours)
+				? schedulePromotedEvents(
+						targetEventKeys,
+						scheduleAt,
+						parsedDurationHours,
+					)
 				: schedulePromotedEvent(
 						selectedEventKey,
 						scheduleAt,
@@ -591,6 +635,7 @@ export const FeaturedEventsManagerCard = ({
 							variant="outline"
 							onClick={() => void loadQueue(placementMode)}
 							disabled={isLoading || isMutating}
+							title={`Reload ${MODE_LABEL[placementMode].toLowerCase()} schedule entries and report links`}
 						>
 							{isLoading ? "Refreshing..." : "Refresh queue"}
 						</Button>
@@ -926,6 +971,44 @@ export const FeaturedEventsManagerCard = ({
 						Showing {visibleTimelineRows.length} of{" "}
 						{filteredTimelineRows.length} matching schedule entries.
 					</p>
+					<div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/25 p-3 text-xs text-muted-foreground">
+						<Badge variant="secondary">
+							View: {MODE_LABEL[placementMode]} schedule
+						</Badge>
+						<Badge variant="outline">
+							State:{" "}
+							{timelineStateFilter === "all"
+								? "All"
+								: toStateLabel(timelineStateFilter)}
+						</Badge>
+						{activeTimelineFilterCount > 0 ? (
+							<>
+								<Badge variant="outline">
+									{activeTimelineFilterCount} active filter
+									{activeTimelineFilterCount === 1 ? "" : "s"}
+								</Badge>
+								{timelineSearchTerm.trim() ? (
+									<Badge variant="outline">
+										Search: {timelineSearchTerm.trim()}
+									</Badge>
+								) : null}
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onClick={clearTimelineFilters}
+									title="Return to the full schedule timeline"
+								>
+									Clear filters
+								</Button>
+							</>
+						) : (
+							<span>
+								No timeline filters applied. Scheduled entries are mixed with
+								history for this placement type.
+							</span>
+						)}
+					</div>
 					<div className="max-h-[42rem] max-w-full overflow-auto rounded-md border">
 						<table className="min-w-[980px] w-full text-xs">
 							<thead className="bg-muted/40">
@@ -975,130 +1058,136 @@ export const FeaturedEventsManagerCard = ({
 												id={`placement-${row.id}`}
 												className={`scroll-mt-44 border-t align-top ${stateRowClassName(row.state)}`}
 											>
-											<td className="px-2.5 py-2.5">
-												<div className="font-medium">{row.eventName}</div>
-												<div className="font-mono text-[11px] text-muted-foreground">
-													{row.eventKey}
-												</div>
-											</td>
-											<td className="px-2.5 py-2.5">
-												<Badge variant={stateBadgeVariant(row.state)}>
-													{toStateLabel(row.state)}
-												</Badge>
-											</td>
-											<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums">
-												{placementMode === "spotlight" && row.queuePosition
-													? `#${row.queuePosition}`
-													: "—"}
-											</td>
-											<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums whitespace-nowrap">
-												{row.requestedStartAtParis || "—"}
-											</td>
-											<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums whitespace-nowrap">
-												{row.effectiveStartAtParis}
-											</td>
-											<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums whitespace-nowrap">
-												{row.effectiveEndAtParis}
-											</td>
-											<td className="px-2.5 py-2.5">
-												<div className="flex min-w-[210px] flex-col gap-1.5">
-													<Input
-														id={`placement-reschedule-${row.id}`}
-														type="datetime-local"
-														className="h-8 text-xs"
-														value={
-															rescheduleInputs[row.id] ??
-															row.requestedStartAtParisInput
-														}
-														onChange={(event) =>
-															setRescheduleInputs((current) => ({
-																...current,
-																[row.id]: event.target.value,
-															}))
-														}
-														disabled={row.status !== "scheduled" || isMutating}
-													/>
-													<div className="flex gap-1.5">
-														<Button
-															type="button"
-															size="sm"
-															variant="outline"
-															className="h-8 px-2.5"
-															disabled={isMutating || !canReschedule}
-															title={rescheduleTitle}
-															onClick={() =>
-																void withMutation(() => {
-																	return placementMode === "spotlight"
-																		? rescheduleFeaturedEvent(
-																				row.id,
-																				nextStart,
-																				row.durationHours,
-																			)
-																		: reschedulePromotedEvent(
-																				row.id,
-																				nextStart,
-																				row.durationHours,
-																			);
-																})
+												<td className="px-2.5 py-2.5">
+													<div className="font-medium">{row.eventName}</div>
+													<div className="font-mono text-[11px] text-muted-foreground">
+														{row.eventKey}
+													</div>
+												</td>
+												<td className="px-2.5 py-2.5">
+													<Badge variant={stateBadgeVariant(row.state)}>
+														{toStateLabel(row.state)}
+													</Badge>
+												</td>
+												<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums">
+													{placementMode === "spotlight" && row.queuePosition
+														? `#${row.queuePosition}`
+														: "—"}
+												</td>
+												<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums whitespace-nowrap">
+													{row.requestedStartAtParis || "—"}
+												</td>
+												<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums whitespace-nowrap">
+													{row.effectiveStartAtParis}
+												</td>
+												<td className="px-2.5 py-2.5 font-mono text-[11px] tabular-nums whitespace-nowrap">
+													{row.effectiveEndAtParis}
+												</td>
+												<td className="px-2.5 py-2.5">
+													<div className="flex min-w-[210px] flex-col gap-1.5">
+														<Input
+															id={`placement-reschedule-${row.id}`}
+															type="datetime-local"
+															className="h-8 text-xs"
+															value={
+																rescheduleInputs[row.id] ??
+																row.requestedStartAtParisInput
 															}
-														>
-															Reschedule
-														</Button>
-														<Button
-															type="button"
-															size="sm"
-															variant="destructive"
-															className="h-8 px-2.5"
+															onChange={(event) =>
+																setRescheduleInputs((current) => ({
+																	...current,
+																	[row.id]: event.target.value,
+																}))
+															}
 															disabled={
 																row.status !== "scheduled" || isMutating
 															}
-															title={cancelTitle}
-															onClick={() =>
-																void withMutation(() =>
-																	placementMode === "spotlight"
-																		? cancelFeaturedSchedule(row.id)
-																		: cancelPromotedSchedule(row.id),
-																)
-															}
-														>
-															Cancel
-														</Button>
-													</div>
-													<div className="flex flex-wrap gap-1.5">
-														{partnerReportLinks[row.id] ? (
+														/>
+														<div className="flex gap-1.5">
 															<Button
 																type="button"
 																size="sm"
 																variant="outline"
 																className="h-8 px-2.5"
-																nativeButton={false}
-																render={
-																	<a
-																		href={partnerReportLinks[row.id]?.statsPath}
-																		target="_blank"
-																		rel="noreferrer"
-																	/>
-																}
-															>
-																Open Report
-															</Button>
-														) : (
-															<Button
-																type="button"
-																size="sm"
-																variant="outline"
-																className="h-8 px-2.5"
-																disabled={isMutating}
+																disabled={isMutating || !canReschedule}
+																title={rescheduleTitle}
 																onClick={() =>
-																	void handleCreatePartnerReport(row)
+																	void withMutation(() => {
+																		return placementMode === "spotlight"
+																			? rescheduleFeaturedEvent(
+																					row.id,
+																					nextStart,
+																					row.durationHours,
+																				)
+																			: reschedulePromotedEvent(
+																					row.id,
+																					nextStart,
+																					row.durationHours,
+																				);
+																	})
 																}
 															>
-																Create Report
+																Reschedule
 															</Button>
-														)}
+															<Button
+																type="button"
+																size="sm"
+																variant="destructive"
+																className="h-8 px-2.5"
+																disabled={
+																	row.status !== "scheduled" || isMutating
+																}
+																title={cancelTitle}
+																onClick={() =>
+																	void withMutation(() =>
+																		placementMode === "spotlight"
+																			? cancelFeaturedSchedule(row.id)
+																			: cancelPromotedSchedule(row.id),
+																	)
+																}
+															>
+																Cancel
+															</Button>
+														</div>
+														<div className="flex flex-wrap gap-1.5">
+															{partnerReportLinks[row.id] ? (
+																<Button
+																	type="button"
+																	size="sm"
+																	variant="outline"
+																	className="h-8 px-2.5"
+																	nativeButton={false}
+																	render={
+																		<a
+																			href={
+																				partnerReportLinks[row.id]?.statsPath
+																			}
+																			target="_blank"
+																			rel="noreferrer"
+																			title="Open this placement's partner stats report"
+																		/>
+																	}
+																>
+																	Open Report
+																</Button>
+															) : (
+																<Button
+																	type="button"
+																	size="sm"
+																	variant="outline"
+																	className="h-8 px-2.5"
+																	disabled={isMutating}
+																	title="Create a partner stats report for this placement window"
+																	onClick={() =>
+																		void handleCreatePartnerReport(row)
+																	}
+																>
+																	Create Report
+																</Button>
+															)}
+														</div>
 													</div>
-												</div>
-											</td>
+												</td>
 											</tr>
 										);
 									})

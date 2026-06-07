@@ -235,6 +235,14 @@ export interface AdminUserSummary {
 	eventSubmissionCount: number;
 	planCount: number;
 	savedEventCount: number;
+	audienceSignalCount?: number;
+	audienceSearchCount?: number;
+	audienceFilterCount?: number;
+	audiencePlanSignalCount?: number;
+	audienceEventCount?: number;
+	audienceGenreCount?: number;
+	audienceLastSignalAt?: string | null;
+	audienceHasContext?: boolean;
 }
 
 export interface UserPolicyDecision {

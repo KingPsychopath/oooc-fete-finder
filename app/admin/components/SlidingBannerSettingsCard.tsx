@@ -90,6 +90,33 @@ export const SlidingBannerSettingsCard = ({
 		() => parseMessageInput(messagesInput),
 		[messagesInput],
 	);
+	const durationSeconds = Number.parseFloat(messageDurationSeconds);
+	const hasValidDuration =
+		Number.isFinite(durationSeconds) &&
+		durationSeconds >= 1.8 &&
+		durationSeconds <= 12;
+	const canSaveBanner =
+		!isSaving &&
+		!isRefreshing &&
+		hasValidDuration &&
+		(!enabled || parsedMessages.length > 0);
+	const canToggleBanner =
+		!isSaving &&
+		!isRefreshing &&
+		hasValidDuration &&
+		(enabled || parsedMessages.length > 0);
+	const saveTitle = !hasValidDuration
+		? "Enter a display time between 1.8 and 12 seconds"
+		: enabled && parsedMessages.length === 0
+			? "Add at least one message or disable the banner"
+			: "Save homepage banner settings";
+	const toggleTitle = !hasValidDuration
+		? "Enter a valid display time before changing banner status"
+		: !enabled && parsedMessages.length === 0
+			? "Add at least one message before enabling the banner"
+			: enabled
+				? "Disable the homepage banner and save immediately"
+				: "Enable the homepage banner and save immediately";
 
 	const applySettings = useCallback(
 		(
@@ -177,6 +204,11 @@ export const SlidingBannerSettingsCard = ({
 	}, [applySettings, initialSettings?.success]);
 
 	const handleSave = useCallback(async () => {
+		if (!hasValidDuration) {
+			setErrorMessage("Enter a display time between 1.8 and 12 seconds");
+			setStatusMessage("");
+			return;
+		}
 		if (enabled && parsedMessages.length === 0) {
 			setErrorMessage("Add at least one message or disable the banner");
 			setStatusMessage("");
@@ -187,9 +219,7 @@ export const SlidingBannerSettingsCard = ({
 		setStatusMessage("");
 		setErrorMessage("");
 		try {
-			const normalizedDurationMs = Math.round(
-				Number.parseFloat(messageDurationSeconds) * 1000,
-			);
+			const normalizedDurationMs = Math.round(durationSeconds * 1000);
 			const result = await updateAdminSlidingBannerSettings(undefined, {
 				enabled,
 				messages: parsedMessages,
@@ -213,13 +243,19 @@ export const SlidingBannerSettingsCard = ({
 	}, [
 		applySettings,
 		desktopMessageCount,
+		durationSeconds,
 		enabled,
-		messageDurationSeconds,
+		hasValidDuration,
 		parsedMessages,
 	]);
 
 	const handleToggleEnabled = useCallback(async () => {
 		const nextEnabled = !enabled;
+		if (!hasValidDuration) {
+			setErrorMessage("Enter a display time between 1.8 and 12 seconds");
+			setStatusMessage("");
+			return;
+		}
 		if (nextEnabled && parsedMessages.length === 0) {
 			setErrorMessage("Add at least one message before enabling the banner");
 			setStatusMessage("");
@@ -231,9 +267,7 @@ export const SlidingBannerSettingsCard = ({
 		setStatusMessage("");
 		setErrorMessage("");
 		try {
-			const normalizedDurationMs = Math.round(
-				Number.parseFloat(messageDurationSeconds) * 1000,
-			);
+			const normalizedDurationMs = Math.round(durationSeconds * 1000);
 			const result = await updateAdminSlidingBannerSettings(undefined, {
 				enabled: nextEnabled,
 				messages: parsedMessages,
@@ -260,8 +294,9 @@ export const SlidingBannerSettingsCard = ({
 	}, [
 		applySettings,
 		desktopMessageCount,
+		durationSeconds,
 		enabled,
-		messageDurationSeconds,
+		hasValidDuration,
 		parsedMessages,
 	]);
 
@@ -368,15 +403,17 @@ export const SlidingBannerSettingsCard = ({
 					<Button
 						type="button"
 						variant={enabled ? "outline" : "default"}
-						disabled={isSaving || isRefreshing}
+						disabled={!canToggleBanner}
 						onClick={handleToggleEnabled}
+						title={toggleTitle}
 					>
 						{enabled ? "Disable Banner" : "Enable Banner"}
 					</Button>
 					<Button
 						type="button"
 						onClick={handleSave}
-						disabled={isSaving || isRefreshing}
+						disabled={!canSaveBanner}
+						title={saveTitle}
 					>
 						{isSaving ? "Saving..." : "Save Banner Settings"}
 					</Button>
@@ -385,6 +422,7 @@ export const SlidingBannerSettingsCard = ({
 						variant="outline"
 						onClick={handleRefresh}
 						disabled={isSaving || isRefreshing}
+						title="Reload homepage banner settings from the canonical store"
 					>
 						{isRefreshing ? "Refreshing..." : "Refresh"}
 					</Button>

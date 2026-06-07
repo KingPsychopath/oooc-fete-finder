@@ -241,12 +241,22 @@ const hasStoredResolution = (item: EventLocationReviewItem): boolean =>
 
 const isValidLatitudeInput = (value: string): boolean => {
 	const parsed = Number(value);
-	return value.trim().length > 0 && Number.isFinite(parsed) && parsed >= -90 && parsed <= 90;
+	return (
+		value.trim().length > 0 &&
+		Number.isFinite(parsed) &&
+		parsed >= -90 &&
+		parsed <= 90
+	);
 };
 
 const isValidLongitudeInput = (value: string): boolean => {
 	const parsed = Number(value);
-	return value.trim().length > 0 && Number.isFinite(parsed) && parsed >= -180 && parsed <= 180;
+	return (
+		value.trim().length > 0 &&
+		Number.isFinite(parsed) &&
+		parsed >= -180 &&
+		parsed <= 180
+	);
 };
 
 const getReviewHint = (item: EventLocationReviewItem): string => {

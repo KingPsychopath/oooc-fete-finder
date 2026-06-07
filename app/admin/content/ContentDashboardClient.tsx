@@ -93,7 +93,12 @@ const CONTENT_TABS: Array<{
 const HASH_TO_TAB = new Map<string, ContentTab>(
 	CONTENT_TABS.map((tab) => [tab.anchorId, tab.key]),
 );
+HASH_TO_TAB.set("site-content", "site");
 HASH_TO_TAB.set("search-chips", "site");
+
+const ANCHOR_SCROLL_TARGETS = new Map<string, string>([
+	["site-content", "sliding-banner"],
+]);
 
 const getTabForAnchor = (anchorId: string): ContentTab | null => {
 	const directTab = HASH_TO_TAB.get(anchorId);
@@ -110,6 +115,9 @@ const getAnchorIdFromHash = (): string | null => {
 	const anchorId = window.location.hash.replace(/^#/, "").trim();
 	return anchorId || null;
 };
+
+const getScrollAnchorId = (anchorId: string): string =>
+	ANCHOR_SCROLL_TARGETS.get(anchorId) ?? anchorId;
 
 const isVisibleAnchorTarget = (target: HTMLElement): boolean =>
 	target.getClientRects().length > 0;
@@ -202,7 +210,7 @@ export function ContentDashboardClient({
 			const hashTab = getTabForAnchor(anchorId);
 			if (!hashTab) return;
 			openTab(hashTab, false);
-			scrollToContentAnchor(anchorId);
+			scrollToContentAnchor(getScrollAnchorId(anchorId));
 		};
 
 		syncHashToTab();
@@ -214,7 +222,7 @@ export function ContentDashboardClient({
 		const anchorId = getAnchorIdFromHash();
 		if (!anchorId) return;
 		if (getTabForAnchor(anchorId) !== activeTab) return;
-		scrollToContentAnchor(anchorId);
+		scrollToContentAnchor(getScrollAnchorId(anchorId));
 	}, [activeTab]);
 
 	return (

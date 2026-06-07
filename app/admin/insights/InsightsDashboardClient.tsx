@@ -214,6 +214,42 @@ const userSegmentHref = (signal: AudienceSignal): string =>
 		`/admin/users?audienceSignal=${encodeURIComponent(signal)}#user-search`,
 	);
 
+const INSIGHTS_TAB_BY_HASH = new Map<string, InsightsTab>([
+	["collected-users", "audience"],
+	["audience", "audience"],
+	["insights-audience", "audience"],
+	["event-engagement-stats", "events"],
+	["traffic", "traffic"],
+	["insights-traffic", "traffic"],
+	["discovery", "discovery"],
+	["insights-discovery", "discovery"],
+	["planning", "planning"],
+	["insights-planning", "planning"],
+	["exchange", "exchange"],
+	["insights-exchange", "exchange"],
+	["events", "events"],
+	["insights-events", "events"],
+	["advanced", "advanced"],
+	["insights-advanced", "advanced"],
+]);
+
+const getInsightsHash = (): string | null => {
+	if (typeof window === "undefined") return null;
+	const hash = window.location.hash.replace(/^#/, "").trim();
+	return hash || null;
+};
+
+const getInsightsTabForHash = (hash: string | null): InsightsTab | null => {
+	if (!hash) return null;
+	return INSIGHTS_TAB_BY_HASH.get(hash) ?? null;
+};
+
+const getInsightsTabHash = (tab: InsightsTab): string =>
+	tab === "audience" ? "collected-users" : `insights-${tab}`;
+
+const getInsightsScrollTarget = (tab: InsightsTab): string =>
+	tab === "audience" ? "collected-users" : "event-engagement-stats";
+
 const audienceStatLinkClass =
 	"block rounded-md border bg-background/60 px-3 py-2 transition-colors hover:border-foreground/30 hover:bg-muted/35";
 
@@ -250,10 +286,10 @@ const AudienceOverviewCard = ({
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap gap-2">
-						<Link href={withAdminBasePath("/admin/users#audience-records")}>
+						<Link href={withAdminBasePath("/admin/users#user-search")}>
 							<Button type="button" variant="outline" size="sm">
 								<UsersRound />
-								Manage Records
+								Open Users
 							</Button>
 						</Link>
 						<Button
@@ -276,7 +312,7 @@ const AudienceOverviewCard = ({
 			<CardContent className="space-y-4 pt-4">
 				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
 					<Link
-						href={withAdminBasePath("/admin/users#audience-records")}
+						href={withAdminBasePath("/admin/users#user-search")}
 						className={audienceStatLinkClass}
 					>
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -284,7 +320,7 @@ const AudienceOverviewCard = ({
 						</p>
 						<p className="mt-1 text-sm font-medium">{totalUsers}</p>
 						<p className="mt-0.5 text-[11px] text-muted-foreground">
-							Open audience records
+							Open user list
 						</p>
 					</Link>
 					<Link
@@ -302,7 +338,7 @@ const AudienceOverviewCard = ({
 						</p>
 					</Link>
 					<Link
-						href={withAdminBasePath("/admin/users#audience-records")}
+						href={withAdminBasePath("/admin/users#user-search")}
 						className={audienceStatLinkClass}
 					>
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -313,7 +349,7 @@ const AudienceOverviewCard = ({
 						</p>
 						<p className="mt-0.5 text-[11px] text-muted-foreground">24h / 7d</p>
 						<p className="mt-0.5 text-[11px] text-muted-foreground">
-							Open audience records
+							Open user list
 						</p>
 					</Link>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
@@ -428,6 +464,39 @@ export function InsightsDashboardClient({
 		URL.revokeObjectURL(url);
 	}, []);
 
+	useEffect(() => {
+		const syncHashToTab = () => {
+			const tab = getInsightsTabForHash(getInsightsHash());
+			if (!tab) return;
+			setActiveTab(tab);
+			window.setTimeout(() => {
+				document
+					.getElementById(getInsightsScrollTarget(tab))
+					?.scrollIntoView({ behavior: "smooth", block: "start" });
+			}, 0);
+		};
+
+		syncHashToTab();
+		window.addEventListener("hashchange", syncHashToTab);
+		return () => window.removeEventListener("hashchange", syncHashToTab);
+	}, []);
+
+	const openInsightsTab = (tab: InsightsTab) => {
+		setActiveTab(tab);
+		if (typeof window === "undefined") return;
+		const hash = getInsightsTabHash(tab);
+		window.history.replaceState(
+			null,
+			"",
+			`${window.location.pathname}#${hash}`,
+		);
+		window.setTimeout(() => {
+			document
+				.getElementById(getInsightsScrollTarget(tab))
+				?.scrollIntoView({ behavior: "smooth", block: "start" });
+		}, 0);
+	};
+
 	const emailCollectionSection =
 		activeTab === "audience" ? (
 			<section id="collected-users" className="scroll-mt-44">
@@ -447,7 +516,9 @@ export function InsightsDashboardClient({
 						<button
 							key={tab.key}
 							type="button"
-							onClick={() => setActiveTab(tab.key)}
+							onClick={() => openInsightsTab(tab.key)}
+							aria-pressed={activeTab === tab.key}
+							title={`Show ${tab.label.toLowerCase()} insight view`}
 							className={`rounded-md border px-3 py-2 text-left transition-colors ${
 								activeTab === tab.key
 									? "border-foreground/35 bg-foreground text-background"

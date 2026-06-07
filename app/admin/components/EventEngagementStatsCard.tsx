@@ -35,6 +35,7 @@ import {
 } from "@/lib/ui/admin-date-format";
 import { CircleHelp } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { withAdminBasePath } from "../config";
 
 type EventEngagementPayload = Awaited<
 	ReturnType<typeof getEventEngagementDashboard>
@@ -532,6 +533,30 @@ const buildEventHref = (
 	return `${basePath}/event/${encodedEventKey}${encodedSlug}`;
 };
 
+const buildExchangeHref = (eventKey: string): string => {
+	const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || "");
+	return `${basePath}/exchange/${encodeURIComponent(eventKey)}`;
+};
+
+const buildTicketModerationHref = ({
+	tab,
+	type,
+	status,
+}: {
+	tab?: "review" | "active" | "recent";
+	type?: "selling" | "looking";
+	status?: string;
+} = {}): string => {
+	const params = new URLSearchParams();
+	if (tab) params.set("ticketModeration", tab);
+	if (type) params.set("ticketType", type);
+	if (status) params.set("ticketStatus", status);
+	const query = params.toString();
+	return withAdminBasePath(
+		`/admin/content${query ? `?${query}` : ""}#ticket-exchange-moderation`,
+	);
+};
+
 const EventNameLink = ({
 	row,
 	className = "",
@@ -698,11 +723,17 @@ const SummaryMetric = ({
 	value,
 	description,
 	delta,
+	actionHref,
+	actionLabel,
+	actionTitle,
 }: {
 	label: string;
 	value: string | number;
 	description: string;
 	delta?: number | null;
+	actionHref?: string;
+	actionLabel?: string;
+	actionTitle?: string;
 }) => (
 	<div className="rounded-md border bg-background/60 px-2.5 py-2">
 		<div className="flex items-start justify-between gap-2">
@@ -744,6 +775,15 @@ const SummaryMetric = ({
 				</p>
 			) : null}
 		</div>
+		{actionHref && actionLabel ? (
+			<a
+				href={actionHref}
+				className="mt-1.5 inline-flex text-[11px] font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+				title={actionTitle}
+			>
+				{actionLabel}
+			</a>
+		) : null}
 	</div>
 );
 
@@ -2090,6 +2130,39 @@ export const EventEngagementStatsCard = ({
 									label={metric.label}
 									value={ticketExchange.operations[metric.key]}
 									description={metric.description}
+									actionHref={
+										metric.key === "pendingReportCount"
+											? buildTicketModerationHref({ tab: "review" })
+											: metric.key === "activeSellingCount"
+												? buildTicketModerationHref({
+														tab: "active",
+														type: "selling",
+													})
+												: metric.key === "activeLookingCount"
+													? buildTicketModerationHref({
+															tab: "active",
+															type: "looking",
+														})
+													: undefined
+									}
+									actionLabel={
+										metric.key === "pendingReportCount"
+											? "Open report queue"
+											: metric.key === "activeSellingCount"
+												? "Open selling listings"
+												: metric.key === "activeLookingCount"
+													? "Open looking listings"
+													: undefined
+									}
+									actionTitle={
+										metric.key === "pendingReportCount"
+											? "Open Ticket Exchange moderation on reports needing review"
+											: metric.key === "activeSellingCount"
+												? "Open active selling listings in Ticket Exchange moderation"
+												: metric.key === "activeLookingCount"
+													? "Open active looking listings in Ticket Exchange moderation"
+													: undefined
+									}
 								/>
 							))}
 						</div>
@@ -2902,8 +2975,9 @@ export const EventEngagementStatsCard = ({
 								</InfoPopover>
 							</div>
 							<a
-								href="/admin/content#ticket-exchange-moderation"
+								href={buildTicketModerationHref()}
 								className="rounded-md border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+								title="Open the Ticket Exchange moderation surface"
 							>
 								Open ticket moderation
 							</a>
@@ -2927,8 +3001,9 @@ export const EventEngagementStatsCard = ({
 												<div className="min-w-0">
 													{row.eventSlug ? (
 														<a
-															href={`/event/${encodeURIComponent(row.eventKey)}/${encodeURIComponent(row.eventSlug)}`}
+															href={buildEventHref(row)}
 															className="block truncate text-xs font-medium underline-offset-4 hover:underline"
+															title="Open public event card"
 														>
 															{row.eventName}
 														</a>
@@ -2951,8 +3026,9 @@ export const EventEngagementStatsCard = ({
 														{row.isLiveEvent ? "" : " · no live match"}
 													</p>
 													<a
-														href={`/exchange/${encodeURIComponent(row.eventKey)}`}
+														href={buildExchangeHref(row.eventKey)}
 														className="inline-flex rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] transition-colors hover:bg-muted hover:text-foreground"
+														title="Open the public exchange event page"
 													>
 														Exchange
 													</a>
@@ -3177,8 +3253,9 @@ export const EventEngagementStatsCard = ({
 									<p>
 										{ticketExchange.operations.pendingReportCount > 0 ? (
 											<a
-												href="/admin/content#ticket-exchange-moderation"
+												href={buildTicketModerationHref({ tab: "review" })}
 												className="font-medium text-foreground underline-offset-4 hover:underline"
+												title="Open reports needing review in Ticket Exchange moderation"
 											>
 												{ticketExchange.operations.pendingReportCount} report
 												{ticketExchange.operations.pendingReportCount === 1
@@ -3193,8 +3270,9 @@ export const EventEngagementStatsCard = ({
 									<p>
 										{ticketExchange.operations.botPendingCount > 0 ? (
 											<a
-												href="/admin/content#ticket-exchange-moderation"
+												href={buildTicketModerationHref({ tab: "active" })}
 												className="font-medium text-foreground underline-offset-4 hover:underline"
+												title="Open active listings in Ticket Exchange moderation"
 											>
 												{ticketExchange.operations.botPendingCount} active
 												listing

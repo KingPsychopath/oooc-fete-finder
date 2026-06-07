@@ -36,7 +36,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { withAdminBasePath } from "../config";
 
@@ -84,6 +84,27 @@ const REPORT_SORT_OPTIONS: Array<{ value: ReportSortMode; label: string }> = [
 	{ value: "event-asc", label: "Event A-Z" },
 	{ value: "reason-asc", label: "Reason A-Z" },
 ];
+
+const getRequestedModerationTab = (
+	value: string | null,
+): ModerationTab | null =>
+	value === "review" || value === "active" || value === "recent" ? value : null;
+
+const getRequestedListingType = (
+	value: string | null,
+): ListingTypeFilter | null =>
+	value === "selling" || value === "looking" ? value : null;
+
+const getRequestedListingStatus = (
+	value: string | null,
+): ListingStatusFilter | null =>
+	value === "active" ||
+	value === "paused" ||
+	value === "resolved" ||
+	value === "expired" ||
+	value === "removed"
+		? value
+		: null;
 
 const getOptionLabel = <T extends string>(
 	options: Array<{ value: T; label: string }>,
@@ -564,95 +585,95 @@ const ReportRow = ({
 			className="scroll-mt-44 rounded-lg border border-amber-200/80 bg-amber-50/35 p-3 dark:border-amber-900/50 dark:bg-amber-950/20"
 		>
 			<div className="grid gap-3 lg:grid-cols-[1fr_auto]">
-			<div className="min-w-0 space-y-2">
-				<div className="flex flex-wrap items-center gap-2">
-					<Badge variant={report.reviewedAt ? "outline" : "destructive"}>
-						{report.reviewedAt ? "Reviewed" : "Needs review"}
-					</Badge>
-					<Badge variant="outline">
-						{getTicketExchangeReportReasonLabel(report.reason)}
-					</Badge>
-				</div>
-				<p className="font-medium leading-snug">{report.listing.eventName}</p>
-				<p className="text-sm text-muted-foreground">
-					{report.listing.listingType === "selling" ? "Selling" : "Looking"} ·{" "}
-					{report.listing.quantityLabel}
-					{report.listing.priceLabel ? ` · ${report.listing.priceLabel}` : ""}
-				</p>
-				<p className="mt-1 text-xs text-muted-foreground">
-					Reported {formatDateTime(report.createdAt)}
-				</p>
-				<div className="grid gap-2 sm:grid-cols-2">
-					<div className="rounded-md border bg-background/65 px-3 py-2 text-xs">
-						<p className="font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-							Listing owner
+				<div className="min-w-0 space-y-2">
+					<div className="flex flex-wrap items-center gap-2">
+						<Badge variant={report.reviewedAt ? "outline" : "destructive"}>
+							{report.reviewedAt ? "Reviewed" : "Needs review"}
+						</Badge>
+						<Badge variant="outline">
+							{getTicketExchangeReportReasonLabel(report.reason)}
+						</Badge>
+					</div>
+					<p className="font-medium leading-snug">{report.listing.eventName}</p>
+					<p className="text-sm text-muted-foreground">
+						{report.listing.listingType === "selling" ? "Selling" : "Looking"} ·{" "}
+						{report.listing.quantityLabel}
+						{report.listing.priceLabel ? ` · ${report.listing.priceLabel}` : ""}
+					</p>
+					<p className="mt-1 text-xs text-muted-foreground">
+						Reported {formatDateTime(report.createdAt)}
+					</p>
+					<div className="grid gap-2 sm:grid-cols-2">
+						<div className="rounded-md border bg-background/65 px-3 py-2 text-xs">
+							<p className="font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+								Listing owner
+							</p>
+							<p className="mt-1">
+								<PersonEvidenceLink
+									person={report.listing.owner}
+									userId={report.listing.ownerUserId}
+								/>
+							</p>
+						</div>
+						<div className="rounded-md border bg-background/65 px-3 py-2 text-xs">
+							<p className="font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+								Reporter
+							</p>
+							<p className="mt-1">
+								<PersonEvidenceLink
+									person={report.reporter}
+									userId={report.reporterUserId}
+								/>
+							</p>
+						</div>
+					</div>
+					<div className="mt-2 rounded-md border border-amber-300/60 bg-background/65 px-3 py-2">
+						<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-900/80 dark:text-amber-100/80">
+							Report message
 						</p>
-						<p className="mt-1">
-							<PersonEvidenceLink
-								person={report.listing.owner}
-								userId={report.listing.ownerUserId}
-							/>
+						<p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
+							{report.details || "No extra message from the reporter."}
 						</p>
 					</div>
-					<div className="rounded-md border bg-background/65 px-3 py-2 text-xs">
-						<p className="font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-							Reporter
-						</p>
-						<p className="mt-1">
-							<PersonEvidenceLink
-								person={report.reporter}
-								userId={report.reporterUserId}
-							/>
-						</p>
+					<div className="flex flex-wrap gap-2">
+						{report.listing.eventKey ? (
+							<Link
+								href={withAdminBasePath(
+									`/exchange/${encodeURIComponent(report.listing.eventKey)}`,
+								)}
+							>
+								<Button type="button" variant="outline" size="sm">
+									<ExternalLink />
+									Exchange
+								</Button>
+							</Link>
+						) : null}
 					</div>
 				</div>
-				<div className="mt-2 rounded-md border border-amber-300/60 bg-background/65 px-3 py-2">
-					<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-900/80 dark:text-amber-100/80">
-						Report message
-					</p>
-					<p className="mt-1 whitespace-pre-wrap text-sm text-foreground">
-						{report.details || "No extra message from the reporter."}
-					</p>
+				<div className="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						disabled={isMutating || Boolean(report.reviewedAt)}
+						title={markReviewedTitle}
+						onClick={() => onReview(report.id)}
+					>
+						<Check />
+						Mark reviewed
+					</Button>
+					<Button
+						type="button"
+						variant="destructive"
+						size="sm"
+						disabled={isMutating || report.listing.status === "removed"}
+						title={removeListingTitle}
+						onClick={() => onRemoveListing(report.listingId)}
+					>
+						<Trash2 />
+						Remove listing
+					</Button>
 				</div>
-				<div className="flex flex-wrap gap-2">
-					{report.listing.eventKey ? (
-						<Link
-							href={withAdminBasePath(
-								`/exchange/${encodeURIComponent(report.listing.eventKey)}`,
-							)}
-						>
-							<Button type="button" variant="outline" size="sm">
-								<ExternalLink />
-								Exchange
-							</Button>
-						</Link>
-					) : null}
-				</div>
-			</div>
-			<div className="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					disabled={isMutating || Boolean(report.reviewedAt)}
-					title={markReviewedTitle}
-					onClick={() => onReview(report.id)}
-				>
-					<Check />
-					Mark reviewed
-				</Button>
-				<Button
-					type="button"
-					variant="destructive"
-					size="sm"
-					disabled={isMutating || report.listing.status === "removed"}
-					title={removeListingTitle}
-					onClick={() => onRemoveListing(report.listingId)}
-				>
-					<Trash2 />
-					Remove listing
-				</Button>
-			</div>
 			</div>
 		</div>
 	);
@@ -664,6 +685,14 @@ export const TicketExchangeModerationCard = ({
 	initialPayload?: AdminPayload;
 }) => {
 	const router = useRouter();
+	const searchParams = useSearchParams();
+	const requestedTab = getRequestedModerationTab(
+		searchParams.get("ticketModeration"),
+	);
+	const requestedType = getRequestedListingType(searchParams.get("ticketType"));
+	const requestedStatus = getRequestedListingStatus(
+		searchParams.get("ticketStatus"),
+	);
 	const initialDashboard = initialPayload?.success
 		? (initialPayload.dashboard ?? null)
 		: null;
@@ -677,13 +706,14 @@ export const TicketExchangeModerationCard = ({
 	);
 	const [statusMessage, setStatusMessage] = useState("");
 	const [activeTab, setActiveTab] = useState<ModerationTab>(
-		initialPendingReportCount > 0 ? "review" : "active",
+		requestedTab ?? (initialPendingReportCount > 0 ? "review" : "active"),
 	);
 	const [query, setQuery] = useState("");
-	const [listingTypeFilter, setListingTypeFilter] =
-		useState<ListingTypeFilter>("all");
+	const [listingTypeFilter, setListingTypeFilter] = useState<ListingTypeFilter>(
+		requestedType ?? "all",
+	);
 	const [listingStatusFilter, setListingStatusFilter] =
-		useState<ListingStatusFilter>("all");
+		useState<ListingStatusFilter>(requestedStatus ?? "all");
 	const [listingSortMode, setListingSortMode] =
 		useState<ListingSortMode>("updated-desc");
 	const [reportSortMode, setReportSortMode] =
@@ -790,7 +820,9 @@ export const TicketExchangeModerationCard = ({
 		if (!anchorId.startsWith("ticket-listing-")) return;
 		const listingId = anchorId.replace(/^ticket-listing-/, "");
 		const listings = dashboard?.recentListings ?? [];
-		const listingIndex = listings.findIndex((listing) => listing.id === listingId);
+		const listingIndex = listings.findIndex(
+			(listing) => listing.id === listingId,
+		);
 		if (listingIndex < 0) return;
 		if (activeTab !== "recent") {
 			setActiveTab("recent");
