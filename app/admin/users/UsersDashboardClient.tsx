@@ -31,7 +31,9 @@ import {
 	getAdminUserAttentionReasons,
 } from "@/features/users/attention";
 import {
+	getDefaultNoticeExpiresAtInputValue,
 	getNoticeCtaHrefError,
+	getNoticeLifecycleError,
 	normalizeNoticeCtaHref,
 } from "@/features/users/notice-form";
 import type {
@@ -66,7 +68,7 @@ import {
 	X,
 } from "lucide-react";
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { withAdminBasePath } from "../config";
 
 type UsersDashboardClientProps = {
@@ -222,7 +224,7 @@ const ACTIVITY_OPTIONS: Array<{
 	{ value: "all", label: "All activity" },
 	{ value: "needs_attention", label: "Needs attention" },
 	{ value: "has_restrictions", label: "Has restrictions" },
-	{ value: "has_notices", label: "Has notices" },
+	{ value: "has_notices", label: "Has pending notices" },
 	{ value: "has_ticket_listings", label: "Has listings" },
 	{ value: "has_active_ticket_listings", label: "Has live listings" },
 	{ value: "has_ticket_reports", label: "Has report history" },
@@ -235,7 +237,7 @@ const SORT_OPTIONS: Array<{ value: AdminUsersSortKey; label: string }> = [
 	{ value: "last_seen", label: "Last seen" },
 	{ value: "first_seen", label: "First seen" },
 	{ value: "active_restrictions", label: "Restrictions" },
-	{ value: "open_notices", label: "Open notices" },
+	{ value: "open_notices", label: "Pending notices" },
 	{ value: "ticket_listings", label: "Listings" },
 	{ value: "active_ticket_listings", label: "Live listings" },
 	{ value: "ticket_reports", label: "Report activity" },
@@ -316,6 +318,29 @@ export function UsersDashboardClient({
 		return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : value;
 	};
 
+	useEffect(() => {
+		setNoticeExpiresAt((current) =>
+			current ? current : getDefaultNoticeExpiresAtInputValue(),
+		);
+	}, []);
+
+	const resetNoticeComposer = (severity: UserNoticeSeverity = "info") => {
+		setNoticeSeverity(severity);
+		setNoticeTitle("");
+		setNoticeBody("");
+		setNoticeCtaLabel("");
+		setNoticeCtaHref("");
+		setNoticeStartsAt("");
+		setNoticeExpiresAt(getDefaultNoticeExpiresAtInputValue());
+		setNoticeRequiresAck(false);
+		setNoticeDismissible(true);
+	};
+
+	const setNoticeAcknowledgementRequired = (checked: boolean) => {
+		setNoticeRequiresAck(checked);
+		setNoticeDismissible(!checked);
+	};
+
 	const noticePayload = () => ({
 		title: noticeTitle,
 		body: noticeBody,
@@ -323,7 +348,7 @@ export function UsersDashboardClient({
 		ctaLabel: noticeCtaLabel,
 		ctaHref: normalizeNoticeCtaHref(noticeCtaHref),
 		requiresAck: noticeRequiresAck,
-		dismissible: noticeDismissible,
+		dismissible: noticeRequiresAck ? false : noticeDismissible,
 		startsAt: normalizeDateTimeForAction(noticeStartsAt),
 		expiresAt: normalizeDateTimeForAction(noticeExpiresAt),
 	});
@@ -338,7 +363,18 @@ export function UsersDashboardClient({
 		) {
 			return "CTA label and link must be provided together.";
 		}
-		return getNoticeCtaHrefError(noticeCtaHref) ?? "";
+		const startsAt = normalizeDateTimeForAction(noticeStartsAt);
+		const expiresAt = normalizeDateTimeForAction(noticeExpiresAt);
+		return (
+			getNoticeCtaHrefError(noticeCtaHref) ??
+			getNoticeLifecycleError({
+				requiresAck: noticeRequiresAck,
+				dismissible: noticeRequiresAck ? false : noticeDismissible,
+				startsAt,
+				expiresAt,
+			}) ??
+			""
+		);
 	};
 
 	const refresh = (options?: {
@@ -393,6 +429,7 @@ export function UsersDashboardClient({
 		setErrorMessage("");
 		setStatusMessage("");
 		setQuickActionError("");
+		if (mode === "notice") resetNoticeComposer("warning");
 		setQuickActionUser(user);
 		setQuickActionMode(mode);
 	};
@@ -414,14 +451,7 @@ export function UsersDashboardClient({
 				return;
 			}
 			setNoticeComposerError("");
-			setNoticeTitle("");
-			setNoticeBody("");
-			setNoticeCtaLabel("");
-			setNoticeCtaHref("");
-			setNoticeStartsAt("");
-			setNoticeExpiresAt("");
-			setNoticeRequiresAck(false);
-			setNoticeDismissible(true);
+			resetNoticeComposer();
 			setStatusMessage("Notice created.");
 			refresh();
 		});
@@ -448,12 +478,7 @@ export function UsersDashboardClient({
 			setQuickActionError("");
 			setQuickActionUser(null);
 			setQuickActionMode(null);
-			setNoticeTitle("");
-			setNoticeBody("");
-			setNoticeCtaLabel("");
-			setNoticeCtaHref("");
-			setNoticeStartsAt("");
-			setNoticeExpiresAt("");
+			resetNoticeComposer("warning");
 			setStatusMessage("User notice created.");
 			refresh();
 		});
@@ -886,7 +911,7 @@ export function UsersDashboardClient({
 													{user.openNoticeCount > 0 ? (
 														<Badge variant="outline">
 															<Bell />
-															{user.openNoticeCount} notice
+															{user.openNoticeCount} pending notice
 															{user.openNoticeCount === 1 ? "" : "s"}
 														</Badge>
 													) : null}
@@ -1245,20 +1270,26 @@ export function UsersDashboardClient({
 										type="checkbox"
 										checked={noticeRequiresAck}
 										onChange={(event) =>
-											setNoticeRequiresAck(event.target.checked)
+											setNoticeAcknowledgementRequired(event.target.checked)
 										}
 									/>
 									Requires acknowledgement
 								</label>
-								<label className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+								<label
+									className={cn(
+										"flex items-center gap-2 rounded-lg border px-3 py-2 text-sm",
+										noticeRequiresAck && "opacity-60",
+									)}
+								>
 									<input
 										type="checkbox"
-										checked={noticeDismissible}
+										checked={!noticeRequiresAck && noticeDismissible}
+										disabled={noticeRequiresAck}
 										onChange={(event) =>
 											setNoticeDismissible(event.target.checked)
 										}
 									/>
-									Dismissible
+									Dismissible with X
 								</label>
 							</div>
 							<div className="space-y-1.5">
@@ -1283,8 +1314,8 @@ export function UsersDashboardClient({
 									onChange={(event) => setNoticeExpiresAt(event.target.value)}
 								/>
 								<p className="text-xs text-muted-foreground">
-									Optional stop time. After this, the notice disappears for
-									everyone even if they never dismissed it.
+									Defaults to 14 days. Clear only when the notice should remain
+									until dismissed, acknowledged, or revoked.
 								</p>
 							</div>
 							<div className="rounded-lg border bg-muted/20 p-3">
@@ -1393,9 +1424,13 @@ export function UsersDashboardClient({
 														setNoticeCtaLabel(notice.ctaLabel ?? "");
 														setNoticeCtaHref(notice.ctaHref ?? "");
 														setNoticeRequiresAck(notice.requiresAck);
-														setNoticeDismissible(notice.dismissible);
+														setNoticeDismissible(
+															notice.requiresAck ? false : notice.dismissible,
+														);
 														setNoticeStartsAt("");
-														setNoticeExpiresAt("");
+														setNoticeExpiresAt(
+															getDefaultNoticeExpiresAtInputValue(),
+														);
 														setStatusMessage("Notice copied into composer.");
 													}}
 												>
@@ -1490,20 +1525,26 @@ export function UsersDashboardClient({
 									type="checkbox"
 									checked={noticeRequiresAck}
 									onChange={(event) =>
-										setNoticeRequiresAck(event.target.checked)
+										setNoticeAcknowledgementRequired(event.target.checked)
 									}
 								/>
 								Requires acknowledgement
 							</label>
-							<label className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+							<label
+								className={cn(
+									"flex items-center gap-2 rounded-lg border px-3 py-2 text-sm",
+									noticeRequiresAck && "opacity-60",
+								)}
+							>
 								<input
 									type="checkbox"
-									checked={noticeDismissible}
+									checked={!noticeRequiresAck && noticeDismissible}
+									disabled={noticeRequiresAck}
 									onChange={(event) =>
 										setNoticeDismissible(event.target.checked)
 									}
 								/>
-								Dismissible
+								Dismissible with X
 							</label>
 						</div>
 						<div className="grid gap-2 sm:grid-cols-2">
@@ -1522,6 +1563,9 @@ export function UsersDashboardClient({
 									value={noticeExpiresAt}
 									onChange={(event) => setNoticeExpiresAt(event.target.value)}
 								/>
+								<p className="text-xs text-muted-foreground">
+									Defaults to 14 days.
+								</p>
 							</div>
 						</div>
 						{quickActionError ? (

@@ -75,4 +75,120 @@ describe("UserPolicyRepository", () => {
 		);
 		expect(insertCall?.text).toContain("COALESCE(?::timestamptz, NOW())");
 	});
+
+	it("rejects notices that cannot be acknowledged, dismissed, or expired", async () => {
+		vi.resetModules();
+		vi.doMock("server-only", () => ({}));
+		vi.doMock("@/lib/platform/postgres/postgres-client", () => ({
+			getPostgresClient: () => null,
+		}));
+		const { UserPolicyRepository } = await import(
+			"@/features/users/policy-repository"
+		);
+		const { sql } = createSqlMock();
+		const repository = new UserPolicyRepository(sql);
+
+		await expect(
+			repository.createNotice({
+				targetType: "user",
+				targetUserId: "019b0000-0000-7000-8000-000000000001",
+				title: "Persistent notice",
+				body: "This would never close.",
+				severity: "warning",
+				startsAt: null,
+				expiresAt: null,
+				requiresAck: false,
+				dismissible: false,
+				createdBy: "Admin",
+			}),
+		).rejects.toThrow("dismissible");
+	});
+
+	it("hides acknowledgement notices by acknowledgement and ordinary notices by dismissal", async () => {
+		vi.resetModules();
+		vi.doMock("server-only", () => ({}));
+		vi.doMock("@/lib/platform/postgres/postgres-client", () => ({
+			getPostgresClient: () => null,
+		}));
+		const { UserPolicyRepository } = await import(
+			"@/features/users/policy-repository"
+		);
+		const { calls, sql } = createSqlMock();
+		const repository = new UserPolicyRepository(sql);
+
+		await repository.listActivePublicNotices({
+			userId: "019b0000-0000-7000-8000-000000000001",
+			email: "test@gmail.com",
+		});
+
+		const publicNoticeCall = calls.find((call) =>
+			call.text.includes("FROM app_user_notices notices"),
+		);
+		expect(publicNoticeCall?.text).toContain(
+			"notices.requires_ack = TRUE AND receipts.acknowledged_at IS NULL",
+		);
+		expect(publicNoticeCall?.text).toContain(
+			"notices.requires_ack = FALSE AND receipts.dismissed_at IS NULL",
+		);
+		expect(publicNoticeCall?.text).not.toContain(
+			"receipts.dismissed_at IS NULL\n\t\t\t\t\tOR notices.requires_ack",
+		);
+	});
+
+	it("counts only unresolved direct notices on the admin users list", async () => {
+		vi.resetModules();
+		vi.doMock("server-only", () => ({}));
+		vi.doMock("@/lib/platform/postgres/postgres-client", () => ({
+			getPostgresClient: () => null,
+		}));
+		const { UserPolicyRepository } = await import(
+			"@/features/users/policy-repository"
+		);
+		const { calls, sql } = createSqlMock();
+		const repository = new UserPolicyRepository(sql);
+
+		await repository.listAdminUsersPage({ activity: "has_notices" });
+
+		const usersPageCall = calls.find((call) =>
+			call.text.includes("WITH base AS"),
+		);
+		expect(usersPageCall?.text).toContain("LEFT JOIN LATERAL");
+		expect(usersPageCall?.text).toContain("notice_receipt.acknowledged_at");
+		expect(usersPageCall?.text).toContain("notice_receipt.dismissed_at");
+		expect(usersPageCall?.text).toContain("notices.target_user_id = users.id");
+		expect(usersPageCall?.text).not.toContain(
+			"notices.target_type IN ('global', 'authenticated_users')",
+		);
+	});
+
+	it("loads recipient receipt state for admin user notice drilldowns", async () => {
+		vi.resetModules();
+		vi.doMock("server-only", () => ({}));
+		vi.doMock("@/lib/platform/postgres/postgres-client", () => ({
+			getPostgresClient: () => null,
+		}));
+		const { UserPolicyRepository } = await import(
+			"@/features/users/policy-repository"
+		);
+		const { calls, sql } = createSqlMock();
+		const repository = new UserPolicyRepository(sql);
+
+		await repository.listNoticesForUser({
+			userId: "019b0000-0000-7000-8000-000000000001",
+			email: "test@gmail.com",
+		});
+
+		const noticesForUserCall = calls.find((call) =>
+			call.text.includes("recipient_receipt.read_at AS recipient_read_at"),
+		);
+		expect(noticesForUserCall?.text).toContain(
+			"recipient_receipt.acknowledged_at AS recipient_acknowledged_at",
+		);
+		expect(noticesForUserCall?.text).toContain(
+			"notices.target_type = 'segment'",
+		);
+		expect(noticesForUserCall?.text).toContain(
+			"recipient_receipt.acknowledged_at IS NULL",
+		);
+	});
 });

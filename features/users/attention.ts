@@ -1,10 +1,10 @@
 import type { AdminUserSummary } from "./types";
 
 export const ADMIN_USER_ATTENTION_SUMMARY =
-	"Blocked/deleted, restricted, notified, or pending report.";
+	"Blocked/deleted, restricted, pending direct notice, or pending report.";
 
 export const ADMIN_USER_ATTENTION_DETAIL =
-	"Includes users with blocked/deleted status, active restrictions, live notices, or pending ticket reports against their listings.";
+	"Includes users with blocked/deleted status, active restrictions, unresolved direct notices, or pending ticket reports against their listings.";
 
 type AttentionUser = Pick<
 	AdminUserSummary,
@@ -25,7 +25,7 @@ export const getAdminUserAttentionReasons = (user: AttentionUser): string[] => {
 	}
 	if (user.openNoticeCount > 0) {
 		reasons.push(
-			`${user.openNoticeCount} live notice${user.openNoticeCount === 1 ? "" : "s"}`,
+			`${user.openNoticeCount} pending direct notice${user.openNoticeCount === 1 ? "" : "s"}`,
 		);
 	}
 	if (user.openTicketReportCount > 0) {

@@ -142,6 +142,9 @@ export interface UserNotice {
 	readCount?: number;
 	dismissedCount?: number;
 	acknowledgedCount?: number;
+	recipientReadAt?: string | null;
+	recipientDismissedAt?: string | null;
+	recipientAcknowledgedAt?: string | null;
 }
 
 export interface UserNoticeReceipt {

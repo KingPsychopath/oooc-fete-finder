@@ -22,7 +22,11 @@ import type {
 	UserRestriction,
 	UserRestrictionScope,
 } from "./types";
-import { getNoticeCtaHrefError, normalizeNoticeCtaHref } from "./notice-form";
+import {
+	getNoticeCtaHrefError,
+	getNoticeLifecycleError,
+	normalizeNoticeCtaHref,
+} from "./notice-form";
 import {
 	USER_ADMIN_NOTE_CATEGORIES,
 	USER_NOTICE_SEVERITIES,
@@ -75,6 +79,9 @@ type NoticeRow = {
 	read_count?: number;
 	dismissed_count?: number;
 	acknowledged_count?: number;
+	recipient_read_at?: Date | string | null;
+	recipient_dismissed_at?: Date | string | null;
+	recipient_acknowledged_at?: Date | string | null;
 };
 
 type NoticeReceiptRow = {
@@ -227,6 +234,9 @@ const toNotice = (row: NoticeRow): UserNotice => ({
 	readCount: row.read_count,
 	dismissedCount: row.dismissed_count,
 	acknowledgedCount: row.acknowledged_count,
+	recipientReadAt: toIso(row.recipient_read_at ?? null),
+	recipientDismissedAt: toIso(row.recipient_dismissed_at ?? null),
+	recipientAcknowledgedAt: toIso(row.recipient_acknowledged_at ?? null),
 });
 
 const toReceipt = (row: NoticeReceiptRow): UserNoticeReceipt => ({
@@ -632,6 +642,15 @@ export class UserPolicyRepository {
 		if (startsAt && Number.isNaN(Date.parse(startsAt))) {
 			throw new Error("Notice start time must be a valid date.");
 		}
+		const requiresAck = Boolean(input.requiresAck);
+		const dismissible = requiresAck ? false : input.dismissible !== false;
+		const lifecycleError = getNoticeLifecycleError({
+			requiresAck,
+			dismissible,
+			startsAt,
+			expiresAt,
+		});
+		if (lifecycleError) throw new Error(lifecycleError);
 
 		const rows = await this.sql<NoticeRow[]>`
 			INSERT INTO app_user_notices (
@@ -663,8 +682,8 @@ export class UserPolicyRepository {
 				${input.severity},
 				${ctaLabel},
 				${ctaHref},
-				${Boolean(input.requiresAck)},
-				${input.dismissible !== false},
+				${requiresAck},
+				${dismissible},
 				COALESCE(${startsAt}::timestamptz, NOW()),
 				${expiresAt},
 				${normalizeText(input.createdBy, 160) || "admin-panel"},
@@ -932,11 +951,29 @@ export class UserPolicyRepository {
 					(
 						SELECT COUNT(*)::int
 						FROM app_user_notices notices
+						LEFT JOIN LATERAL (
+							SELECT dismissed_at, acknowledged_at
+							FROM app_user_notice_receipts receipts
+							WHERE receipts.notice_id = notices.id
+								AND (
+									receipts.user_id = users.id
+									OR receipts.email_normalized = users.email_normalized
+								)
+							ORDER BY delivered_at DESC
+							LIMIT 1
+						) notice_receipt ON TRUE
 						WHERE ${activeExpression(this.sql)}
 							AND (
-								notices.target_type IN ('global', 'authenticated_users')
-								OR notices.target_user_id = users.id
+								notices.target_user_id = users.id
 								OR notices.target_email_normalized = users.email_normalized
+							)
+							AND (
+								(notices.requires_ack = TRUE AND notice_receipt.acknowledged_at IS NULL)
+								OR (
+									notices.requires_ack = FALSE
+									AND notices.dismissible = TRUE
+									AND notice_receipt.dismissed_at IS NULL
+								)
 							)
 					) AS open_notice_count,
 					(
@@ -1215,6 +1252,7 @@ export class UserPolicyRepository {
 		const email = normalizeEmail(input.email);
 		if (!userId && !email) return [];
 		const limit = Math.min(Math.max(input.limit ?? 100, 1), 250);
+		const segmentKeys = await this.getSegmentKeys({ userId, email });
 		const rows = await this.sql<NoticeRow[]>`
 			SELECT
 				notices.id,
@@ -1240,16 +1278,51 @@ export class UserPolicyRepository {
 				COUNT(receipts.id)::int AS delivered_count,
 				COUNT(receipts.id) FILTER (WHERE receipts.read_at IS NOT NULL)::int AS read_count,
 				COUNT(receipts.id) FILTER (WHERE receipts.dismissed_at IS NOT NULL)::int AS dismissed_count,
-				COUNT(receipts.id) FILTER (WHERE receipts.acknowledged_at IS NOT NULL)::int AS acknowledged_count
+				COUNT(receipts.id) FILTER (WHERE receipts.acknowledged_at IS NOT NULL)::int AS acknowledged_count,
+				recipient_receipt.read_at AS recipient_read_at,
+				recipient_receipt.dismissed_at AS recipient_dismissed_at,
+				recipient_receipt.acknowledged_at AS recipient_acknowledged_at
 			FROM app_user_notices notices
+			LEFT JOIN LATERAL (
+				SELECT read_at, dismissed_at, acknowledged_at
+				FROM app_user_notice_receipts receipt
+				WHERE receipt.notice_id = notices.id
+					AND (
+						(${userId}::text IS NOT NULL AND receipt.user_id = ${userId})
+						OR (${email}::text IS NOT NULL AND receipt.email_normalized = ${email})
+					)
+				ORDER BY delivered_at DESC
+				LIMIT 1
+			) recipient_receipt ON TRUE
 			LEFT JOIN app_user_notice_receipts receipts
 				ON receipts.notice_id = notices.id
 			WHERE
 				notices.target_type IN ('global', 'authenticated_users')
 				OR notices.target_user_id = ${userId}
 				OR notices.target_email_normalized = ${email}
-			GROUP BY notices.id
-			ORDER BY is_active DESC, notices.created_at DESC
+				OR (
+					${segmentKeys.length > 0}::boolean
+					AND notices.target_type = 'segment'
+					AND notices.segment_key = ANY(${segmentKeys})
+				)
+			GROUP BY
+				notices.id,
+				recipient_receipt.read_at,
+				recipient_receipt.dismissed_at,
+				recipient_receipt.acknowledged_at
+			ORDER BY
+				CASE
+					WHEN (${activeExpression(this.sql)})
+						AND notices.requires_ack = TRUE
+						AND recipient_receipt.acknowledged_at IS NULL THEN 0
+					WHEN (${activeExpression(this.sql)})
+						AND notices.requires_ack = FALSE
+						AND notices.dismissible = TRUE
+						AND recipient_receipt.dismissed_at IS NULL THEN 1
+					WHEN (${activeExpression(this.sql)}) THEN 2
+					ELSE 3
+				END,
+				notices.created_at DESC
 			LIMIT ${limit}
 		`;
 		return rows.map(toNotice);
@@ -1539,8 +1612,8 @@ export class UserPolicyRepository {
 					)
 				)
 				AND (
-					receipts.dismissed_at IS NULL
-					OR notices.requires_ack = TRUE AND receipts.acknowledged_at IS NULL
+					(notices.requires_ack = TRUE AND receipts.acknowledged_at IS NULL)
+					OR (notices.requires_ack = FALSE AND receipts.dismissed_at IS NULL)
 				)
 			ORDER BY
 				CASE notices.severity

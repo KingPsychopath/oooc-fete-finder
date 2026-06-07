@@ -31,7 +31,9 @@ import {
 	updateUserTicketListingAsAdmin,
 } from "@/features/users/admin-actions";
 import {
+	getDefaultNoticeExpiresAtInputValue,
 	getNoticeCtaHrefError,
+	getNoticeLifecycleError,
 	normalizeNoticeCtaHref,
 } from "@/features/users/notice-form";
 import type {
@@ -39,6 +41,7 @@ import type {
 	AdminPlanDetail,
 	ManagedUserStatus,
 	UserAdminNoteCategory,
+	UserNotice,
 	UserNoticeSeverity,
 	UserRestrictionScope,
 } from "@/features/users/types";
@@ -49,6 +52,7 @@ import {
 } from "@/features/users/types";
 import { getTicketExchangeReportReasonLabel } from "@/features/ticket-exchange/reporting";
 import type { TicketExchangeAdminReport } from "@/features/ticket-exchange/types";
+import { cn } from "@/lib/utils";
 import {
 	Ban,
 	Bell,
@@ -64,7 +68,7 @@ import {
 	UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { withAdminBasePath } from "../config";
 
 type UserDetailClientProps = {
@@ -152,6 +156,32 @@ const noticeStatus = (notice: {
 		: { label: "Inactive", variant: "outline" };
 };
 
+const noticeRecipientStatus = (
+	notice: UserNotice,
+): { label: string; variant: "default" | "outline" | "destructive" } => {
+	if (!notice.isActive) return { label: "No user action", variant: "outline" };
+	if (notice.requiresAck) {
+		return notice.recipientAcknowledgedAt
+			? { label: "Acknowledged by user", variant: "outline" }
+			: { label: "Needs acknowledgement", variant: "destructive" };
+	}
+	if (notice.recipientDismissedAt) {
+		return { label: "Dismissed by user", variant: "outline" };
+	}
+	if (!notice.dismissible) {
+		return { label: "Visible until expiry", variant: "outline" };
+	}
+	return notice.recipientReadAt
+		? { label: "Seen, still visible", variant: "default" }
+		: { label: "Not seen yet", variant: "default" };
+};
+
+const isNoticePendingForRecipient = (notice: UserNotice): boolean => {
+	if (!notice.isActive) return false;
+	if (notice.requiresAck) return !notice.recipientAcknowledgedAt;
+	return notice.dismissible && !notice.recipientDismissedAt;
+};
+
 const Fact = ({
 	label,
 	value,
@@ -232,6 +262,12 @@ export function UserDetailClient({
 	const [isSavedEventsOpen, setIsSavedEventsOpen] = useState(false);
 	const [isPending, startTransition] = useTransition();
 
+	useEffect(() => {
+		setNoticeExpiresAt((current) =>
+			current ? current : getDefaultNoticeExpiresAtInputValue(),
+		);
+	}, []);
+
 	const detail = payload.detail;
 	const user = detail?.user ?? null;
 	const collectedUser = detail?.collectedRecord ?? null;
@@ -249,7 +285,8 @@ export function UserDetailClient({
 	}, [collectedUser, email, lookup, user]);
 	const activeRestrictions =
 		detail?.restrictions.filter((restriction) => restriction.isActive) ?? [];
-	const liveNotices = detail?.notices.filter((notice) => notice.isActive) ?? [];
+	const pendingNotices =
+		detail?.notices.filter(isNoticePendingForRecipient) ?? [];
 	const scheduledNotices =
 		detail?.notices.filter((notice) => {
 			if (notice.revokedAt) return false;
@@ -333,7 +370,14 @@ export function UserDetailClient({
 		});
 	};
 
+	const setNoticeAcknowledgementRequired = (checked: boolean) => {
+		setNoticeRequiresAck(checked);
+		setNoticeDismissible(!checked);
+	};
+
 	const submitUserNotice = () => {
+		const startsAt = normalizeExpiryForAction(noticeStartsAt);
+		const expiresAt = normalizeExpiryForAction(noticeExpiresAt);
 		const ctaHrefError = getNoticeCtaHrefError(noticeCtaHref);
 		const validationError =
 			!noticeTitle.trim() || !noticeBody.trim()
@@ -341,7 +385,13 @@ export function UserDetailClient({
 				: (Boolean(noticeCtaLabel.trim()) && !noticeCtaHref.trim()) ||
 						(!noticeCtaLabel.trim() && Boolean(noticeCtaHref.trim()))
 					? "CTA label and link must be provided together."
-					: ctaHrefError;
+					: (ctaHrefError ??
+						getNoticeLifecycleError({
+							requiresAck: noticeRequiresAck,
+							dismissible: noticeRequiresAck ? false : noticeDismissible,
+							startsAt,
+							expiresAt,
+						}));
 
 		setErrorMessage("");
 		setStatusMessage("");
@@ -359,9 +409,9 @@ export function UserDetailClient({
 				ctaLabel: noticeCtaLabel,
 				ctaHref: normalizeNoticeCtaHref(noticeCtaHref),
 				requiresAck: noticeRequiresAck,
-				dismissible: noticeDismissible,
-				startsAt: normalizeExpiryForAction(noticeStartsAt),
-				expiresAt: normalizeExpiryForAction(noticeExpiresAt),
+				dismissible: noticeRequiresAck ? false : noticeDismissible,
+				startsAt,
+				expiresAt,
 			});
 			if (!result.success) {
 				setNoticeActionError(result.error ?? "Unable to create notice.");
@@ -373,7 +423,9 @@ export function UserDetailClient({
 			setNoticeCtaLabel("");
 			setNoticeCtaHref("");
 			setNoticeStartsAt("");
-			setNoticeExpiresAt("");
+			setNoticeExpiresAt(getDefaultNoticeExpiresAtInputValue());
+			setNoticeRequiresAck(false);
+			setNoticeDismissible(true);
 			setErrorMessage("");
 			setStatusMessage("Notice sent");
 			const next = await getAdminUserDetail({ userId, email });
@@ -513,7 +565,7 @@ export function UserDetailClient({
 									label="Saved Events"
 									value={detail.savedEventKeys.length}
 								/>
-								<Fact label="Live Notices" value={liveNotices.length} />
+								<Fact label="Pending Notices" value={pendingNotices.length} />
 								<Fact
 									label="Scheduled Notices"
 									value={scheduledNotices.length}
@@ -1322,20 +1374,26 @@ export function UserDetailClient({
 											type="checkbox"
 											checked={noticeRequiresAck}
 											onChange={(event) =>
-												setNoticeRequiresAck(event.target.checked)
+												setNoticeAcknowledgementRequired(event.target.checked)
 											}
 										/>
 										Requires acknowledgement
 									</label>
-									<label className="flex items-center gap-2 text-sm">
+									<label
+										className={cn(
+											"flex items-center gap-2 text-sm",
+											noticeRequiresAck && "opacity-60",
+										)}
+									>
 										<input
 											type="checkbox"
-											checked={noticeDismissible}
+											checked={!noticeRequiresAck && noticeDismissible}
+											disabled={noticeRequiresAck}
 											onChange={(event) =>
 												setNoticeDismissible(event.target.checked)
 											}
 										/>
-										Dismissible
+										Dismissible with X
 									</label>
 								</div>
 								<div className="space-y-1.5">
@@ -1356,8 +1414,8 @@ export function UserDetailClient({
 										onChange={(event) => setNoticeExpiresAt(event.target.value)}
 									/>
 									<p className="text-xs text-muted-foreground">
-										Optional stop time. After this, the notice is no longer
-										shown to the user.
+										Defaults to 14 days. Clear only when the notice should
+										remain until dismissed, acknowledged, or revoked.
 									</p>
 								</div>
 								{noticeActionError ? (
@@ -1491,6 +1549,7 @@ export function UserDetailClient({
 								{detail.notices.length > 0 ? (
 									detail.notices.map((notice) => {
 										const status = noticeStatus(notice);
+										const recipientStatus = noticeRecipientStatus(notice);
 										return (
 											<div
 												key={notice.id}
@@ -1501,6 +1560,9 @@ export function UserDetailClient({
 														{notice.severity}
 													</Badge>
 													<Badge variant={status.variant}>{status.label}</Badge>
+													<Badge variant={recipientStatus.variant}>
+														{recipientStatus.label}
+													</Badge>
 													<Badge variant="outline">{notice.targetType}</Badge>
 												</div>
 												<p className="mt-2 text-sm font-medium">
@@ -1521,6 +1583,20 @@ export function UserDetailClient({
 													{notice.acknowledgedCount ?? 0} · dismissed{" "}
 													{notice.dismissedCount ?? 0}
 												</p>
+												{notice.recipientReadAt ||
+												notice.recipientAcknowledgedAt ||
+												notice.recipientDismissedAt ? (
+													<p className="mt-1 text-xs text-muted-foreground">
+														This user:{" "}
+														{notice.recipientAcknowledgedAt
+															? `acknowledged ${formatDateTime(notice.recipientAcknowledgedAt)}`
+															: notice.recipientDismissedAt
+																? `dismissed ${formatDateTime(notice.recipientDismissedAt)}`
+																: notice.recipientReadAt
+																	? `read ${formatDateTime(notice.recipientReadAt)}`
+																	: "not seen"}
+													</p>
+												) : null}
 												{notice.revokedAt ? null : (
 													<Button
 														type="button"
