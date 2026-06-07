@@ -87,6 +87,11 @@ const MAP_LINK_PROVIDERS: Array<{ value: MapLinkProvider; label: string }> = [
 	{ value: "geo", label: "Native geo" },
 ];
 
+const getOptionLabel = <T extends string>(
+	options: Array<{ value: T; label: string }>,
+	value: T,
+): string => options.find((option) => option.value === value)?.label ?? value;
+
 const wait = (delayMs: number): Promise<void> =>
 	new Promise((resolve) => window.setTimeout(resolve, delayMs));
 
@@ -233,6 +238,16 @@ const canBatchResolveWithProvider = (item: EventLocationReviewItem): boolean =>
 
 const hasStoredResolution = (item: EventLocationReviewItem): boolean =>
 	Boolean(item.resolution);
+
+const isValidLatitudeInput = (value: string): boolean => {
+	const parsed = Number(value);
+	return value.trim().length > 0 && Number.isFinite(parsed) && parsed >= -90 && parsed <= 90;
+};
+
+const isValidLongitudeInput = (value: string): boolean => {
+	const parsed = Number(value);
+	return value.trim().length > 0 && Number.isFinite(parsed) && parsed >= -180 && parsed <= 180;
+};
 
 const getReviewHint = (item: EventLocationReviewItem): string => {
 	const status = getLocationStatus(item);
@@ -547,6 +562,32 @@ export const LocationReviewCard = ({
 	).length;
 	const allVisibleSelected =
 		visibleItems.length > 0 && visibleSelectedCount === visibleItems.length;
+	const activeFilterCount = [
+		query.trim().length > 0,
+		statusFilter !== "needs-review",
+	].filter(Boolean).length;
+	const currentStatusLabel = getOptionLabel(STATUS_FILTERS, statusFilter);
+	const currentSortLabel = getOptionLabel(SORT_MODES, sortMode);
+	const resolveSelectedTitle = !providerConfigured
+		? "Configure the geocoder before resolving selected locations"
+		: selectedResolvableItems.length === 0
+			? "Select unresolved or approximate locations before resolving with the provider"
+			: `Resolve ${selectedResolvableItems.length} selected unresolved or approximate location${
+					selectedResolvableItems.length === 1 ? "" : "s"
+				}`;
+	const clearSelectedTitle =
+		selectedStoredItems.length === 0
+			? "Select locations with stored coordinates before clearing them"
+			: `Clear stored coordinates for ${selectedStoredItems.length} selected location${
+					selectedStoredItems.length === 1 ? "" : "s"
+				}`;
+
+	const clearFilters = () => {
+		setQuery("");
+		setStatusFilter("needs-review");
+		setSortMode("needs-review");
+		setPage(1);
+	};
 
 	const toggleSelected = (itemId: string) => {
 		setSelectedIds((current) => {
@@ -645,6 +686,7 @@ export const LocationReviewCard = ({
 						size="sm"
 						onClick={() => void loadReviewData()}
 						disabled={isLoading}
+						title="Reload location review data"
 					>
 						Refresh
 					</Button>
@@ -742,6 +784,11 @@ export const LocationReviewCard = ({
 							size="sm"
 							disabled={safePage <= 1}
 							onClick={() => setPage((current) => Math.max(1, current - 1))}
+							title={
+								safePage <= 1
+									? "Already on the first page"
+									: "Go to the previous page"
+							}
 						>
 							Previous
 						</Button>
@@ -756,10 +803,48 @@ export const LocationReviewCard = ({
 							onClick={() =>
 								setPage((current) => Math.min(totalPages, current + 1))
 							}
+							title={
+								safePage >= totalPages
+									? "Already on the last page"
+									: "Go to the next page"
+							}
 						>
 							Next
 						</Button>
 					</div>
+				</div>
+
+				<div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/25 p-3 text-xs text-muted-foreground">
+					<Badge variant="secondary">View: {currentStatusLabel}</Badge>
+					<Badge variant="outline">Sort: {currentSortLabel}</Badge>
+					{activeFilterCount > 0 ? (
+						<>
+							<Badge variant="outline">
+								{activeFilterCount} active filter
+								{activeFilterCount === 1 ? "" : "s"}
+							</Badge>
+							{query.trim() && (
+								<Badge variant="outline">Search: {query.trim()}</Badge>
+							)}
+							{statusFilter !== "needs-review" && (
+								<Badge variant="outline">Status: {currentStatusLabel}</Badge>
+							)}
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								onClick={clearFilters}
+								title="Return to unresolved and approximate locations first"
+							>
+								Clear filters
+							</Button>
+						</>
+					) : (
+						<span>
+							Default view shows locations that need review before trusted
+							coordinates.
+						</span>
+					)}
 				</div>
 
 				<div className="flex flex-wrap items-center gap-2 rounded-md border bg-background/55 p-3 text-sm">
@@ -773,6 +858,7 @@ export const LocationReviewCard = ({
 									? selectItems(visibleItems)
 									: clearVisibleSelection()
 							}
+							title="Select or clear every visible location on this page"
 						/>
 						Select visible
 					</label>
@@ -782,6 +868,7 @@ export const LocationReviewCard = ({
 						size="sm"
 						disabled={filteredItems.length === 0 || isBatchRunning}
 						onClick={() => selectItems(filteredItems)}
+						title="Select every location in the current filtered result set"
 					>
 						Select all filtered
 					</Button>
@@ -791,6 +878,11 @@ export const LocationReviewCard = ({
 						size="sm"
 						disabled={selectedIds.size === 0 || isBatchRunning}
 						onClick={() => setSelectedIds(new Set())}
+						title={
+							selectedIds.size === 0
+								? "No locations are selected"
+								: "Clear the current location selection"
+						}
 					>
 						Clear selection
 					</Button>
@@ -808,6 +900,7 @@ export const LocationReviewCard = ({
 								selectedResolvableItems.length === 0
 							}
 							onClick={() => void handleBatchResolve()}
+							title={resolveSelectedTitle}
 						>
 							Resolve selected
 						</Button>
@@ -817,6 +910,7 @@ export const LocationReviewCard = ({
 							size="sm"
 							disabled={isBatchRunning || selectedStoredItems.length === 0}
 							onClick={() => void handleBatchClear()}
+							title={clearSelectedTitle}
 						>
 							Clear selected coords
 						</Button>
@@ -841,6 +935,22 @@ export const LocationReviewCard = ({
 							const isBusy = busyId === item.id;
 							const isEditing = manualDraft?.locationId === item.id;
 							const canTestMapLinks = item.locationName.trim().length > 0;
+							const canSaveManualDraft =
+								isEditing &&
+								manualDraft !== null &&
+								isValidLatitudeInput(manualDraft.lat) &&
+								isValidLongitudeInput(manualDraft.lng);
+							const resolveTitle = !providerConfigured
+								? "Configure the geocoder before resolving this location"
+								: !item.isResolvable
+									? "Add a venue or location value before provider resolution"
+									: "Resolve this location with the configured geocoder";
+							const manualTitle = !item.isResolvable
+								? "Add a venue or location value before saving manual coordinates"
+								: "Enter trusted coordinates for this location";
+							const clearTitle = item.resolution
+								? "Clear the stored coordinates for this location"
+								: "No stored coordinates to clear";
 							const sampleEvents =
 								item.sampleEvents && item.sampleEvents.length > 0
 									? item.sampleEvents
@@ -858,8 +968,9 @@ export const LocationReviewCard = ({
 							return (
 								<div
 									key={item.id}
+									id={`location-review-${item.id}`}
 									className={cn(
-										"rounded-md border bg-background/60 p-3",
+										"scroll-mt-44 rounded-md border bg-background/60 p-3",
 										getReviewPriority(item) < 3 &&
 											"border-amber-200 bg-amber-50/45",
 									)}
@@ -982,6 +1093,11 @@ export const LocationReviewCard = ({
 															!canTestMapLinks &&
 																"pointer-events-none opacity-50",
 														)}
+														title={
+															canTestMapLinks
+																? `Open ${provider.label} map for this location`
+																: "Add a venue or location value before testing map links"
+														}
 													>
 														{provider.label}
 														<ExternalLink className="h-3 w-3" />
@@ -999,6 +1115,7 @@ export const LocationReviewCard = ({
 													isBusy || !item.isResolvable || !providerConfigured
 												}
 												onClick={() => void handleResolve(item)}
+												title={resolveTitle}
 											>
 												Resolve with provider
 											</Button>
@@ -1018,6 +1135,7 @@ export const LocationReviewCard = ({
 															: "",
 													})
 												}
+												title={manualTitle}
 											>
 												Manual coords
 											</Button>
@@ -1027,6 +1145,7 @@ export const LocationReviewCard = ({
 												size="sm"
 												disabled={isBusy || !item.resolution}
 												onClick={() => void handleClear(item)}
+												title={clearTitle}
 											>
 												{getClearResolutionLabel(item)}
 											</Button>
@@ -1069,8 +1188,13 @@ export const LocationReviewCard = ({
 												<Button
 													type="button"
 													size="sm"
-													disabled={isBusy}
+													disabled={isBusy || !canSaveManualDraft}
 													onClick={() => handleManualSave(item)}
+													title={
+														canSaveManualDraft
+															? "Save these coordinates as trusted manual coordinates"
+															: "Enter valid latitude and longitude before saving"
+													}
 												>
 													Save
 												</Button>

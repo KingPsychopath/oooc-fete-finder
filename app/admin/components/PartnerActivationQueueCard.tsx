@@ -74,6 +74,13 @@ const FULFILLED_REPORT_FILTERS: Array<{
 	{ value: "scheduler", label: "Scheduler Reports" },
 ];
 
+const STATUS_ORDER: PartnerActivationStatus[] = [
+	"pending",
+	"processing",
+	"activated",
+	"dismissed",
+];
+
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const inferTierFromPackageKey = (
@@ -280,9 +287,9 @@ export const PartnerActivationQueueCard = ({
 	const handleFulfill = useCallback(
 		async (id: string) => {
 			const input = fulfillmentInputs[id];
-			if (!input || !input.eventKey.trim()) {
+			if (!input || !isReportWindowInputReady(input)) {
 				setErrorMessage(
-					"Select an event key before fulfilling this activation.",
+					"Select an event key, valid start time, and 1-168 hour duration before fulfilling this activation.",
 				);
 				return;
 			}
@@ -387,8 +394,10 @@ export const PartnerActivationQueueCard = ({
 	}, []);
 
 	const handleGenerateTestLink = useCallback(async () => {
-		if (!testLinkInput.eventKey.trim()) {
-			setErrorMessage("Select an event key to create a manual stats report.");
+		if (!isReportWindowInputReady(testLinkInput)) {
+			setErrorMessage(
+				"Select an event key, valid start time, and 1-168 hour duration to create a manual stats report.",
+			);
 			return;
 		}
 		setIsMutating(true);
@@ -417,8 +426,10 @@ export const PartnerActivationQueueCard = ({
 	}, [loadDashboard, testLinkInput]);
 
 	const handlePreviewReport = useCallback(async () => {
-		if (!testLinkInput.eventKey.trim()) {
-			setErrorMessage("Select an event key before previewing stats.");
+		if (!isReportWindowInputReady(testLinkInput)) {
+			setErrorMessage(
+				"Select an event key, valid start time, and 1-168 hour duration before previewing stats.",
+			);
 			return;
 		}
 		setIsMutating(true);
@@ -477,6 +488,7 @@ export const PartnerActivationQueueCard = ({
 	const selectedManualReportEvent = events.find(
 		(event) => event.eventKey === testLinkInput.eventKey,
 	);
+	const canUseManualReportWindow = isReportWindowInputReady(testLinkInput);
 	const reportFilteredItems = useMemo(() => {
 		if (activeStatus !== "activated" || fulfilledReportFilter === "all") {
 			return statusItems;
@@ -514,6 +526,24 @@ export const PartnerActivationQueueCard = ({
 		() => filteredItems.slice(0, activationVisibleLimit),
 		[activationVisibleLimit, filteredItems],
 	);
+	const activeFilterCount = [
+		activationSearchTerm.trim().length > 0,
+		activeStatus === "activated" && fulfilledReportFilter !== "all",
+	].filter(Boolean).length;
+	const clearQueueFilters = () => {
+		setActivationSearchTerm("");
+		setFulfilledReportFilter("all");
+		setActivationVisibleLimit(LIST_LIMIT_OPTIONS[1]);
+	};
+	const statusMetricItems = STATUS_ORDER.map((status) => ({
+		status,
+		label: STATUS_SUMMARY_LABEL[status],
+		count: metrics[status],
+	}));
+	const emptyItemsMessage =
+		statusItems.length === 0
+			? `No ${STATUS_SUMMARY_LABEL[activeStatus].toLowerCase()} activation items.`
+			: "No activation items match the current search or report type.";
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
@@ -538,46 +568,48 @@ export const PartnerActivationQueueCard = ({
 				</div>
 
 				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-					<div className="rounded-md border bg-background/60 px-3 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Needs Fulfillment
-						</p>
-						<p className="mt-1 text-sm font-medium">{metrics.pending}</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-3 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							In Progress
-						</p>
-						<p className="mt-1 text-sm font-medium">{metrics.processing}</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-3 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Fulfilled
-						</p>
-						<p className="mt-1 text-sm font-medium">{metrics.activated}</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-3 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Dismissed
-						</p>
-						<p className="mt-1 text-sm font-medium">{metrics.dismissed}</p>
-					</div>
+					{statusMetricItems.map((item) => (
+						<button
+							key={item.status}
+							type="button"
+							onClick={() => {
+								setActiveStatus(item.status);
+								setActivationVisibleLimit(LIST_LIMIT_OPTIONS[1]);
+							}}
+							disabled={isLoading || isMutating}
+							className={`rounded-md border bg-background/60 px-3 py-2 text-left transition-colors hover:border-foreground/30 hover:bg-muted/35 disabled:cursor-default disabled:opacity-60 ${
+								activeStatus === item.status
+									? "border-foreground/40 bg-muted/40"
+									: ""
+							}`}
+						>
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								{item.label}
+							</p>
+							<p className="mt-1 text-sm font-medium">{item.count}</p>
+							<p className="mt-0.5 text-[11px] text-muted-foreground">
+								Show queue evidence
+							</p>
+						</button>
+					))}
 				</div>
 
 				<div className="flex flex-wrap gap-2">
-					{(["pending", "processing", "activated", "dismissed"] as const).map(
-						(status) => (
-							<Button
-								key={status}
-								type="button"
-								size="sm"
-								variant={activeStatus === status ? "default" : "outline"}
-								onClick={() => setActiveStatus(status)}
-							>
-								{STATUS_LABEL[status]}
-							</Button>
-						),
-					)}
+					{statusMetricItems.map((item) => (
+						<Button
+							key={item.status}
+							type="button"
+							size="sm"
+							variant={activeStatus === item.status ? "default" : "outline"}
+							disabled={isLoading || isMutating}
+							onClick={() => {
+								setActiveStatus(item.status);
+								setActivationVisibleLimit(LIST_LIMIT_OPTIONS[1]);
+							}}
+						>
+							{STATUS_LABEL[item.status]} ({item.count})
+						</Button>
+					))}
 				</div>
 
 				<div className="rounded-md border bg-background/60 p-3">
@@ -684,9 +716,7 @@ export const PartnerActivationQueueCard = ({
 						<div className="flex flex-wrap items-end gap-2 md:col-span-2">
 							<Button
 								size="sm"
-								disabled={
-									isMutating || !isReportWindowInputReady(testLinkInput)
-								}
+								disabled={isMutating || !canUseManualReportWindow}
 								variant="outline"
 								onClick={() => void handlePreviewReport()}
 							>
@@ -694,9 +724,7 @@ export const PartnerActivationQueueCard = ({
 							</Button>
 							<Button
 								size="sm"
-								disabled={
-									isMutating || !isReportWindowInputReady(testLinkInput)
-								}
+								disabled={isMutating || !canUseManualReportWindow}
 								onClick={() => void handleGenerateTestLink()}
 							>
 								Create private report
@@ -888,10 +916,49 @@ export const PartnerActivationQueueCard = ({
 					{filteredItems.length} matching items in{" "}
 					{STATUS_LABEL[activeStatus].toLowerCase()}.
 				</p>
+				<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+					<Badge variant="secondary">
+						View: {STATUS_LABEL[activeStatus]}
+					</Badge>
+					{activeFilterCount > 0 ? (
+						<>
+							<Badge variant="outline">
+								{activeFilterCount} active filter
+								{activeFilterCount === 1 ? "" : "s"}
+							</Badge>
+							{activationSearchTerm.trim() ? (
+								<Badge variant="outline">
+									Search: {activationSearchTerm.trim()}
+								</Badge>
+							) : null}
+							{activeStatus === "activated" &&
+							fulfilledReportFilter !== "all" ? (
+								<Badge variant="outline">
+									Type:{" "}
+									{
+										FULFILLED_REPORT_FILTERS.find(
+											(option) => option.value === fulfilledReportFilter,
+										)?.label
+									}
+								</Badge>
+							) : null}
+							<Button
+								type="button"
+								size="sm"
+								variant="ghost"
+								className="h-7 px-2 text-xs"
+								onClick={clearQueueFilters}
+							>
+								Clear filters
+							</Button>
+						</>
+					) : (
+						<span>No search or type filters applied.</span>
+					)}
+				</div>
 				{filteredItems.length === 0 ? (
 					<div className="rounded-md border bg-background/60 px-3 py-8 text-center text-sm text-muted-foreground">
-						No {STATUS_SUMMARY_LABEL[activeStatus].toLowerCase()} activation
-						items match this view.
+						{emptyItemsMessage}
 					</div>
 				) : (
 					<div className="max-h-[52rem] space-y-3 overflow-y-auto pr-1">

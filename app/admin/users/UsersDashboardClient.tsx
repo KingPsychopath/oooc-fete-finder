@@ -9,9 +9,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
 	Dialog,
 	DialogContent,
@@ -19,6 +16,17 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+	deleteCollectedEmails,
+	exportCollectedEmailsCsv,
+	getCollectedEmails,
+	getCollectedUserProfile,
+	importCollectedEmails,
+} from "@/features/auth/actions";
+import type { CollectedEmailsResponse } from "@/features/auth/types";
 import {
 	createUserNoticeAsAdmin,
 	createUserRestrictionAsAdmin,
@@ -37,8 +45,9 @@ import {
 	normalizeNoticeCtaHref,
 } from "@/features/users/notice-form";
 import type {
-	AdminUsersActivityFilter,
 	AdminUserSummary,
+	AdminUsersActivityFilter,
+	AdminUsersAudienceSignalFilter,
 	AdminUsersDashboard,
 	AdminUsersSortDirection,
 	AdminUsersSortKey,
@@ -50,16 +59,16 @@ import type {
 import { cn } from "@/lib/utils";
 import {
 	AlertTriangle,
-	Bell,
 	Ban,
+	Bell,
 	ChevronLeft,
 	ChevronRight,
 	ChevronsLeft,
 	ChevronsRight,
 	Copy,
 	Eye,
-	Fingerprint,
 	Filter,
+	Fingerprint,
 	RefreshCw,
 	Search,
 	Send,
@@ -68,11 +77,19 @@ import {
 	X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { EmailCollectionCard } from "../components/EmailCollectionCard";
 import { withAdminBasePath } from "../config";
+import type {
+	EmailRecord,
+	UserCollectionAnalytics,
+	UserCollectionStoreSummary,
+} from "../types";
 
 type UsersDashboardClientProps = {
 	initialDashboard: AdminUsersDashboard;
+	initialEmailsResult?: CollectedEmailsResponse;
 };
 
 const formatDateTime = (value: string | null): string => {
@@ -298,6 +315,24 @@ const ACTIVITY_OPTIONS: Array<{
 	{ value: "has_saved_events", label: "Has saved events" },
 ];
 
+const AUDIENCE_SIGNAL_OPTIONS: Array<{
+	value: AdminUsersAudienceSignalFilter;
+	label: string;
+}> = [
+	{ value: "all", label: "All audience signals" },
+	{ value: "has-activity", label: "Any linked activity" },
+	{ value: "no-activity", label: "No linked activity" },
+	{ value: "recently-active", label: "Active last 7d" },
+	{ value: "searches", label: "Searchers" },
+	{ value: "filters", label: "Filter users" },
+	{ value: "plan-actions", label: "Plan users" },
+	{ value: "event-actions", label: "Event action users" },
+	{ value: "genre-prefs", label: "Genre preference users" },
+	{ value: "returned-no-activity", label: "Returned after activity" },
+	{ value: "has-context", label: "Context available" },
+	{ value: "missing-context", label: "Context missing" },
+];
+
 const SORT_OPTIONS: Array<{ value: AdminUsersSortKey; label: string }> = [
 	{ value: "last_seen", label: "Last seen" },
 	{ value: "first_seen", label: "First seen" },
@@ -332,7 +367,22 @@ const restrictionScopeLabel = (scope: UserRestrictionScope): string =>
 
 export function UsersDashboardClient({
 	initialDashboard,
+	initialEmailsResult,
 }: UsersDashboardClientProps) {
+	const router = useRouter();
+	const [emails, setEmails] = useState<EmailRecord[]>(
+		initialEmailsResult?.success ? (initialEmailsResult.emails ?? []) : [],
+	);
+	const [emailStore, setEmailStore] =
+		useState<UserCollectionStoreSummary | null>(
+			initialEmailsResult?.success ? (initialEmailsResult.store ?? null) : null,
+		);
+	const [emailAnalytics, setEmailAnalytics] =
+		useState<UserCollectionAnalytics | null>(
+			initialEmailsResult?.success
+				? (initialEmailsResult.analytics ?? null)
+				: null,
+		);
 	const [dashboard, setDashboard] = useState(initialDashboard);
 	const [query, setQuery] = useState(initialDashboard.query.query ?? "");
 	const [status, setStatus] = useState<ManagedUserStatus | "all">(
@@ -341,6 +391,10 @@ export function UsersDashboardClient({
 	const [activity, setActivity] = useState<AdminUsersActivityFilter>(
 		initialDashboard.query.activity ?? "all",
 	);
+	const [audienceSignal, setAudienceSignal] =
+		useState<AdminUsersAudienceSignalFilter>(
+			initialDashboard.query.audienceSignal ?? "all",
+		);
 	const [sortKey, setSortKey] = useState<AdminUsersSortKey>(
 		initialDashboard.query.sortKey ?? "last_seen",
 	);
@@ -390,6 +444,43 @@ export function UsersDashboardClient({
 		setNoticeExpiresAt((current) =>
 			current ? current : getDefaultNoticeExpiresAtInputValue(),
 		);
+	}, []);
+
+	const loadEmails = useCallback(async () => {
+		const result = await getCollectedEmails();
+		if (result.success) {
+			setEmails(result.emails ?? []);
+			setEmailStore(result.store ?? null);
+			setEmailAnalytics(result.analytics ?? null);
+		}
+	}, []);
+
+	useEffect(() => {
+		if (initialEmailsResult?.success) {
+			return;
+		}
+		void loadEmails();
+	}, [initialEmailsResult?.success, loadEmails]);
+
+	const exportAsCSV = useCallback(async () => {
+		const result = await exportCollectedEmailsCsv();
+		if (!result.success || !result.csv) return;
+		const blob = new Blob([result.csv], { type: "text/csv;charset=utf-8;" });
+		const url = URL.createObjectURL(blob);
+		const anchor = document.createElement("a");
+		anchor.href = url;
+		anchor.download =
+			result.filename ??
+			`fete-finder-users-${new Date().toISOString().split("T")[0]}.csv`;
+		document.body.appendChild(anchor);
+		anchor.click();
+		document.body.removeChild(anchor);
+		URL.revokeObjectURL(url);
+	}, []);
+
+	const copyVisibleEmails = useCallback((visibleEmails: EmailRecord[]) => {
+		const emailList = visibleEmails.map((entry) => entry.email).join("\n");
+		navigator.clipboard.writeText(emailList);
 	}, []);
 
 	const resetNoticeComposer = (severity: UserNoticeSeverity = "info") => {
@@ -449,6 +540,7 @@ export function UsersDashboardClient({
 		nextQuery?: string;
 		nextStatus?: ManagedUserStatus | "all";
 		nextActivity?: AdminUsersActivityFilter;
+		nextAudienceSignal?: AdminUsersAudienceSignalFilter;
 		nextSortKey?: AdminUsersSortKey;
 		nextSortDirection?: AdminUsersSortDirection;
 		nextPage?: number;
@@ -457,15 +549,32 @@ export function UsersDashboardClient({
 		const nextQuery = options?.nextQuery ?? query;
 		const nextStatus = options?.nextStatus ?? status;
 		const nextActivity = options?.nextActivity ?? activity;
+		const nextAudienceSignal = options?.nextAudienceSignal ?? audienceSignal;
 		const nextSortKey = options?.nextSortKey ?? sortKey;
 		const nextSortDirection = options?.nextSortDirection ?? sortDirection;
 		const nextPage = options?.nextPage ?? dashboard.page;
 		const nextPageSize = options?.nextPageSize ?? pageSize;
+		const params = new URLSearchParams();
+		if (nextQuery.trim()) params.set("q", nextQuery.trim());
+		if (nextStatus !== "all") params.set("status", nextStatus);
+		if (nextActivity !== "all") params.set("activity", nextActivity);
+		if (nextAudienceSignal !== "all") {
+			params.set("audienceSignal", nextAudienceSignal);
+		}
+		if (nextSortKey !== "last_seen") params.set("sort", nextSortKey);
+		if (nextSortDirection !== "desc") params.set("dir", nextSortDirection);
+		if (nextPage > 1) params.set("page", String(nextPage));
+		if (nextPageSize !== 25) params.set("pageSize", String(nextPageSize));
+		const nextHref = params.size
+			? `/admin/users?${params.toString()}`
+			: "/admin/users";
+		router.replace(withAdminBasePath(nextHref), { scroll: false });
 		startTransition(async () => {
 			const result = await getAdminUsersDashboard({
 				query: nextQuery,
 				status: nextStatus,
 				activity: nextActivity,
+				audienceSignal: nextAudienceSignal,
 				sortKey: nextSortKey,
 				sortDirection: nextSortDirection,
 				page: nextPage,
@@ -592,6 +701,7 @@ export function UsersDashboardClient({
 	const appliedQuery = dashboard.query.query?.trim() ?? "";
 	const appliedStatus = dashboard.query.status ?? "all";
 	const appliedActivity = dashboard.query.activity ?? "all";
+	const appliedAudienceSignal = dashboard.query.audienceSignal ?? "all";
 	const appliedSortKey = dashboard.query.sortKey ?? "last_seen";
 	const appliedSortDirection = dashboard.query.sortDirection ?? "desc";
 	const pageWindow = getPageWindow(dashboard.page, dashboard.totalPages);
@@ -634,6 +744,17 @@ export function UsersDashboardClient({
 			},
 		});
 	}
+	if (appliedAudienceSignal !== "all") {
+		activeFilterChips.push({
+			key: "audience-signal",
+			label: "Audience",
+			value: getOptionLabel(AUDIENCE_SIGNAL_OPTIONS, appliedAudienceSignal),
+			clear: () => {
+				setAudienceSignal("all");
+				refresh({ nextAudienceSignal: "all", nextPage: 1 });
+			},
+		});
+	}
 	const activeFilterCount = activeFilterChips.length;
 	const sortSummary = `${getOptionLabel(SORT_OPTIONS, appliedSortKey)} · ${SORT_DIRECTION_LABELS[appliedSortDirection]}`;
 	const ticketReportHistoryLabel = (
@@ -649,11 +770,11 @@ export function UsersDashboardClient({
 		const parts: string[] = [];
 		if (againstListingCount > 0) {
 			parts.push(
-				`${againstListingCount} against listing${againstListingCount === 1 ? "" : "s"}`,
+				`${againstListingCount} against their listing${againstListingCount === 1 ? "" : "s"}`,
 			);
 		}
 		if (madeCount > 0) {
-			parts.push(`${madeCount} submitted`);
+			parts.push(`${madeCount} submitted by this user`);
 		}
 		if (parts.length > 0) return parts.join(" · ");
 		return user.ticketReportCount > 0
@@ -661,7 +782,7 @@ export function UsersDashboardClient({
 			: "";
 	};
 	const pendingReportAgainstListingsLabel = (count: number): string =>
-		`${count} pending report${count === 1 ? "" : "s"} against listing${count === 1 ? "" : "s"}`;
+		`${count} open report${count === 1 ? "" : "s"} against their listing${count === 1 ? "" : "s"}`;
 
 	return (
 		<div className="space-y-6">
@@ -752,7 +873,7 @@ export function UsersDashboardClient({
 					</CardHeader>
 					<CardContent className="space-y-4 pt-4">
 						<div className="grid gap-3 lg:grid-cols-12 lg:items-start">
-							<div className="min-w-0 space-y-1.5 lg:col-span-5">
+							<div className="min-w-0 space-y-1.5 lg:col-span-4">
 								<Label htmlFor="user-search-query">Search</Label>
 								<Input
 									id="user-search-query"
@@ -764,7 +885,7 @@ export function UsersDashboardClient({
 									}}
 								/>
 							</div>
-							<div className="min-w-0 space-y-1.5 lg:col-span-3">
+							<div className="min-w-0 space-y-1.5 lg:col-span-2">
 								<Label htmlFor="user-status-filter">Status</Label>
 								<select
 									id="user-status-filter"
@@ -788,7 +909,7 @@ export function UsersDashboardClient({
 									Active is the normal state. Other statuses are exceptions.
 								</p>
 							</div>
-							<div className="min-w-0 space-y-1.5 lg:col-span-4">
+							<div className="min-w-0 space-y-1.5 lg:col-span-3">
 								<Label htmlFor="user-activity-filter">Activity</Label>
 								<select
 									id="user-activity-filter"
@@ -810,6 +931,32 @@ export function UsersDashboardClient({
 								<p className="text-xs text-muted-foreground">
 									Needs attention means{" "}
 									{ADMIN_USER_ATTENTION_SUMMARY.toLowerCase()}
+								</p>
+							</div>
+							<div className="min-w-0 space-y-1.5 lg:col-span-3">
+								<Label htmlFor="user-audience-signal-filter">
+									Audience Signal
+								</Label>
+								<select
+									id="user-audience-signal-filter"
+									value={audienceSignal}
+									onChange={(event) => {
+										const nextAudienceSignal = event.target
+											.value as AdminUsersAudienceSignalFilter;
+										setAudienceSignal(nextAudienceSignal);
+										refresh({ nextAudienceSignal, nextPage: 1 });
+									}}
+									className="h-9 w-full rounded-lg border bg-background px-2.5 text-sm"
+								>
+									{AUDIENCE_SIGNAL_OPTIONS.map((option) => (
+										<option key={option.value} value={option.value}>
+											{option.label}
+										</option>
+									))}
+								</select>
+								<p className="text-xs text-muted-foreground">
+									Cohorts from search, filter, event, route, genre, and context
+									tracking.
 								</p>
 							</div>
 							<div className="min-w-0 space-y-1.5 lg:col-span-4">
@@ -897,12 +1044,14 @@ export function UsersDashboardClient({
 									setQuery("");
 									setStatus("all");
 									setActivity("all");
+									setAudienceSignal("all");
 									setSortKey("last_seen");
 									setSortDirection("desc");
 									refresh({
 										nextQuery: "",
 										nextStatus: "all",
 										nextActivity: "all",
+										nextAudienceSignal: "all",
 										nextSortKey: "last_seen",
 										nextSortDirection: "desc",
 										nextPage: 1,
@@ -937,10 +1086,12 @@ export function UsersDashboardClient({
 											setQuery("");
 											setStatus("all");
 											setActivity("all");
+											setAudienceSignal("all");
 											refresh({
 												nextQuery: "",
 												nextStatus: "all",
 												nextActivity: "all",
+												nextAudienceSignal: "all",
 												nextPage: 1,
 											});
 										}}
@@ -1002,7 +1153,7 @@ export function UsersDashboardClient({
 													{user.openNoticeCount > 0 ? (
 														<Badge variant="outline">
 															<Bell />
-															{user.openNoticeCount} pending notice
+															{user.openNoticeCount} pending direct notice
 															{user.openNoticeCount === 1 ? "" : "s"}
 														</Badge>
 													) : null}
@@ -1207,6 +1358,20 @@ export function UsersDashboardClient({
 						</div>
 					</CardContent>
 				</Card>
+			</section>
+
+			<section id="audience-records" className="scroll-mt-44">
+				<EmailCollectionCard
+					emails={emails}
+					store={emailStore}
+					analytics={emailAnalytics}
+					onCopyEmails={copyVisibleEmails}
+					onExportCSV={() => void exportAsCSV()}
+					onRefresh={loadEmails}
+					onDeleteEmails={deleteCollectedEmails}
+					onImportEmails={importCollectedEmails}
+					onGetUserProfile={getCollectedUserProfile}
+				/>
 			</section>
 
 			<section id="active-restrictions" className="scroll-mt-44">

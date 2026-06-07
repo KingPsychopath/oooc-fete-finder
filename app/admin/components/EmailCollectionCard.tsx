@@ -20,14 +20,12 @@ import { InfoPopover } from "@/components/ui/info-popover";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getTourProgressLabel } from "@/features/events/engagement/tour-analytics";
-import {
-	formatAdminDate,
-	formatAdminDateTime,
-} from "@/lib/ui/admin-date-format";
+import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
 import {
 	CheckSquare,
 	Copy,
 	Download,
+	ExternalLink,
 	Eye,
 	FileUp,
 	RefreshCw,
@@ -44,6 +42,15 @@ import type {
 	UserCollectionAnalytics,
 	UserCollectionStoreSummary,
 } from "../types";
+import {
+	RECENT_LIST_HELP_TEXT,
+	buildAdminUserHref,
+	buildAudienceFilterHref,
+	buildAudienceSearchHref,
+	formatAudienceContextValue,
+	getAudienceFilterDisplayValue,
+	getAudienceFilterGroupLabel,
+} from "./audience-profile-utils";
 
 type UserProfileLookup = {
 	email?: string;
@@ -144,139 +151,10 @@ const TEST_EMAIL_HINTS = [
 const RETURNED_AFTER_ACTION_THRESHOLD_MS = 30 * 60 * 1000;
 const REGISTRATION_WINDOW_24_HOURS_MS = 24 * 60 * 60 * 1000;
 const REGISTRATION_WINDOW_7_DAYS_MS = 7 * REGISTRATION_WINDOW_24_HOURS_MS;
-const FILTER_GROUP_LABELS = {
-	date_range: "Date Range",
-	day_night: "Day / Night",
-	arrondissement: "Arrondissement",
-	genre: "Genre",
-	nationality: "Nationality",
-	venue_type: "Venue Type",
-	venue_setting: "Venue Setting",
-	oooc_pick: "OOOC Pick",
-	price_range: "Price Range",
-	age_range: "Age Range",
-} as const;
-const RECENT_LIST_HELP_TEXT = {
-	filters: "Tap a row to open this user's filter state on the home page.",
-	searches: "Tap a search to open the home page with this query prefilled.",
-	planActions:
-		"Recent route planning, sharing, export, and shared-plan actions.",
-	eventActions: "Tap an event action row to open this user's linked event.",
-} as const;
-
-const isDateRangeValue = (value: string): boolean =>
-	value.includes(":") && value.split(":").length >= 2;
-
-const formatDateRange = (value: string): string => {
-	const [rawFrom, rawTo] = value.split(":", 2);
-	const from = rawFrom.toLowerCase() !== "any" ? rawFrom : "";
-	const to = rawTo.toLowerCase() !== "any" ? rawTo : "";
-	if (!from && !to) return "Any";
-	if (!from) return `Until ${formatAdminDate(to)}`;
-	if (!to) return `From ${formatAdminDate(from)}`;
-	return `${formatAdminDate(from)} — ${formatAdminDate(to)}`;
-};
-
-const getFilterGroupLabel = (group: string): string =>
-	(FILTER_GROUP_LABELS as Record<string, string>)[group] ??
-	formatContextValue(group) ??
-	group;
-
-const getFilterDisplayValue = (group: string, value: string): string => {
-	if (group === "date_range" && isDateRangeValue(value)) {
-		return formatDateRange(value);
-	}
-	return formatContextValue(value) ?? value;
-};
 
 const getParsedTime = (value?: string): number => {
 	const parsed = Date.parse(value ?? "");
 	return Number.isFinite(parsed) ? parsed : Number.NaN;
-};
-
-const buildFilterEventHref = (group: string, value: string): string | null => {
-	const normalizedGroup = group.trim();
-	const normalizedValue = value.trim();
-	const normalizedValueLower = normalizedValue.toLowerCase();
-	if (!normalizedGroup || !normalizedValue) return null;
-
-	const params = new URLSearchParams();
-
-	switch (normalizedGroup) {
-		case "genre": {
-			params.set("g", normalizedValue);
-			break;
-		}
-		case "arrondissement": {
-			params.set("arr", normalizedValue);
-			break;
-		}
-		case "day_night": {
-			if (normalizedValueLower === "day" || normalizedValueLower === "night") {
-				params.set("dn", normalizedValueLower);
-			}
-			break;
-		}
-		case "nationality": {
-			params.set("nat", normalizedValue.toUpperCase());
-			break;
-		}
-		case "venue_type": {
-			if (
-				normalizedValueLower === "indoor" ||
-				normalizedValueLower === "outdoor"
-			) {
-				params.set("vt", normalizedValueLower);
-			}
-			break;
-		}
-		case "venue_setting": {
-			if (
-				normalizedValueLower === "indoor" ||
-				normalizedValueLower === "outdoor"
-			) {
-				params.set("in", normalizedValueLower);
-			}
-			break;
-		}
-		case "oooc_pick": {
-			if (normalizedValueLower === "yes" || normalizedValueLower === "true") {
-				params.set("pick", "1");
-			}
-			break;
-		}
-		case "price_range": {
-			const [min, max] = normalizedValue.split(":");
-			if (min && max) params.set("pr", `${min}:${max}`);
-			break;
-		}
-		case "age_range": {
-			const [min, max] = normalizedValue.split(":");
-			if (min && max) params.set("ag", `${min}:${max}`);
-			break;
-		}
-		case "date_range": {
-			const [rawFrom, rawTo] = normalizedValue.split(":");
-			const from = rawFrom?.trim();
-			const to = rawTo?.trim();
-			if (from && from !== "any") params.set("df", from);
-			if (to && to !== "any") params.set("dt", to);
-			break;
-		}
-		default:
-			return null;
-	}
-
-	if (params.size === 0) return null;
-	return `/?${params.toString()}`;
-};
-
-const buildSearchEventHref = (query: string): string | null => {
-	const normalizedQuery = query.trim();
-	if (!normalizedQuery) return null;
-	const params = new URLSearchParams();
-	params.set("q", normalizedQuery);
-	return `/?${params.toString()}`;
 };
 
 const isLikelyTestEmail = (email: string): boolean => {
@@ -361,17 +239,6 @@ const sortEmails = (emails: EmailRecord[], sortMode: EmailSortMode) => {
 	});
 };
 
-const formatContextValue = (
-	value: string | null | undefined,
-): string | null => {
-	const trimmed = value?.trim();
-	if (!trimmed) return null;
-	return trimmed
-		.split(/[-_\s]+/)
-		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(" ");
-};
-
 const getUserContextItems = (user: EmailRecord) =>
 	[
 		["Device", user.deviceClass],
@@ -382,7 +249,7 @@ const getUserContextItems = (user: EmailRecord) =>
 	]
 		.map(([label, value]) => ({
 			label,
-			value: formatContextValue(value),
+			value: formatAudienceContextValue(value),
 		}))
 		.filter((item): item is { label: string; value: string } =>
 			Boolean(item.value),
@@ -434,6 +301,16 @@ const hasTermsAcceptance = (user: EmailRecord): boolean =>
 
 const hasPrivacyAcceptance = (user: EmailRecord): boolean =>
 	Boolean(user.consent && user.privacyAcceptedAt && user.privacyVersion);
+
+const getEmailConsentLabel = (
+	user: Pick<EmailRecord, "marketingConsent" | "eventUpdateConsent">,
+): string => {
+	const marketing = Boolean(user.marketingConsent);
+	const eventUpdates = Boolean(user.eventUpdateConsent);
+	if (marketing) return "Marketing";
+	if (eventUpdates) return "Event updates";
+	return "No marketing";
+};
 
 const exportUserCsv = (records: EmailRecord[], filenamePrefix: string) => {
 	if (records.length === 0 || typeof document === "undefined") return;
@@ -671,16 +548,8 @@ const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 			: "Not recorded",
 	},
 	{
-		label: "Marketing updates",
-		value: profile.user.marketingConsent
-			? "Allowed by soft opt-in"
-			: "Opted out",
-	},
-	{
-		label: "Event updates",
-		value: profile.user.eventUpdateConsent
-			? "Allowed by soft opt-in"
-			: "Opted out",
+		label: "Email consent",
+		value: getEmailConsentLabel(profile.user),
 	},
 	{ label: "Collection origin", value: profile.user.source || "Unknown" },
 	{
@@ -713,15 +582,15 @@ const getKnownUserDataItems = (profile: CollectedUserProfile) => [
 	},
 	{
 		label: "Device",
-		value: formatContextValue(profile.user.deviceClass) ?? "Unknown",
+		value: formatAudienceContextValue(profile.user.deviceClass) ?? "Unknown",
 	},
 	{
 		label: "Platform",
-		value: formatContextValue(profile.user.platform) ?? "Unknown",
+		value: formatAudienceContextValue(profile.user.platform) ?? "Unknown",
 	},
 	{
 		label: "Browser",
-		value: formatContextValue(profile.user.browserFamily) ?? "Unknown",
+		value: formatAudienceContextValue(profile.user.browserFamily) ?? "Unknown",
 	},
 	{ label: "Timezone", value: profile.user.timezone ?? "Unknown" },
 	{ label: "Locale", value: profile.user.locale ?? "Unknown" },
@@ -1008,10 +877,10 @@ export const EmailCollectionCard = ({
 			<CardHeader className="space-y-3">
 				<div className="flex flex-wrap items-start justify-between gap-3">
 					<div>
-						<CardTitle>Collected User Emails</CardTitle>
+						<CardTitle>Audience Records</CardTitle>
 						<CardDescription>
 							Auth modal submissions are stored in your managed user store and
-							can be copied, exported, imported, or tidied here.
+							can be searched, exported, imported, or tidied here.
 						</CardDescription>
 					</div>
 					<div className="flex flex-wrap gap-2">
@@ -1483,19 +1352,15 @@ export const EmailCollectionCard = ({
 															? "Privacy"
 															: "No privacy"}
 													</Badge>
-													{user.marketingConsent && (
-														<Badge variant="outline">Marketing allowed</Badge>
-													)}
-													{user.eventUpdateConsent &&
-														!user.marketingConsent && (
-															<Badge variant="outline">Event updates</Badge>
-														)}
-													{!user.marketingConsent &&
-														!user.eventUpdateConsent && (
-															<Badge variant="secondary">
-																Marketing opted out
-															</Badge>
-														)}
+													<Badge
+														variant={
+															user.marketingConsent || user.eventUpdateConsent
+																? "outline"
+																: "secondary"
+														}
+													>
+														{getEmailConsentLabel(user)}
+													</Badge>
 												</span>
 											</span>
 											<span className="mt-2 flex flex-wrap gap-1.5">
@@ -1570,7 +1435,7 @@ export const EmailCollectionCard = ({
 											className="col-start-2 w-fit shrink-0 justify-self-start sm:col-start-auto sm:justify-self-end"
 										>
 											<Eye className="size-4" />
-											View
+											Quick Profile
 										</Button>
 									</div>
 								);
@@ -1613,6 +1478,17 @@ export const EmailCollectionCard = ({
 											{profile.user.email}
 										</p>
 									</div>
+									<Link
+										href={buildAdminUserHref(
+											profile.user.userId,
+											profile.user.email,
+										)}
+									>
+										<Button type="button" variant="outline" size="sm">
+											<ExternalLink className="size-4" />
+											Full Detail
+										</Button>
+									</Link>
 								</div>
 								<div className="mt-3 grid gap-2 sm:grid-cols-3">
 									<p className="rounded-md border bg-background/60 px-2.5 py-2 text-xs">
@@ -1648,8 +1524,9 @@ export const EmailCollectionCard = ({
 											Top Genre
 										</span>
 										<span className="mt-1 block font-medium">
-											{formatContextValue(profile.genrePreferences[0]?.genre) ??
-												"Unknown"}
+											{formatAudienceContextValue(
+												profile.genrePreferences[0]?.genre,
+											) ?? "Unknown"}
 										</span>
 										<span className="mt-1 block text-[11px] leading-snug text-muted-foreground">
 											Highest score, then most recent.
@@ -1713,7 +1590,7 @@ export const EmailCollectionCard = ({
 													key={item.genre}
 													className="flex justify-between gap-2 text-xs"
 												>
-													<span>{formatContextValue(item.genre)}</span>
+													<span>{formatAudienceContextValue(item.genre)}</span>
 													<span className="tabular-nums text-muted-foreground">
 														score {item.score}
 													</span>
@@ -1742,7 +1619,7 @@ export const EmailCollectionCard = ({
 												>
 													<span className="truncate">
 														{(() => {
-															const searchHref = buildSearchEventHref(
+															const searchHref = buildAudienceSearchHref(
 																item.query,
 															);
 															return searchHref == null ? (
@@ -1781,14 +1658,14 @@ export const EmailCollectionCard = ({
 											</p>
 										) : (
 											profile.recentFilters.map((item) => {
-												const filterHref = buildFilterEventHref(
+												const filterHref = buildAudienceFilterHref(
 													item.filterGroup,
 													item.filterValue,
 												);
-												const groupLabel = getFilterGroupLabel(
+												const groupLabel = getAudienceFilterGroupLabel(
 													item.filterGroup,
 												);
-												const valueLabel = getFilterDisplayValue(
+												const valueLabel = getAudienceFilterDisplayValue(
 													item.filterGroup,
 													item.filterValue,
 												);
@@ -1843,8 +1720,8 @@ export const EmailCollectionCard = ({
 													className="flex justify-between gap-2 text-xs"
 												>
 													<span className="min-w-0 flex-1 truncate">
-														{formatContextValue(item.surface)} ·{" "}
-														{formatContextValue(item.action)}
+														{formatAudienceContextValue(item.surface)} ·{" "}
+														{formatAudienceContextValue(item.action)}
 														{item.detail ? (
 															<span className="text-muted-foreground">
 																{" "}
@@ -1879,7 +1756,7 @@ export const EmailCollectionCard = ({
 													className="flex justify-between gap-2 text-xs"
 												>
 													<span className="truncate">
-														{formatContextValue(item.actionType)} ·{" "}
+														{formatAudienceContextValue(item.actionType)} ·{" "}
 														{item.eventHref ? (
 															<Link
 																href={item.eventHref}

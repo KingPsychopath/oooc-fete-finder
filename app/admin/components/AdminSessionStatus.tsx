@@ -202,9 +202,13 @@ export const AdminSessionStatus = ({
 	};
 
 	const handleRevokeAll = async () => {
+		if (counts.active === 0) {
+			setStatusMessage("No active admin sessions to revoke.");
+			return;
+		}
 		if (
 			!window.confirm(
-				"Revoke all admin sessions? This signs out all active admins.",
+				`Revoke ${counts.active} active admin session${counts.active === 1 ? "" : "s"}? This signs out all active admins, including this browser.`,
 			)
 		) {
 			return;
@@ -240,6 +244,10 @@ export const AdminSessionStatus = ({
 		const inactive = sessions.length - active;
 		return { active, inactive, total: sessions.length };
 	}, [sessions]);
+	const revokeAllTitle =
+		counts.active === 0
+			? "No active admin sessions to revoke"
+			: `Revoke ${counts.active} active admin session${counts.active === 1 ? "" : "s"}, including this browser`;
 
 	if (!sessionInfo.isValid) {
 		return null;
@@ -310,7 +318,8 @@ export const AdminSessionStatus = ({
 						onClick={handleRevokeAll}
 						variant="outline"
 						size="sm"
-						disabled={isRevokingAll}
+						disabled={isRevokingAll || counts.active === 0}
+						title={revokeAllTitle}
 					>
 						{isRevokingAll ? "Revoking..." : "Revoke All Sessions"}
 					</Button>
@@ -450,6 +459,11 @@ export const AdminSessionStatus = ({
 																disabled={
 																	session.status !== "active" ||
 																	revokingJti === session.jti
+																}
+																title={
+																	session.status === "active"
+																		? `Revoke session ${shortJti(session.jti)}`
+																		: "Only active sessions can be revoked"
 																}
 																onClick={() =>
 																	void handleRevokeSingle(session.jti)

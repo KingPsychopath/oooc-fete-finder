@@ -89,7 +89,16 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 	const canSubmit =
 		!isResetting &&
 		stepUpPasscode.trim().length > 0 &&
-		confirmationText.trim().length > 0;
+		confirmationText.trim() === CONFIRMATION_PHRASE;
+	const submitTitle = isResetting
+		? "Factory reset is running"
+		: stepUpPasscode.trim().length === 0
+			? "Enter the factory reset passcode"
+			: confirmationText.trim() !== CONFIRMATION_PHRASE
+				? `Type ${CONFIRMATION_PHRASE} exactly`
+				: hardResetEnabled
+					? "Run hard factory reset: clears runtime/admin data, revokes admin sessions, clears metrics, and clears rate-limit counters"
+					: "Run standard factory reset: clears managed runtime/admin data";
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden border-red-200/80">
@@ -157,6 +166,7 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 					variant="destructive"
 					disabled={!canSubmit}
 					onClick={handleFactoryReset}
+					title={submitTitle}
 				>
 					{isResetting ? "Resetting..." : "Run Factory Reset Now"}
 				</Button>

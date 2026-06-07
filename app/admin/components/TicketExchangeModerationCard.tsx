@@ -34,7 +34,6 @@ import {
 	Pause,
 	RefreshCw,
 	Trash2,
-	UserRound,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -85,6 +84,11 @@ const REPORT_SORT_OPTIONS: Array<{ value: ReportSortMode; label: string }> = [
 	{ value: "event-asc", label: "Event A-Z" },
 	{ value: "reason-asc", label: "Reason A-Z" },
 ];
+
+const getOptionLabel = <T extends string>(
+	options: Array<{ value: T; label: string }>,
+	value: T,
+): string => options.find((option) => option.value === value)?.label ?? value;
 
 const formatDateTime = (value: string | null): string => {
 	if (!value) return "Not yet";
@@ -190,6 +194,47 @@ const reportPersonLabel = (person: {
 	const email = person.email?.trim() ?? "";
 	if (name && email) return `${name} · ${email}`;
 	return name || email || person.userId || "Unknown";
+};
+
+const getAdminUserPath = ({
+	userId,
+	email,
+}: {
+	userId?: string | null;
+	email?: string | null;
+}): string | null => {
+	const target = userId || email;
+	if (!target) return null;
+	return withAdminBasePath(`/admin/users/${encodeURIComponent(target)}`);
+};
+
+const PersonEvidenceLink = ({
+	person,
+	userId,
+}: {
+	person: {
+		userId?: string | null;
+		email?: string | null;
+		firstName?: string | null;
+		lastName?: string | null;
+	};
+	userId?: string | null;
+}) => {
+	const resolvedUserId = userId ?? person.userId ?? null;
+	const href = getAdminUserPath({
+		userId: resolvedUserId,
+		email: person.email,
+	});
+	const label = reportPersonLabel({ ...person, userId: resolvedUserId });
+	if (!href) return <span>{label}</span>;
+	return (
+		<Link
+			href={href}
+			className="font-medium text-foreground underline-offset-4 hover:underline"
+		>
+			{label}
+		</Link>
+	);
 };
 
 const filterListings = (
@@ -346,6 +391,28 @@ const ListingRow = ({
 		{ label: "Expires", value: formatDateTime(listing.expiresAt) },
 		{ label: "Bot", value: formatDateTime(listing.botAnnouncedAt) },
 	];
+	const ownerHref = getAdminUserPath({
+		userId: listing.ownerUserId,
+		email: listing.ownerEmail,
+	});
+	const ownerLabel = listing.ownerEmail || listing.ownerUserId || "Unknown";
+	const pauseTitle =
+		listing.effectiveStatus === "active"
+			? "Pause this live listing"
+			: "Only active listings can be paused";
+	const restoreTitle = isExpired
+		? "Expired listings cannot be restored without a new expiry"
+		: canRestore
+			? "Restore this paused or removed listing"
+			: "Only paused or removed, unexpired listings can be restored";
+	const resolveTitle =
+		listing.status === "resolved"
+			? "This listing is already resolved"
+			: "Mark this listing resolved";
+	const removeTitle =
+		listing.status === "removed"
+			? "This listing is already removed"
+			: "Remove this listing from the exchange";
 
 	return (
 		<div
@@ -362,7 +429,9 @@ const ListingRow = ({
 						{listing.reportCount > 0 ? (
 							<Badge variant="destructive">
 								{listing.reportCount}{" "}
-								{listing.reportCount === 1 ? "Report" : "Reports"}
+								{listing.reportCount === 1
+									? "report against listing"
+									: "reports against listing"}
 							</Badge>
 						) : null}
 					</div>
@@ -371,7 +440,17 @@ const ListingRow = ({
 							{listing.eventName}
 						</p>
 						<p className="text-xs text-muted-foreground">
-							Owner: {listing.ownerEmail || "Unknown"}
+							Owner:{" "}
+							{ownerHref ? (
+								<Link
+									href={ownerHref}
+									className="font-medium text-foreground underline-offset-4 hover:underline"
+								>
+									{ownerLabel}
+								</Link>
+							) : (
+								ownerLabel
+							)}
 						</p>
 					</div>
 					<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
@@ -411,6 +490,7 @@ const ListingRow = ({
 							size="sm"
 							className="justify-start"
 							disabled={isMutating || listing.effectiveStatus !== "active"}
+							title={pauseTitle}
 							onClick={() => onMutate(listing.id, "paused")}
 						>
 							<Pause />
@@ -422,6 +502,7 @@ const ListingRow = ({
 							size="sm"
 							className="justify-start"
 							disabled={isMutating || !canRestore}
+							title={restoreTitle}
 							onClick={() => onMutate(listing.id, "active")}
 						>
 							<RefreshCw />
@@ -433,6 +514,7 @@ const ListingRow = ({
 							size="sm"
 							className="justify-start"
 							disabled={isMutating || listing.status === "resolved"}
+							title={resolveTitle}
 							onClick={() => onMutate(listing.id, "resolved")}
 						>
 							<Check />
@@ -444,6 +526,7 @@ const ListingRow = ({
 							size="sm"
 							className="justify-start"
 							disabled={isMutating || listing.status === "removed"}
+							title={removeTitle}
 							onClick={() => onMutate(listing.id, "removed")}
 						>
 							<Trash2 />
@@ -466,12 +549,21 @@ const ReportRow = ({
 	onReview: (reportId: string) => void;
 	onRemoveListing: (listingId: string) => void;
 	isMutating: boolean;
-}) => (
-	<div
-		id={`ticket-report-${report.id}`}
-		className="scroll-mt-44 rounded-lg border border-amber-200/80 bg-amber-50/35 p-3 dark:border-amber-900/50 dark:bg-amber-950/20"
-	>
-		<div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+}) => {
+	const markReviewedTitle = report.reviewedAt
+		? "This report is already reviewed"
+		: "Mark this report reviewed and remove it from the moderation queue";
+	const removeListingTitle =
+		report.listing.status === "removed"
+			? "The reported listing is already removed"
+			: "Remove the reported listing from the exchange";
+
+	return (
+		<div
+			id={`ticket-report-${report.id}`}
+			className="scroll-mt-44 rounded-lg border border-amber-200/80 bg-amber-50/35 p-3 dark:border-amber-900/50 dark:bg-amber-950/20"
+		>
+			<div className="grid gap-3 lg:grid-cols-[1fr_auto]">
 			<div className="min-w-0 space-y-2">
 				<div className="flex flex-wrap items-center gap-2">
 					<Badge variant={report.reviewedAt ? "outline" : "destructive"}>
@@ -488,10 +580,32 @@ const ReportRow = ({
 					{report.listing.priceLabel ? ` · ${report.listing.priceLabel}` : ""}
 				</p>
 				<p className="mt-1 text-xs text-muted-foreground">
-					Owner {reportPersonLabel(report.listing.owner)} · reporter{" "}
-					{reportPersonLabel(report.reporter)} · reported{" "}
-					{formatDateTime(report.createdAt)}
+					Reported {formatDateTime(report.createdAt)}
 				</p>
+				<div className="grid gap-2 sm:grid-cols-2">
+					<div className="rounded-md border bg-background/65 px-3 py-2 text-xs">
+						<p className="font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+							Listing owner
+						</p>
+						<p className="mt-1">
+							<PersonEvidenceLink
+								person={report.listing.owner}
+								userId={report.listing.ownerUserId}
+							/>
+						</p>
+					</div>
+					<div className="rounded-md border bg-background/65 px-3 py-2 text-xs">
+						<p className="font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+							Reporter
+						</p>
+						<p className="mt-1">
+							<PersonEvidenceLink
+								person={report.reporter}
+								userId={report.reporterUserId}
+							/>
+						</p>
+					</div>
+				</div>
 				<div className="mt-2 rounded-md border border-amber-300/60 bg-background/65 px-3 py-2">
 					<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-900/80 dark:text-amber-100/80">
 						Report message
@@ -501,30 +615,6 @@ const ReportRow = ({
 					</p>
 				</div>
 				<div className="flex flex-wrap gap-2">
-					{report.reporterUserId ? (
-						<Link
-							href={withAdminBasePath(
-								`/admin/users/${encodeURIComponent(report.reporterUserId)}`,
-							)}
-						>
-							<Button type="button" variant="outline" size="sm">
-								<UserRound />
-								Reporter
-							</Button>
-						</Link>
-					) : null}
-					{report.listing.ownerUserId || report.listing.ownerEmail ? (
-						<Link
-							href={withAdminBasePath(
-								`/admin/users/${encodeURIComponent(report.listing.ownerUserId || report.listing.ownerEmail)}`,
-							)}
-						>
-							<Button type="button" variant="outline" size="sm">
-								<UserRound />
-								Owner
-							</Button>
-						</Link>
-					) : null}
 					{report.listing.eventKey ? (
 						<Link
 							href={withAdminBasePath(
@@ -545,25 +635,28 @@ const ReportRow = ({
 					variant="outline"
 					size="sm"
 					disabled={isMutating || Boolean(report.reviewedAt)}
+					title={markReviewedTitle}
 					onClick={() => onReview(report.id)}
 				>
 					<Check />
-					Reviewed
+					Mark reviewed
 				</Button>
 				<Button
 					type="button"
 					variant="destructive"
 					size="sm"
 					disabled={isMutating || report.listing.status === "removed"}
+					title={removeListingTitle}
 					onClick={() => onRemoveListing(report.listingId)}
 				>
 					<Trash2 />
 					Remove listing
 				</Button>
 			</div>
+			</div>
 		</div>
-	</div>
-);
+	);
+};
 
 export const TicketExchangeModerationCard = ({
 	initialPayload,
@@ -658,6 +751,15 @@ export const TicketExchangeModerationCard = ({
 			count: dashboard?.recentListings.length ?? 0,
 		},
 	];
+	const activeControlCount = [
+		query.trim().length > 0,
+		activeTab !== "review" && listingTypeFilter !== "all",
+		activeTab === "recent" && listingStatusFilter !== "all",
+	].filter(Boolean).length;
+	const currentSortLabel =
+		activeTab === "review"
+			? getOptionLabel(REPORT_SORT_OPTIONS, reportSortMode)
+			: getOptionLabel(LISTING_SORT_OPTIONS, listingSortMode);
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
@@ -753,6 +855,12 @@ export const TicketExchangeModerationCard = ({
 
 	const updateReportSortMode = (value: ReportSortMode) => {
 		setReportSortMode(value);
+		setPage(1);
+	};
+	const clearControls = () => {
+		setQuery("");
+		setListingTypeFilter("all");
+		setListingStatusFilter("all");
 		setPage(1);
 	};
 
@@ -863,7 +971,7 @@ export const TicketExchangeModerationCard = ({
 								<div>
 									<p className="text-sm font-medium">
 										{reports.length > 0
-											? `${reports.length} report${reports.length === 1 ? "" : "s"} need review`
+											? `${reports.length} report${reports.length === 1 ? " needs" : "s need"} review`
 											: "No reports need review"}
 									</p>
 									<p className="text-sm text-muted-foreground">
@@ -907,9 +1015,14 @@ export const TicketExchangeModerationCard = ({
 											className="grid gap-2 rounded-md border bg-muted/20 px-2.5 py-2 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
 										>
 											<div className="min-w-0">
-												<p className="truncate font-medium">
+												<Link
+													href={withAdminBasePath(
+														`/admin/users/${encodeURIComponent(item.actorUserId)}`,
+													)}
+													className="block truncate font-medium text-foreground underline-offset-4 hover:underline"
+												>
 													{item.actorEmail || item.actorUserId}
-												</p>
+												</Link>
 												<p className="text-xs text-muted-foreground">
 													Latest unlock {formatDateTime(item.latestUnlockAt)}
 												</p>
@@ -1082,6 +1195,52 @@ export const TicketExchangeModerationCard = ({
 										Next
 									</Button>
 								</div>
+							</div>
+							<div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+								<Badge variant="secondary">
+									View: {tabs.find((tab) => tab.key === activeTab)?.label}
+								</Badge>
+								<Badge variant="outline">Sort: {currentSortLabel}</Badge>
+								{activeControlCount > 0 ? (
+									<>
+										<Badge variant="outline">
+											{activeControlCount} active filter
+											{activeControlCount === 1 ? "" : "s"}
+										</Badge>
+										{query.trim() ? (
+											<Badge variant="outline">Search: {query.trim()}</Badge>
+										) : null}
+										{activeTab !== "review" && listingTypeFilter !== "all" ? (
+											<Badge variant="outline">
+												Type:{" "}
+												{getOptionLabel(
+													LISTING_TYPE_FILTERS,
+													listingTypeFilter,
+												)}
+											</Badge>
+										) : null}
+										{activeTab === "recent" && listingStatusFilter !== "all" ? (
+											<Badge variant="outline">
+												Status:{" "}
+												{getOptionLabel(
+													LISTING_STATUS_FILTERS,
+													listingStatusFilter,
+												)}
+											</Badge>
+										) : null}
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className="h-7 px-2 text-xs"
+											onClick={clearControls}
+										>
+											Clear filters
+										</Button>
+									</>
+								) : (
+									<span>No search or listing filters applied.</span>
+								)}
 							</div>
 						</div>
 

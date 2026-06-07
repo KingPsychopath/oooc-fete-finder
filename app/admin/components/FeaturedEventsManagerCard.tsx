@@ -281,6 +281,26 @@ export const FeaturedEventsManagerCard = ({
 	).length;
 	const hasQueueRows = queueRows.length > 0;
 	const hasActiveSlots = activeCount > 0;
+	const parsedDurationHours = Number.parseInt(durationHours, 10);
+	const hasValidDuration =
+		Number.isFinite(parsedDurationHours) &&
+		parsedDurationHours >= 1 &&
+		parsedDurationHours <= 168;
+	const canScheduleNow =
+		!isMutating &&
+		!isLoading &&
+		Boolean(selectedEventKey) &&
+		hasValidDuration;
+	const canScheduleForLater =
+		canScheduleNow &&
+		scheduleAt.trim().length > 0 &&
+		Number.isFinite(new Date(scheduleAt).getTime());
+	const scheduleNowTitle = canScheduleNow
+		? `${placementMode === "spotlight" ? "Feature" : "Promote"} the selected event immediately`
+		: "Select an event and enter a duration from 1 to 168 hours";
+	const scheduleLaterTitle = canScheduleForLater
+		? "Schedule the selected event for the chosen time"
+		: "Select an event, valid start time, and duration from 1 to 168 hours";
 	const filteredTimelineRows = useMemo(() => {
 		const needle = timelineSearchTerm.trim().toLowerCase();
 		return queueRows.filter((row) => {
@@ -298,6 +318,14 @@ export const FeaturedEventsManagerCard = ({
 		[filteredTimelineRows, timelineVisibleLimit],
 	);
 	const hasVisibleTimelineRows = visibleTimelineRows.length > 0;
+	const clearQueueTitle =
+		scheduledCount > 0
+			? `Clear ${scheduledCount} scheduled ${MODE_LABEL[placementMode].toLowerCase()} entr${scheduledCount === 1 ? "y" : "ies"}`
+			: "No scheduled entries to clear";
+	const clearHistoryTitle =
+		historyCount > 0
+			? `Clear ${historyCount} historical ${MODE_LABEL[placementMode].toLowerCase()} entr${historyCount === 1 ? "y" : "ies"}`
+			: "No historical entries to clear";
 
 	useEffect(() => {
 		if (!hasQueueRows) {
@@ -361,23 +389,27 @@ export const FeaturedEventsManagerCard = ({
 			setErrorMessage("Select an event first");
 			return;
 		}
-		const parsedDuration = Number.parseInt(durationHours, 10);
+		if (!hasValidDuration) {
+			setErrorMessage("Use a duration between 1 and 168 hours");
+			return;
+		}
 		if (placementMode === "spotlight") {
 			await withMutation(() =>
 				targetEventKeys.length > 1
-					? scheduleFeaturedEvents(targetEventKeys, "", parsedDuration)
-					: scheduleFeaturedEvent(selectedEventKey, "", parsedDuration),
+					? scheduleFeaturedEvents(targetEventKeys, "", parsedDurationHours)
+					: scheduleFeaturedEvent(selectedEventKey, "", parsedDurationHours),
 			);
 			return;
 		}
 		await withMutation(() =>
 			targetEventKeys.length > 1
-				? schedulePromotedEvents(targetEventKeys, "", parsedDuration)
-				: schedulePromotedEvent(selectedEventKey, "", parsedDuration),
+				? schedulePromotedEvents(targetEventKeys, "", parsedDurationHours)
+				: schedulePromotedEvent(selectedEventKey, "", parsedDurationHours),
 		);
 	}, [
-		durationHours,
+		hasValidDuration,
 		placementMode,
+		parsedDurationHours,
 		selectedEventKey,
 		targetEventKeys,
 		withMutation,
@@ -392,23 +424,39 @@ export const FeaturedEventsManagerCard = ({
 			setErrorMessage("Select a Paris schedule time");
 			return;
 		}
-		const parsedDuration = Number.parseInt(durationHours, 10);
+		if (!hasValidDuration) {
+			setErrorMessage("Use a duration between 1 and 168 hours");
+			return;
+		}
 		if (placementMode === "spotlight") {
 			await withMutation(() =>
 				targetEventKeys.length > 1
-					? scheduleFeaturedEvents(targetEventKeys, scheduleAt, parsedDuration)
-					: scheduleFeaturedEvent(selectedEventKey, scheduleAt, parsedDuration),
+					? scheduleFeaturedEvents(
+							targetEventKeys,
+							scheduleAt,
+							parsedDurationHours,
+						)
+					: scheduleFeaturedEvent(
+							selectedEventKey,
+							scheduleAt,
+							parsedDurationHours,
+						),
 			);
 			return;
 		}
 		await withMutation(() =>
 			targetEventKeys.length > 1
-				? schedulePromotedEvents(targetEventKeys, scheduleAt, parsedDuration)
-				: schedulePromotedEvent(selectedEventKey, scheduleAt, parsedDuration),
+				? schedulePromotedEvents(targetEventKeys, scheduleAt, parsedDurationHours)
+				: schedulePromotedEvent(
+						selectedEventKey,
+						scheduleAt,
+						parsedDurationHours,
+					),
 		);
 	}, [
-		durationHours,
+		hasValidDuration,
 		placementMode,
+		parsedDurationHours,
 		scheduleAt,
 		selectedEventKey,
 		targetEventKeys,
@@ -744,14 +792,16 @@ export const FeaturedEventsManagerCard = ({
 										type="button"
 										variant="outline"
 										onClick={() => void handleScheduleNow()}
-										disabled={isMutating || isLoading}
+										disabled={!canScheduleNow}
+										title={scheduleNowTitle}
 									>
 										{scheduleActionLabel}
 									</Button>
 									<Button
 										type="button"
 										onClick={() => void handleSchedule()}
-										disabled={isMutating || isLoading}
+										disabled={!canScheduleForLater}
+										title={scheduleLaterTitle}
 									>
 										Schedule
 									</Button>
@@ -792,6 +842,7 @@ export const FeaturedEventsManagerCard = ({
 								variant="destructive"
 								onClick={() => void handleClearQueue()}
 								disabled={isMutating || isLoading || scheduledCount === 0}
+								title={clearQueueTitle}
 							>
 								Clear Scheduled Queue
 							</Button>
@@ -801,6 +852,7 @@ export const FeaturedEventsManagerCard = ({
 								variant="destructive"
 								onClick={() => void handleClearHistory()}
 								disabled={isMutating || isLoading || historyCount === 0}
+								title={clearHistoryTitle}
 							>
 								Clear History
 							</Button>
@@ -907,6 +959,16 @@ export const FeaturedEventsManagerCard = ({
 											row.status === "scheduled" &&
 											Number.isFinite(new Date(nextStart).getTime()) &&
 											nextStart !== row.requestedStartAtParisInput;
+										const rescheduleTitle =
+											row.status !== "scheduled"
+												? "Only scheduled entries can be rescheduled"
+												: canReschedule
+													? "Apply the changed start time"
+													: "Choose a different valid start time";
+										const cancelTitle =
+											row.status === "scheduled"
+												? "Cancel this scheduled entry"
+												: "Only scheduled entries can be cancelled";
 										return (
 											<tr
 												key={row.id}
@@ -963,6 +1025,7 @@ export const FeaturedEventsManagerCard = ({
 															variant="outline"
 															className="h-8 px-2.5"
 															disabled={isMutating || !canReschedule}
+															title={rescheduleTitle}
 															onClick={() =>
 																void withMutation(() => {
 																	return placementMode === "spotlight"
@@ -989,6 +1052,7 @@ export const FeaturedEventsManagerCard = ({
 															disabled={
 																row.status !== "scheduled" || isMutating
 															}
+															title={cancelTitle}
 															onClick={() =>
 																void withMutation(() =>
 																	placementMode === "spotlight"

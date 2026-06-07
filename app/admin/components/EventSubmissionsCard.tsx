@@ -64,6 +64,40 @@ const parseDisplayLinks = (value: string | undefined): string[] =>
 		.map((link) => link.trim())
 		.filter(Boolean);
 
+const EvidenceLinkBlock = ({
+	label,
+	href,
+	linkLabel,
+	toneClassName,
+	borderClassName,
+}: {
+	label: string;
+	href?: string;
+	linkLabel: string;
+	toneClassName: string;
+	borderClassName?: string;
+}) => (
+	<div
+		className={`rounded-md border bg-white/70 px-3 py-2 dark:bg-background/40 ${borderClassName ?? ""}`}
+	>
+		<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+			{label}
+		</p>
+		{href ? (
+			<a
+				href={href}
+				target="_blank"
+				rel="noreferrer"
+				className={`mt-1 block break-all font-medium underline underline-offset-2 ${toneClassName}`}
+			>
+				{linkLabel}
+			</a>
+		) : (
+			<p className="mt-1 text-muted-foreground">No link provided.</p>
+		)}
+	</div>
+);
+
 const getReviewQueueType = (
 	submission: EventSubmissionRecord,
 ): Exclude<ReviewQueueFilter, "all"> => {
@@ -336,6 +370,31 @@ export const EventSubmissionsCard = ({
 	);
 
 	const metrics = payload?.success ? payload.metrics : null;
+	const statusSummaryItems = STATUS_TABS.map((tab) => ({
+		key: tab.key,
+		label: tab.label,
+		count: tabCounts[tab.key],
+		metric:
+			tab.key === "pending"
+				? (metrics?.pendingCount ?? tabCounts.pending)
+				: tab.key === "accepted"
+					? (metrics?.acceptedLast7Days ?? 0)
+					: (metrics?.declinedLast7Days ?? 0),
+		metricLabel:
+			tab.key === "pending"
+				? "Current queue"
+				: tab.key === "accepted"
+					? "Last 7 days"
+					: "Last 7 days",
+	}));
+	const activeFilterCount = [
+		activeStatus !== "pending",
+		activeQueueFilter !== "all",
+	].filter(Boolean).length;
+	const clearQueueFilters = () => {
+		setActiveStatus("pending");
+		setActiveQueueFilter("all");
+	};
 	const newEventsEnabled = payload?.success
 		? payload.settings.newEventsEnabled
 		: true;
@@ -343,6 +402,12 @@ export const EventSubmissionsCard = ({
 		? payload.settings.eventUpdatesEnabled
 		: true;
 	const settingsStatus = payload?.success ? payload.settingsStatus : null;
+	const emptyQueueMessage =
+		statusRows.length === 0
+			? `No ${activeStatus} submissions.`
+			: activeQueueFilter === "all"
+				? "No queue items match this status."
+				: `No ${REVIEW_QUEUE_FILTERS.find((filter) => filter.key === activeQueueFilter)?.label.toLowerCase() ?? "matching"} submissions in ${activeStatus}.`;
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
@@ -444,30 +509,26 @@ export const EventSubmissionsCard = ({
 					</div>
 				)}
 				<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-					<div className="rounded-md border bg-background/60 px-3 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Pending
-						</p>
-						<p className="mt-1 text-sm font-medium">
-							{metrics?.pendingCount ?? tabCounts.pending}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-3 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Accepted (7d)
-						</p>
-						<p className="mt-1 text-sm font-medium">
-							{metrics?.acceptedLast7Days ?? 0}
-						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 px-3 py-2">
-						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Declined (7d)
-						</p>
-						<p className="mt-1 text-sm font-medium">
-							{metrics?.declinedLast7Days ?? 0}
-						</p>
-					</div>
+					{statusSummaryItems.map((item) => (
+						<button
+							key={item.key}
+							type="button"
+							onClick={() => setActiveStatus(item.key)}
+							className={`rounded-md border bg-background/60 px-3 py-2 text-left transition-colors hover:border-foreground/30 hover:bg-muted/35 ${
+								activeStatus === item.key
+									? "border-foreground/40 bg-muted/40"
+									: ""
+							}`}
+						>
+							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+								{item.label}
+							</p>
+							<p className="mt-1 text-sm font-medium">{item.metric}</p>
+							<p className="mt-0.5 text-[11px] text-muted-foreground">
+								{item.metricLabel} · show {item.count}
+							</p>
+						</button>
+					))}
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Total
@@ -479,7 +540,7 @@ export const EventSubmissionsCard = ({
 					</div>
 				</div>
 				<div className="flex flex-wrap gap-2">
-					{STATUS_TABS.map((tab) => (
+					{statusSummaryItems.map((tab) => (
 						<Button
 							key={tab.key}
 							type="button"
@@ -487,7 +548,7 @@ export const EventSubmissionsCard = ({
 							variant={activeStatus === tab.key ? "default" : "outline"}
 							onClick={() => setActiveStatus(tab.key)}
 						>
-							{tab.label} ({tabCounts[tab.key]})
+							{tab.label} ({tab.count})
 						</Button>
 					))}
 				</div>
@@ -511,6 +572,40 @@ export const EventSubmissionsCard = ({
 						))}
 					</div>
 				</div>
+				<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+					<Badge variant="secondary">
+						View: {STATUS_TABS.find((tab) => tab.key === activeStatus)?.label}
+					</Badge>
+					{activeFilterCount > 0 ? (
+						<>
+							<Badge variant="outline">
+								{activeFilterCount} active filter
+								{activeFilterCount === 1 ? "" : "s"}
+							</Badge>
+							{activeQueueFilter !== "all" ? (
+								<Badge variant="outline">
+									Work type:{" "}
+									{
+										REVIEW_QUEUE_FILTERS.find(
+											(filter) => filter.key === activeQueueFilter,
+										)?.label
+									}
+								</Badge>
+							) : null}
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="h-7 px-2 text-xs"
+								onClick={clearQueueFilters}
+							>
+								Clear filters
+							</Button>
+						</>
+					) : (
+						<span>Showing pending submissions across every work type.</span>
+					)}
+				</div>
 				{statusMessage && (
 					<div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
 						{statusMessage}
@@ -525,7 +620,7 @@ export const EventSubmissionsCard = ({
 			<CardContent>
 				{rows.length === 0 ? (
 					<div className="rounded-md border bg-background/60 px-3 py-10 text-center text-sm text-muted-foreground">
-						No queue items match this status and work type.
+						{emptyQueueMessage}
 					</div>
 				) : (
 					<div className="max-h-[36rem] space-y-3 overflow-y-auto pr-1">
@@ -807,19 +902,13 @@ export const EventSubmissionsCard = ({
 													the sheet if right, then mark reviewed.
 												</p>
 											</div>
-											<div className="rounded-md border border-blue-200 bg-white/70 px-3 py-2 dark:bg-background/40">
-												<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-													Proof
-												</p>
-												<a
-													href={submission.payload.proofLink}
-													target="_blank"
-													rel="noreferrer"
-													className="mt-1 block break-all font-medium text-blue-900 underline underline-offset-2 hover:text-blue-700 dark:text-blue-100"
-												>
-													Open proof page
-												</a>
-											</div>
+											<EvidenceLinkBlock
+												label="Proof"
+												href={submission.payload.proofLink}
+												linkLabel="Open proof page"
+												toneClassName="text-blue-900 hover:text-blue-700 dark:text-blue-100"
+												borderClassName="border-blue-200"
+											/>
 											{canonicalUrl && (
 												<div className="rounded-md border border-blue-200 bg-white/70 px-3 py-2 dark:bg-background/40">
 													<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -970,19 +1059,13 @@ export const EventSubmissionsCard = ({
 													filters.
 												</p>
 											</div>
-											<div className="rounded-md border border-teal-200 bg-white/70 px-3 py-2 dark:bg-background/40">
-												<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-													Proof
-												</p>
-												<a
-													href={submission.payload.proofLink}
-													target="_blank"
-													rel="noreferrer"
-													className="mt-1 block break-all font-medium text-teal-900 underline underline-offset-2 hover:text-teal-700 dark:text-teal-100"
-												>
-													Open proof page
-												</a>
-											</div>
+											<EvidenceLinkBlock
+												label="Proof"
+												href={submission.payload.proofLink}
+												linkLabel="Open proof page"
+												toneClassName="text-teal-900 hover:text-teal-700 dark:text-teal-100"
+												borderClassName="border-teal-200"
+											/>
 											{ticketLinks.length > 0 && (
 												<div className="rounded-md border border-teal-200 bg-white/70 px-3 py-2 dark:bg-background/40">
 													<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
@@ -1145,19 +1228,12 @@ export const EventSubmissionsCard = ({
 									</div>
 
 									<div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-										<div className="rounded-md border bg-white/70 px-3 py-2 dark:bg-background/40">
-											<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-												Proof
-											</p>
-											<a
-												href={submission.payload.proofLink}
-												target="_blank"
-												rel="noreferrer"
-												className="mt-1 block break-all font-medium text-slate-800 underline underline-offset-2 hover:text-slate-600 dark:text-slate-100"
-											>
-												Open proof page
-											</a>
-										</div>
+										<EvidenceLinkBlock
+											label="Proof"
+											href={submission.payload.proofLink}
+											linkLabel="Open proof page"
+											toneClassName="text-slate-800 hover:text-slate-600 dark:text-slate-100"
+										/>
 										<div className="rounded-md border bg-white/70 px-3 py-2 dark:bg-background/40">
 											<p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
 												What to do

@@ -144,6 +144,7 @@ describe("admin user actions", () => {
 			query: "owner",
 			status: "active",
 			activity: "needs_attention",
+			audienceSignal: "all",
 			sortKey: "ticket_reports",
 			sortDirection: "desc",
 			page: 1,

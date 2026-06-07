@@ -101,6 +101,7 @@ const getTabForAnchor = (anchorId: string): ContentTab | null => {
 	if (anchorId.startsWith("submission-")) return "submissions";
 	if (anchorId.startsWith("ticket-report-")) return "tickets";
 	if (anchorId.startsWith("ticket-listing-")) return "tickets";
+	if (anchorId.startsWith("location-review-")) return "locations";
 	return null;
 };
 

@@ -94,6 +94,9 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 	const oldestPendingTicketReportAge = formatRelativeAge(
 		notificationCounts.oldestPendingTicketReportAt,
 	);
+	const hasPendingSubmissions = notificationCounts.pendingSubmissions > 0;
+	const hasPendingPlacements = notificationCounts.pendingPlacements > 0;
+	const hasPendingTicketReports = notificationCounts.pendingTicketReports > 0;
 
 	const isSubmissionNewSinceLastVisit = useMemo(() => {
 		if (!notificationCounts.newestPendingSubmissionAt) return false;
@@ -533,11 +536,17 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 							onClick={() =>
 								navigateToSection("/admin/content#event-submissions")
 							}
-							className="block w-full rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+							disabled={!hasPendingSubmissions && !notificationCountsDegraded}
+							className={cn(
+								"block w-full rounded-lg border p-3 text-left transition-colors",
+								hasPendingSubmissions || notificationCountsDegraded
+									? "hover:bg-muted/50"
+									: "cursor-default bg-muted/20 opacity-70",
+							)}
 						>
 							<p className="text-sm font-medium">Event Submissions</p>
 							<p className="mt-1 text-xs text-muted-foreground">
-								{notificationCounts.pendingSubmissions > 0
+								{hasPendingSubmissions
 									? `${notificationCounts.pendingSubmissions} pending review`
 									: "No pending submissions"}
 							</p>
@@ -557,11 +566,17 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 							onClick={() =>
 								navigateToSection("/admin/content#ticket-exchange-moderation")
 							}
-							className="block w-full rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+							disabled={!hasPendingTicketReports && !notificationCountsDegraded}
+							className={cn(
+								"block w-full rounded-lg border p-3 text-left transition-colors",
+								hasPendingTicketReports || notificationCountsDegraded
+									? "hover:bg-muted/50"
+									: "cursor-default bg-muted/20 opacity-70",
+							)}
 						>
 							<p className="text-sm font-medium">Ticket Exchange Reports</p>
 							<p className="mt-1 text-xs text-muted-foreground">
-								{notificationCounts.pendingTicketReports > 0
+								{hasPendingTicketReports
 									? `${notificationCounts.pendingTicketReports} pending review`
 									: "No pending ticket reports"}
 							</p>
@@ -581,11 +596,17 @@ export function AdminShell({ children, notificationCounts }: AdminShellProps) {
 							onClick={() =>
 								navigateToSection("/admin/placements#paid-orders-inbox")
 							}
-							className="block w-full rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+							disabled={!hasPendingPlacements && !notificationCountsDegraded}
+							className={cn(
+								"block w-full rounded-lg border p-3 text-left transition-colors",
+								hasPendingPlacements || notificationCountsDegraded
+									? "hover:bg-muted/50"
+									: "cursor-default bg-muted/20 opacity-70",
+							)}
 						>
 							<p className="text-sm font-medium">Paid Orders Queue</p>
 							<p className="mt-1 text-xs text-muted-foreground">
-								{notificationCounts.pendingPlacements > 0
+								{hasPendingPlacements
 									? `${notificationCounts.pendingPlacements} pending fulfillment`
 									: "No pending paid orders"}
 							</p>

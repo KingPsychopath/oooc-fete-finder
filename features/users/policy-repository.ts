@@ -2,11 +2,17 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 import { isValidUserId } from "@/features/auth/user-id";
-import type { Sql } from "postgres";
 import { getPostgresClient } from "@/lib/platform/postgres/postgres-client";
+import type { Sql } from "postgres";
+import {
+	getNoticeCtaHrefError,
+	getNoticeLifecycleError,
+	normalizeNoticeCtaHref,
+} from "./notice-form";
 import type {
 	AdminUserSummary,
 	AdminUsersActivityFilter,
+	AdminUsersAudienceSignalFilter,
 	AdminUsersQuery,
 	AdminUsersSortDirection,
 	AdminUsersSortKey,
@@ -22,11 +28,6 @@ import type {
 	UserRestriction,
 	UserRestrictionScope,
 } from "./types";
-import {
-	getNoticeCtaHrefError,
-	getNoticeLifecycleError,
-	normalizeNoticeCtaHref,
-} from "./notice-form";
 import {
 	USER_ADMIN_NOTE_CATEGORIES,
 	USER_NOTICE_SEVERITIES,
@@ -816,6 +817,7 @@ export class UserPolicyRepository {
 			input?.status && input.status !== "all" ? input.status : null;
 		const search = query ? `%${query.toLowerCase()}%` : null;
 		const activity = input?.activity ?? "all";
+		const audienceSignal = input?.audienceSignal ?? "all";
 		const sortKey = input?.sortKey ?? "last_seen";
 		const sortDirection =
 			input?.sortDirection === "asc" ? "asc" : ("desc" as const);
@@ -826,6 +828,9 @@ export class UserPolicyRepository {
 				submissions_table: string | null;
 				plans_table: string | null;
 				relationships_table: string | null;
+				event_engagement_table: string | null;
+				discovery_table: string | null;
+				genre_preferences_table: string | null;
 			}>
 		>`
 			SELECT
@@ -833,7 +838,10 @@ export class UserPolicyRepository {
 				to_regclass('ticket_exchange_reports')::text AS ticket_reports_table,
 				to_regclass('app_event_submissions')::text AS submissions_table,
 				to_regclass('app_user_plans')::text AS plans_table,
-				to_regclass('app_user_event_relationships')::text AS relationships_table
+				to_regclass('app_user_event_relationships')::text AS relationships_table,
+				to_regclass('app_event_engagement_stats')::text AS event_engagement_table,
+				to_regclass('app_discovery_analytics_stats')::text AS discovery_table,
+				to_regclass('app_user_genre_preferences')::text AS genre_preferences_table
 		`;
 		const tables = tableRows[0];
 		const activityFilter = ((): ReturnType<Sql> => {
@@ -861,6 +869,38 @@ export class UserPolicyRepository {
 					return this.sql`plan_count > 0`;
 				case "has_saved_events":
 					return this.sql`saved_event_count > 0`;
+				case "all":
+				default:
+					return this.sql`TRUE`;
+			}
+		})();
+		const audienceSignalFilter = ((): ReturnType<Sql> => {
+			switch (audienceSignal satisfies AdminUsersAudienceSignalFilter) {
+				case "has-activity":
+					return this.sql`audience_signal_count > 0`;
+				case "no-activity":
+					return this.sql`audience_signal_count = 0`;
+				case "recently-active":
+					return this.sql`audience_last_signal_at >= NOW() - INTERVAL '7 days'`;
+				case "searches":
+					return this.sql`audience_search_count > 0`;
+				case "filters":
+					return this.sql`audience_filter_count > 0`;
+				case "plan-actions":
+					return this.sql`audience_plan_signal_count > 0`;
+				case "event-actions":
+					return this.sql`audience_event_count > 0`;
+				case "genre-prefs":
+					return this.sql`audience_genre_count > 0`;
+				case "returned-no-activity":
+					return this.sql`
+						audience_signal_count > 0
+						AND last_seen_at >= audience_last_signal_at + INTERVAL '30 minutes'
+					`;
+				case "has-context":
+					return this.sql`audience_has_context = TRUE`;
+				case "missing-context":
+					return this.sql`audience_has_context = FALSE`;
 				case "all":
 				default:
 					return this.sql`TRUE`;
@@ -1129,12 +1169,129 @@ export class UserPolicyRepository {
 									)
 								`
 								: this.sql`0::int`
-						} AS saved_event_count
+						} AS saved_event_count,
+						${
+							tables?.event_engagement_table
+								? this.sql`
+									(
+										SELECT COUNT(*)::int
+										FROM app_event_engagement_stats stats
+										WHERE stats.user_id = users.id
+											OR LOWER(stats.user_email) = users.email_normalized
+									)
+								`
+								: this.sql`0::int`
+						} AS audience_event_count,
+						${
+							tables?.discovery_table
+								? this.sql`
+									(
+										SELECT COUNT(*) FILTER (WHERE stats.action_type = 'search')::int
+										FROM app_discovery_analytics_stats stats
+										WHERE stats.user_id = users.id
+											OR LOWER(stats.user_email) = users.email_normalized
+									)
+								`
+								: this.sql`0::int`
+						} AS audience_search_count,
+						${
+							tables?.discovery_table
+								? this.sql`
+									(
+										SELECT COUNT(*) FILTER (WHERE stats.action_type = 'filter_apply')::int
+										FROM app_discovery_analytics_stats stats
+										WHERE stats.user_id = users.id
+											OR LOWER(stats.user_email) = users.email_normalized
+									)
+								`
+								: this.sql`0::int`
+						} AS audience_filter_count,
+						${
+							tables?.discovery_table
+								? this.sql`
+									(
+										SELECT COUNT(*) FILTER (WHERE stats.action_type = 'plan_action')::int
+										FROM app_discovery_analytics_stats stats
+										WHERE stats.user_id = users.id
+											OR LOWER(stats.user_email) = users.email_normalized
+									)
+								`
+								: this.sql`0::int`
+						} AS audience_plan_signal_count,
+						${
+							tables?.genre_preferences_table
+								? this.sql`
+									(
+										SELECT COUNT(*)::int
+										FROM app_user_genre_preferences preferences
+										WHERE preferences.user_id = users.id
+											OR LOWER(preferences.email) = users.email_normalized
+									)
+								`
+								: this.sql`0::int`
+						} AS audience_genre_count,
+						GREATEST(
+							${
+								tables?.event_engagement_table
+									? this.sql`
+										COALESCE((
+											SELECT MAX(stats.recorded_at)
+											FROM app_event_engagement_stats stats
+											WHERE stats.user_id = users.id
+												OR LOWER(stats.user_email) = users.email_normalized
+										), '-infinity'::timestamptz)
+									`
+									: this.sql`'-infinity'::timestamptz`
+							},
+							${
+								tables?.discovery_table
+									? this.sql`
+										COALESCE((
+											SELECT MAX(stats.recorded_at)
+											FROM app_discovery_analytics_stats stats
+											WHERE stats.user_id = users.id
+												OR LOWER(stats.user_email) = users.email_normalized
+										), '-infinity'::timestamptz)
+									`
+									: this.sql`'-infinity'::timestamptz`
+							},
+							${
+								tables?.genre_preferences_table
+									? this.sql`
+										COALESCE((
+											SELECT MAX(preferences.last_seen_at)
+											FROM app_user_genre_preferences preferences
+											WHERE preferences.user_id = users.id
+												OR LOWER(preferences.email) = users.email_normalized
+										), '-infinity'::timestamptz)
+									`
+									: this.sql`'-infinity'::timestamptz`
+							}
+						) AS audience_last_signal_at,
+						(
+							NULLIF(users.last_device_class, '') IS NOT NULL
+							OR NULLIF(users.last_platform, '') IS NOT NULL
+							OR NULLIF(users.last_browser_family, '') IS NOT NULL
+							OR NULLIF(users.last_timezone, '') IS NOT NULL
+							OR NULLIF(users.last_locale, '') IS NOT NULL
+						) AS audience_has_context
 					FROM app_users users
+			),
+			enriched AS (
+				SELECT
+					base.*,
+					(
+						audience_event_count
+						+ audience_search_count
+						+ audience_filter_count
+						+ audience_plan_signal_count
+						+ audience_genre_count
+					) AS audience_signal_count
+				FROM base
 			),
 			filtered AS (
 				SELECT *
-				FROM base
+				FROM enriched
 				WHERE (${status}::text IS NULL OR status = ${status})
 					AND (
 						${search}::text IS NULL
@@ -1144,6 +1301,7 @@ export class UserPolicyRepository {
 						OR user_id ILIKE ${search}
 					)
 					AND ${activityFilter}
+					AND ${audienceSignalFilter}
 				)
 			SELECT
 				filtered.*,

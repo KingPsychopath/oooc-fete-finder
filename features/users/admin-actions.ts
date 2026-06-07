@@ -7,8 +7,8 @@ import { UserCollectionStore } from "@/features/auth/user-collection-store";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { getEventLocationDisplay } from "@/features/events/types";
 import { getTicketExchangeRepository } from "@/features/ticket-exchange/repository";
-import { buildTicketExchangeEventPath } from "@/features/ticket-exchange/urls";
 import type { TicketExchangeListingStatus } from "@/features/ticket-exchange/types";
+import { buildTicketExchangeEventPath } from "@/features/ticket-exchange/urls";
 import { getAdminActivityRepository } from "@/lib/platform/postgres/admin-activity-repository";
 import { getEventSubmissionRepository } from "@/lib/platform/postgres/event-submission-repository";
 import { getUserEventRelationshipRepository } from "@/lib/platform/postgres/user-event-relationship-repository";
@@ -19,12 +19,12 @@ import { z } from "zod";
 import { getNoticeCtaHrefError, normalizeNoticeCtaHref } from "./notice-form";
 import { getUserPolicyRepository } from "./policy-repository";
 import type {
-	AdminUserDetail,
-	AdminUsersQuery,
-	AdminUsersDashboard,
 	AdminEventReference,
 	AdminPlanDetail,
 	AdminSavedEventDetail,
+	AdminUserDetail,
+	AdminUsersDashboard,
+	AdminUsersQuery,
 	ManagedUserStatus,
 	UserNoticeTargetType,
 	UserRestrictionScope,
@@ -154,6 +154,7 @@ export async function getAdminUsersDashboard(input?: {
 	query?: string;
 	status?: ManagedUserStatus | "all";
 	activity?: AdminUsersQuery["activity"];
+	audienceSignal?: AdminUsersQuery["audienceSignal"];
 	sortKey?: AdminUsersQuery["sortKey"];
 	sortDirection?: AdminUsersQuery["sortDirection"];
 	page?: number;
@@ -165,6 +166,7 @@ export async function getAdminUsersDashboard(input?: {
 			query: input?.query,
 			status: input?.status ?? "all",
 			activity: input?.activity ?? "all",
+			audienceSignal: input?.audienceSignal ?? "all",
 			sortKey: input?.sortKey ?? "last_seen",
 			sortDirection: input?.sortDirection ?? "desc",
 			page: Math.max(input?.page ?? 1, 1),

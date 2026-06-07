@@ -1263,6 +1263,26 @@ export const EventEngagementStatsCard = ({
 	const showAdvancedTab = activeTab === "advanced";
 	const selectedRuleCount =
 		filterRules.length + genreRules.length + (searchRule ? 1 : 0);
+	const hasSelectedSegmentRules = selectedRuleCount > 0;
+	const parsedSegmentMinHits = Number.parseInt(segmentMinHits, 10);
+	const parsedSegmentLimit = Number.parseInt(segmentLimit, 10);
+	const hasValidSegmentExportSettings =
+		Number.isFinite(parsedSegmentMinHits) &&
+		parsedSegmentMinHits >= 1 &&
+		parsedSegmentMinHits <= 30 &&
+		Number.isFinite(parsedSegmentLimit) &&
+		parsedSegmentLimit >= 1 &&
+		parsedSegmentLimit <= 10000;
+	const canLoadSegmentRulesFromUrl = filterUrlInput.trim().length > 0;
+	const canAddFilterRule = ruleValue.trim().length > 0;
+	const canAddSearchRule = searchInput.trim().length >= 2;
+	const parsedGenreRuleMinScore = Number.parseInt(genreRuleMinScore, 10);
+	const canAddGenreRule =
+		Number.isFinite(parsedGenreRuleMinScore) &&
+		parsedGenreRuleMinScore >= 1 &&
+		parsedGenreRuleMinScore <= 100;
+	const canExportAudienceSegment =
+		!isExporting && hasSelectedSegmentRules && hasValidSegmentExportSettings;
 	const attentionThreshold = getMedian(chartRows.map((row) => row.clickCount));
 	const intentThreshold = Math.max(
 		1,
@@ -1730,16 +1750,22 @@ export const EventEngagementStatsCard = ({
 	}, [applyFilterStateToSegmentBuilder, filterUrlInput]);
 
 	const handleExportSegmentCsv = useCallback(async () => {
+		if (!hasSelectedSegmentRules) {
+			setErrorMessage("Select at least one audience rule before exporting");
+			return;
+		}
+		if (!hasValidSegmentExportSettings) {
+			setErrorMessage("Use 1-30 min hits and 1-10000 max rows");
+			return;
+		}
 		setIsExporting(true);
 		setErrorMessage("");
 		setSegmentMessage("");
 		try {
-			const minHits = Number.parseInt(segmentMinHits, 10);
-			const limit = Number.parseInt(segmentLimit, 10);
 			const result = await exportAudienceSegmentCsv({
 				windowDays: segmentWindowDays,
-				minHitsPerRule: Number.isFinite(minHits) ? minHits : 1,
-				limit: Number.isFinite(limit) ? limit : 5000,
+				minHitsPerRule: parsedSegmentMinHits,
+				limit: parsedSegmentLimit,
 				ruleOperator,
 				filterRules,
 				searchContains: searchRule,
@@ -1765,11 +1791,13 @@ export const EventEngagementStatsCard = ({
 	}, [
 		filterRules,
 		genreRules,
+		hasSelectedSegmentRules,
+		hasValidSegmentExportSettings,
+		parsedSegmentLimit,
+		parsedSegmentMinHits,
 		ruleOperator,
 		searchRule,
 		segmentWindowDays,
-		segmentLimit,
-		segmentMinHits,
 	]);
 
 	const handleExportTrafficCsv = useCallback(async () => {
@@ -2877,7 +2905,7 @@ export const EventEngagementStatsCard = ({
 								href="/admin/content#ticket-exchange-moderation"
 								className="rounded-md border px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 							>
-								Open moderation
+								Open ticket moderation
 							</a>
 						</div>
 						<div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
@@ -2917,10 +2945,18 @@ export const EventEngagementStatsCard = ({
 														{row.operationalReportCreateCount} reports
 													</p>
 												</div>
-												<p className="text-[11px] text-muted-foreground sm:text-right">
-													{row.operationalResolvedListingCount} resolved
-													{row.isLiveEvent ? "" : " · no live match"}
-												</p>
+												<div className="space-y-1 text-[11px] text-muted-foreground sm:text-right">
+													<p>
+														{row.operationalResolvedListingCount} resolved
+														{row.isLiveEvent ? "" : " · no live match"}
+													</p>
+													<a
+														href={`/exchange/${encodeURIComponent(row.eventKey)}`}
+														className="inline-flex rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] transition-colors hover:bg-muted hover:text-foreground"
+													>
+														Exchange
+													</a>
+												</div>
 											</div>
 										))}
 									</div>
@@ -3139,14 +3175,37 @@ export const EventEngagementStatsCard = ({
 								</p>
 								<div className="space-y-2 text-xs text-muted-foreground">
 									<p>
-										{ticketExchange.operations.pendingReportCount > 0
-											? `${ticketExchange.operations.pendingReportCount} report${ticketExchange.operations.pendingReportCount === 1 ? "" : "s"} need moderation.`
-											: "No reports need moderation right now."}
+										{ticketExchange.operations.pendingReportCount > 0 ? (
+											<a
+												href="/admin/content#ticket-exchange-moderation"
+												className="font-medium text-foreground underline-offset-4 hover:underline"
+											>
+												{ticketExchange.operations.pendingReportCount} report
+												{ticketExchange.operations.pendingReportCount === 1
+													? ""
+													: "s"}{" "}
+												need moderation. Open report queue.
+											</a>
+										) : (
+											"No reports need moderation right now."
+										)}
 									</p>
 									<p>
-										{ticketExchange.operations.botPendingCount > 0
-											? `${ticketExchange.operations.botPendingCount} active listing${ticketExchange.operations.botPendingCount === 1 ? "" : "s"} still need bot announcement.`
-											: "No active listings are waiting on bot announcement."}
+										{ticketExchange.operations.botPendingCount > 0 ? (
+											<a
+												href="/admin/content#ticket-exchange-moderation"
+												className="font-medium text-foreground underline-offset-4 hover:underline"
+											>
+												{ticketExchange.operations.botPendingCount} active
+												listing
+												{ticketExchange.operations.botPendingCount === 1
+													? ""
+													: "s"}{" "}
+												still need bot announcement. Open listing queue.
+											</a>
+										) : (
+											"No active listings are waiting on bot announcement."
+										)}
 									</p>
 									<p>
 										{formatPercent(ticketExchange.summary.listingToUnlockRate)}{" "}
@@ -3855,6 +3914,7 @@ export const EventEngagementStatsCard = ({
 										size="sm"
 										variant="outline"
 										onClick={loadSegmentRulesFromUrl}
+										disabled={!canLoadSegmentRulesFromUrl}
 									>
 										Load From URL
 									</Button>
@@ -3981,7 +4041,12 @@ export const EventEngagementStatsCard = ({
 										onChange={(event) => setRuleValue(event.target.value)}
 										placeholder={FILTER_VALUE_PLACEHOLDER[ruleGroup]}
 									/>
-									<Button type="button" size="sm" onClick={addFilterRule}>
+									<Button
+										type="button"
+										size="sm"
+										onClick={addFilterRule}
+										disabled={!canAddFilterRule}
+									>
 										Add Filter
 									</Button>
 								</div>
@@ -4003,6 +4068,7 @@ export const EventEngagementStatsCard = ({
 										size="sm"
 										variant="outline"
 										onClick={addSearchRule}
+										disabled={!canAddSearchRule}
 									>
 										Add Search
 									</Button>
@@ -4042,6 +4108,7 @@ export const EventEngagementStatsCard = ({
 										size="sm"
 										variant="outline"
 										onClick={addGenreRule}
+										disabled={!canAddGenreRule}
 									>
 										Add Genre
 									</Button>
@@ -4113,12 +4180,7 @@ export const EventEngagementStatsCard = ({
 								type="button"
 								size="sm"
 								onClick={() => void handleExportSegmentCsv()}
-								disabled={
-									isExporting ||
-									(filterRules.length === 0 &&
-										genreRules.length === 0 &&
-										!searchRule)
-								}
+								disabled={!canExportAudienceSegment}
 							>
 								{isExporting ? "Exporting..." : "Export Audience Segment CSV"}
 							</Button>

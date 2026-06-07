@@ -388,7 +388,9 @@ export const LocalEventStoreCard = ({
 
 	const handleClearStore = async () => {
 		if (
-			!window.confirm("Clear all event data from store? This cannot be undone.")
+			!window.confirm(
+				`Clear ${status?.rowCount ?? 0} event row${(status?.rowCount ?? 0) === 1 ? "" : "s"} from the store? This cannot be undone.`,
+			)
 		) {
 			return;
 		}
@@ -447,6 +449,7 @@ export const LocalEventStoreCard = ({
 	const fallbackActive =
 		runtimeDataStatus?.configuredDataSource === "remote" &&
 		runtimeDataStatus.dataSource !== "store";
+	const hasStoreRows = (status?.rowCount ?? 0) > 0;
 	const latestBackup = backupStatus.latestBackup;
 	const restoreDisabled = isLoading || !backupSupported || !latestBackup;
 	const selectedRestoreDisabled =
@@ -454,6 +457,35 @@ export const LocalEventStoreCard = ({
 		!backupSupported ||
 		!selectedBackupId ||
 		recentBackups.length === 0;
+	const uploadTitle = isLoading
+		? "Wait for the current store task to finish"
+		: "Upload a CSV file into the managed event store";
+	const backupNowTitle = !backupSupported
+		? backupReason || "Postgres-backed store is required for backups"
+		: isLoading
+			? "Wait for the current store task to finish"
+			: "Create a snapshot of events, placements, paid orders, submissions, settings, and collected emails";
+	const restoreLatestTitle = !backupSupported
+		? backupReason || "Postgres-backed store is required for restores"
+		: !latestBackup
+			? "No snapshot is available to restore"
+			: `Restore latest snapshot from ${formatAdminDateTime(latestBackup.createdAt)}`;
+	const exportStoreTitle = hasStoreRows
+		? `Export ${status?.rowCount ?? 0} raw store row${(status?.rowCount ?? 0) === 1 ? "" : "s"} as CSV`
+		: "No store rows to export";
+	const exportGeneratedTitle = hasStoreRows
+		? "Export generated event rows as CSV"
+		: "No generated event rows to export";
+	const clearStoreTitle = hasStoreRows
+		? `Clear ${status?.rowCount ?? 0} event row${(status?.rowCount ?? 0) === 1 ? "" : "s"} from the store`
+		: "No store rows to clear";
+	const selectedRestoreTitle = !backupSupported
+		? backupReason || "Postgres-backed store is required for restores"
+		: recentBackups.length === 0
+			? "No snapshots are available to restore"
+			: !selectedBackupId
+				? "Pick a snapshot to restore"
+				: "Restore the selected snapshot";
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
@@ -551,6 +583,7 @@ export const LocalEventStoreCard = ({
 						type="button"
 						disabled={isLoading}
 						onClick={handleSelectCsvUpload}
+						title={uploadTitle}
 					>
 						Upload CSV to Store
 					</Button>
@@ -559,6 +592,7 @@ export const LocalEventStoreCard = ({
 						variant="outline"
 						disabled={isLoading || !backupSupported}
 						onClick={handleBackupNow}
+						title={backupNowTitle}
 					>
 						Backup Now
 					</Button>
@@ -567,30 +601,34 @@ export const LocalEventStoreCard = ({
 						variant="outline"
 						disabled={restoreDisabled}
 						onClick={handleRestoreLatestBackup}
+						title={restoreLatestTitle}
 					>
 						Restore Latest Backup
 					</Button>
 					<Button
 						type="button"
 						variant="outline"
-						disabled={isLoading}
+						disabled={isLoading || !hasStoreRows}
 						onClick={handleExportCsv}
+						title={exportStoreTitle}
 					>
 						Export Store CSV
 					</Button>
 					<Button
 						type="button"
 						variant="outline"
-						disabled={isLoading}
+						disabled={isLoading || !hasStoreRows}
 						onClick={handleExportExpandedCsv}
+						title={exportGeneratedTitle}
 					>
 						Export Generated CSV
 					</Button>
 					<Button
 						type="button"
 						variant="destructive"
-						disabled={isLoading}
+						disabled={isLoading || !hasStoreRows}
 						onClick={handleClearStore}
+						title={clearStoreTitle}
 					>
 						Clear Store
 					</Button>
@@ -614,6 +652,11 @@ export const LocalEventStoreCard = ({
 								size="sm"
 								disabled={isLoading || recentBackups.length === 0}
 								onClick={() => setShowSnapshotPicker((current) => !current)}
+								title={
+									recentBackups.length === 0
+										? "No snapshots are available"
+										: "Show or hide recent snapshots"
+								}
 							>
 								{showSnapshotPicker ? "Hide snapshots" : "Show snapshots"}
 							</Button>
@@ -634,9 +677,9 @@ export const LocalEventStoreCard = ({
 								>
 									{recentBackups.map((backup) => (
 										<option key={backup.id} value={backup.id}>
-												{formatAdminDateTime(backup.createdAt)} | {backup.trigger}{" "}
-												| {backup.rowCount} rows |{" "}
-												{backup.userCollectionCount ?? "unknown"} emails
+											{formatAdminDateTime(backup.createdAt)} | {backup.trigger}{" "}
+											| {backup.rowCount} rows |{" "}
+											{backup.userCollectionCount ?? "unknown"} emails
 										</option>
 									))}
 								</select>
@@ -646,6 +689,7 @@ export const LocalEventStoreCard = ({
 									size="sm"
 									disabled={selectedRestoreDisabled}
 									onClick={handleRestoreSelectedSnapshot}
+									title={selectedRestoreTitle}
 								>
 									Restore Selected Snapshot
 								</Button>

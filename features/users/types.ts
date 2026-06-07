@@ -58,6 +58,13 @@ export type ManagedUserStatus =
 	| "deleted"
 	| "blocked";
 
+export const MANAGED_USER_STATUSES = [
+	"active",
+	"unsubscribed",
+	"deleted",
+	"blocked",
+] as const satisfies readonly ManagedUserStatus[];
+
 export const ADMIN_USERS_SORT_KEYS = [
 	"last_seen",
 	"first_seen",
@@ -91,10 +98,29 @@ export const ADMIN_USERS_ACTIVITY_FILTERS = [
 export type AdminUsersActivityFilter =
 	(typeof ADMIN_USERS_ACTIVITY_FILTERS)[number];
 
+export const ADMIN_USERS_AUDIENCE_SIGNAL_FILTERS = [
+	"all",
+	"has-activity",
+	"no-activity",
+	"recently-active",
+	"searches",
+	"filters",
+	"plan-actions",
+	"event-actions",
+	"genre-prefs",
+	"returned-no-activity",
+	"has-context",
+	"missing-context",
+] as const;
+
+export type AdminUsersAudienceSignalFilter =
+	(typeof ADMIN_USERS_AUDIENCE_SIGNAL_FILTERS)[number];
+
 export interface AdminUsersQuery {
 	query?: string;
 	status?: ManagedUserStatus | "all";
 	activity?: AdminUsersActivityFilter;
+	audienceSignal?: AdminUsersAudienceSignalFilter;
 	sortKey?: AdminUsersSortKey;
 	sortDirection?: AdminUsersSortDirection;
 	page?: number;

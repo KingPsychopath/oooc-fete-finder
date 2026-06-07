@@ -162,6 +162,28 @@ export function AdminActivityTimelineCard({
 	const warningCount = events.filter(
 		(event) => event.severity === "warning",
 	).length;
+	const hasActiveFilters =
+		query.trim().length > 0 ||
+		categoryFilter !== "all" ||
+		severityFilter !== "all";
+	const activeFilterCount = [
+		query.trim().length > 0,
+		categoryFilter !== "all",
+		severityFilter !== "all",
+	].filter(Boolean).length;
+	const clearFilters = () => {
+		setQuery("");
+		setCategoryFilter("all");
+		setSeverityFilter("all");
+		setVisibleLimit(18);
+	};
+	const openLabelForEvent = (event: AdminActivityEvent): string => {
+		if (event.targetLabel) return `Open ${event.targetLabel}`;
+		if (event.targetType) {
+			return `Open ${event.targetType.replaceAll("_", " ")}`;
+		}
+		return "Open related record";
+	};
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
@@ -276,31 +298,71 @@ export function AdminActivityTimelineCard({
 						</Button>
 					</div>
 				</div>
+				<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+					{hasActiveFilters ? (
+						<>
+							<Badge variant="secondary">
+								{activeFilterCount} active filter
+								{activeFilterCount === 1 ? "" : "s"}
+							</Badge>
+							{query.trim() ? (
+								<Badge variant="outline">Search: {query.trim()}</Badge>
+							) : null}
+							{categoryFilter !== "all" ? (
+								<Badge variant="outline">
+									Category: {CATEGORY_LABELS[categoryFilter]}
+								</Badge>
+							) : null}
+							{severityFilter !== "all" ? (
+								<Badge variant="outline">
+									Severity: {SEVERITY_LABELS[severityFilter]}
+								</Badge>
+							) : null}
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="h-7 px-2 text-xs"
+								onClick={clearFilters}
+							>
+								Clear filters
+							</Button>
+						</>
+					) : (
+						<span>
+							Showing the latest audit events. Use filters to narrow by
+							actor, target, category, or severity.
+						</span>
+					)}
+				</div>
 
 				<div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
 					{CATEGORY_OPTIONS.filter(
 						(category): category is AdminActivityCategory => category !== "all",
-					).map((category) => (
-						<button
-							key={category}
-							type="button"
-							onClick={() => {
-								setCategoryFilter(category);
-								setVisibleLimit(18);
-							}}
-							className={cn(
-								"rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted/40",
-								categoryFilter === category && "border-foreground/40 bg-muted",
-							)}
-						>
-							<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-								{CATEGORY_LABELS[category]}
-							</p>
-							<p className="mt-1 text-sm font-semibold">
-								{categoryCounts[category] ?? 0}
-							</p>
-						</button>
-					))}
+					).map((category) => {
+						const categoryCount = categoryCounts[category] ?? 0;
+						return (
+							<button
+								key={category}
+								type="button"
+								onClick={() => {
+									setCategoryFilter(category);
+									setVisibleLimit(18);
+								}}
+								disabled={categoryCount === 0}
+								className={cn(
+									"rounded-md border px-3 py-2 text-left transition-colors hover:bg-muted/40 disabled:cursor-default disabled:opacity-55 disabled:hover:bg-transparent",
+									categoryFilter === category &&
+										"border-foreground/40 bg-muted",
+								)}
+							>
+								<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+									{CATEGORY_LABELS[category]}
+								</p>
+								<p className="mt-1 text-sm font-semibold">{categoryCount}</p>
+							</button>
+						);
+					})}
 				</div>
 
 				<div className="rounded-md border">
@@ -380,7 +442,7 @@ export function AdminActivityTimelineCard({
 															href={withAdminBasePath(event.href)}
 															className="inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-xs font-medium transition-colors hover:bg-muted"
 														>
-															Open
+															{openLabelForEvent(event)}
 															<ExternalLink className="h-3 w-3" />
 														</Link>
 													)}

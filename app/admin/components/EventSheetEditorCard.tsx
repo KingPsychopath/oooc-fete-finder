@@ -4809,6 +4809,18 @@ export const EventSheetEditorCard = ({
 	const blockingSheetHealthIssues = sheetHealthIssues.filter(
 		(issue) => issue.severity === "blocking",
 	);
+	const canPublishSheet =
+		!isSaving && hasUnsavedChanges && blockingSheetHealthIssues.length === 0;
+	const canPublishLoadedRevision =
+		!isSaving &&
+		Boolean(restoreReviewRevision) &&
+		hasUnsavedChanges &&
+		blockingSheetHealthIssues.length === 0;
+	const canCreateCustomGenre =
+		!isSaving &&
+		!isLoading &&
+		!hasNewDeployment &&
+		newGenreLabel.trim().length > 0;
 	const sheetHealthIssuesByRow = useMemo(() => {
 		const byRow = new Map<number, SheetHealthIssue[]>();
 		for (const issue of sheetHealthIssues) {
@@ -6358,7 +6370,14 @@ export const EventSheetEditorCard = ({
 										type="button"
 										size="sm"
 										onClick={() => void handleManualSave()}
-										disabled={isSaving}
+										disabled={!canPublishLoadedRevision}
+										title={
+											blockingSheetHealthIssues.length > 0
+												? "Fix required sheet fields before publishing this revision"
+												: !hasUnsavedChanges
+													? "No revision changes to publish"
+													: undefined
+										}
 									>
 										Publish This Revision
 									</Button>
@@ -7153,8 +7172,15 @@ export const EventSheetEditorCard = ({
 								)}
 								<Button
 									onClick={handleManualSave}
-									disabled={isSaving || !hasUnsavedChanges}
+									disabled={!canPublishSheet}
 									className="h-10"
+									title={
+										blockingSheetHealthIssues.length > 0
+											? "Fix required sheet fields before publishing"
+											: !hasUnsavedChanges
+												? "No unpublished sheet changes"
+												: undefined
+									}
 								>
 									Save and Revalidate Homepage
 								</Button>
@@ -7449,7 +7475,9 @@ export const EventSheetEditorCard = ({
 											onKeyDown={(event) => {
 												if (event.key === "Enter") {
 													event.preventDefault();
-													void handleCreateGenre(newGenreLabel);
+													if (canCreateCustomGenre) {
+														void handleCreateGenre(newGenreLabel);
+													}
 												}
 											}}
 										/>
@@ -7460,7 +7488,14 @@ export const EventSheetEditorCard = ({
 										variant="outline"
 										className="h-9"
 										onClick={() => void handleCreateGenre(newGenreLabel)}
-										disabled={isSaving || isLoading}
+										disabled={!canCreateCustomGenre}
+										title={
+											hasNewDeployment
+												? "Reload required before changing genres"
+												: !newGenreLabel.trim()
+													? "Enter a genre label"
+													: undefined
+										}
 									>
 										Add custom
 									</Button>

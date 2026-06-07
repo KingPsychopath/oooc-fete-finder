@@ -9,9 +9,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
 	Dialog,
 	DialogContent,
@@ -19,6 +16,11 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { getTicketExchangeReportReasonLabel } from "@/features/ticket-exchange/reporting";
+import type { TicketExchangeAdminReport } from "@/features/ticket-exchange/types";
 import {
 	addUserAdminNoteAsAdmin,
 	bulkUpdateUserTicketListingsAsAdmin,
@@ -37,8 +39,8 @@ import {
 	normalizeNoticeCtaHref,
 } from "@/features/users/notice-form";
 import type {
-	AdminUserDetail,
 	AdminPlanDetail,
+	AdminUserDetail,
 	ManagedUserStatus,
 	UserAdminNoteCategory,
 	UserNotice,
@@ -51,8 +53,6 @@ import {
 	USER_NOTICE_SEVERITIES,
 	USER_RESTRICTION_SCOPES,
 } from "@/features/users/types";
-import { getTicketExchangeReportReasonLabel } from "@/features/ticket-exchange/reporting";
-import type { TicketExchangeAdminReport } from "@/features/ticket-exchange/types";
 import { cn } from "@/lib/utils";
 import {
 	Ban,
@@ -70,6 +70,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+	RECENT_LIST_HELP_TEXT,
+	buildAdminUserHref,
+	buildAudienceFilterHref,
+	buildAudienceSearchHref,
+	formatAudienceContextValue,
+	getAudienceFilterDisplayValue,
+	getAudienceFilterGroupLabel,
+} from "../components/audience-profile-utils";
 import { withAdminBasePath } from "../config";
 
 type UserDetailClientProps = {
@@ -321,9 +330,7 @@ const reportUserRoles = (
 };
 
 const userAdminHref = (userId: string | null, email: string | null): string =>
-	withAdminBasePath(
-		`/admin/users/${encodeURIComponent(userId || email || "unknown")}`,
-	);
+	buildAdminUserHref(userId, email);
 
 const reportPersonLabel = (person: {
 	userId?: string | null;
@@ -340,9 +347,6 @@ const reportPersonLabel = (person: {
 	return name || email || person.userId || "Unknown";
 };
 
-const consentLabel = (value: boolean | null | undefined): string =>
-	value ? "Opted in" : "Not opted in";
-
 const consentSummaryLabel = (input: {
 	marketing: boolean | null | undefined;
 	eventUpdates: boolean | null | undefined;
@@ -350,11 +354,29 @@ const consentSummaryLabel = (input: {
 	const marketing = Boolean(input.marketing);
 	const eventUpdates = Boolean(input.eventUpdates);
 	if (marketing && eventUpdates) return "Marketing + event updates";
-	if (!marketing && !eventUpdates) return "No optional email";
-	return [
-		`Marketing ${consentLabel(marketing).toLowerCase()}`,
-		`event updates ${consentLabel(eventUpdates).toLowerCase()}`,
-	].join(" · ");
+	if (marketing) return "Marketing";
+	if (eventUpdates) return "Event updates only";
+	return "No marketing";
+};
+
+const audienceBehaviorLabel = (user: {
+	searchSignalCount?: number;
+	filterSignalCount?: number;
+	planActionSignalCount?: number;
+	eventActionSignalCount?: number;
+	genrePreferenceSignalCount?: number;
+}): string => {
+	const entries = [
+		["Event actions", user.eventActionSignalCount ?? 0],
+		["Searches", user.searchSignalCount ?? 0],
+		["Filters", user.filterSignalCount ?? 0],
+		["Routes", user.planActionSignalCount ?? 0],
+		["Genres", user.genrePreferenceSignalCount ?? 0],
+	] as const;
+	const [label, count] = entries.reduce((best, entry) =>
+		entry[1] > best[1] ? entry : best,
+	);
+	return count > 0 ? label : "No linked activity";
 };
 
 export function UserDetailClient({
@@ -400,6 +422,7 @@ export function UserDetailClient({
 
 	const detail = payload.detail;
 	const user = detail?.user ?? null;
+	const collectedProfile = detail?.collectedProfile ?? null;
 	const collectedUser = detail?.collectedRecord ?? null;
 	const userId = user?.userId ?? collectedUser?.userId ?? null;
 	const email =
@@ -473,7 +496,6 @@ export function UserDetailClient({
 			}),
 		[detail?.ticketReports],
 	);
-
 	const copyValue = async (label: string, value: string) => {
 		try {
 			await navigator.clipboard.writeText(value);
@@ -646,12 +668,17 @@ export function UserDetailClient({
 						</div>
 					</div>
 				</CardHeader>
-				<CardContent className="grid gap-3 pt-4 sm:grid-cols-2 xl:grid-cols-4">
+				<CardContent className="grid gap-3 pt-4 sm:grid-cols-2 xl:grid-cols-5">
 					<Fact
 						label="Last Seen"
 						value={formatDateTime(
 							user?.lastSeenAt ?? collectedUser?.lastSeenAt ?? null,
 						)}
+					/>
+					<Fact
+						label="Behavior Profile"
+						value={collectedProfile?.user.linkedSignalCount ?? 0}
+						href="#audience-activity"
 					/>
 					<Fact
 						label="Listings"
@@ -722,6 +749,275 @@ export function UserDetailClient({
 									value={scheduledNotices.length}
 								/>
 								<Fact label="Admin Notes" value={detail.adminNotes.length} />
+							</CardContent>
+						</Card>
+					</section>
+
+					<section id="audience-activity" className="scroll-mt-44">
+						<Card className="ooo-admin-card min-w-0 overflow-hidden">
+							<CardHeader className="border-b">
+								<CardTitle>Behavior Profile</CardTitle>
+								<CardDescription>
+									Recent searches, filters, plans, events, genres, and device
+									context linked to this user.
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-4 pt-4">
+								{collectedProfile ? (
+									<>
+										<div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+											<Fact
+												label="Behavior Type"
+												value={audienceBehaviorLabel(collectedProfile.user)}
+											/>
+											<Fact
+												label="Linked Activity"
+												value={collectedProfile.user.linkedSignalCount ?? 0}
+											/>
+											<Fact
+												label="Latest Activity"
+												value={
+													collectedProfile.user.lastSignalAt
+														? formatDateTime(collectedProfile.user.lastSignalAt)
+														: "No linked activity"
+												}
+											/>
+											<Fact
+												label="Top Genre"
+												value={
+													formatAudienceContextValue(
+														collectedProfile.genrePreferences[0]?.genre,
+													) ?? "Unknown"
+												}
+											/>
+											<Fact
+												label="Device Context"
+												value={
+													[
+														collectedProfile.user.deviceClass,
+														collectedProfile.user.platform,
+														collectedProfile.user.browserFamily,
+													]
+														.map(formatAudienceContextValue)
+														.filter(Boolean)
+														.join(" · ") || "Unknown"
+												}
+											/>
+										</div>
+										<div className="grid gap-3 xl:grid-cols-2">
+											<div className="rounded-lg border bg-background/70 p-3">
+												<p className="text-sm font-semibold">Recent Searches</p>
+												<p className="mt-1 text-xs text-muted-foreground">
+													{RECENT_LIST_HELP_TEXT.searches}
+												</p>
+												<div className="mt-2 space-y-1.5">
+													{collectedProfile.recentSearches.length > 0 ? (
+														collectedProfile.recentSearches.map((item) => (
+															<p
+																key={`${item.query}-${item.recordedAt}`}
+																className="flex justify-between gap-2 text-xs"
+															>
+																<span className="truncate">
+																	{(() => {
+																		const searchHref = buildAudienceSearchHref(
+																			item.query,
+																		);
+																		return searchHref == null ? (
+																			item.query
+																		) : (
+																			<Link
+																				href={searchHref}
+																				target="_blank"
+																				rel="noreferrer"
+																				className="inline-flex items-center underline decoration-dotted underline-offset-2 hover:decoration-solid"
+																			>
+																				{item.query}
+																			</Link>
+																		);
+																	})()}
+																</span>
+																<span className="shrink-0 text-muted-foreground">
+																	{formatDateTime(item.recordedAt)}
+																</span>
+															</p>
+														))
+													) : (
+														<p className="text-xs text-muted-foreground">
+															No searches linked.
+														</p>
+													)}
+												</div>
+											</div>
+											<div className="rounded-lg border bg-background/70 p-3">
+												<p className="text-sm font-semibold">Recent Filters</p>
+												<p className="mt-1 text-xs text-muted-foreground">
+													{RECENT_LIST_HELP_TEXT.filters}
+												</p>
+												<div className="mt-2 space-y-1.5">
+													{collectedProfile.recentFilters.length > 0 ? (
+														collectedProfile.recentFilters.map((item) => {
+															const filterHref = buildAudienceFilterHref(
+																item.filterGroup,
+																item.filterValue,
+															);
+															const groupLabel = getAudienceFilterGroupLabel(
+																item.filterGroup,
+															);
+															const valueLabel = getAudienceFilterDisplayValue(
+																item.filterGroup,
+																item.filterValue,
+															);
+															return (
+																<p
+																	key={`${item.filterGroup}-${item.filterValue}-${item.recordedAt}`}
+																	className="flex justify-between gap-2 text-xs"
+																>
+																	<span
+																		className="min-w-0 flex-1 whitespace-normal break-words"
+																		title={`${groupLabel}: ${valueLabel}`}
+																	>
+																		{groupLabel}:{" "}
+																		{filterHref == null ? (
+																			valueLabel
+																		) : (
+																			<Link
+																				href={filterHref}
+																				target="_blank"
+																				rel="noreferrer"
+																				className="inline-flex items-center underline decoration-dotted underline-offset-2 hover:decoration-solid"
+																			>
+																				{valueLabel}
+																			</Link>
+																		)}
+																	</span>
+																	<span className="shrink-0 text-muted-foreground">
+																		{formatDateTime(item.recordedAt)}
+																	</span>
+																</p>
+															);
+														})
+													) : (
+														<p className="text-xs text-muted-foreground">
+															No filters linked.
+														</p>
+													)}
+												</div>
+											</div>
+											<div className="rounded-lg border bg-background/70 p-3">
+												<p className="text-sm font-semibold">
+													Genre Preferences
+												</p>
+												<div className="mt-2 space-y-1.5">
+													{collectedProfile.genrePreferences.length > 0 ? (
+														collectedProfile.genrePreferences.map((item) => (
+															<p
+																key={item.genre}
+																className="flex justify-between gap-2 text-xs"
+															>
+																<span className="truncate">
+																	{formatAudienceContextValue(item.genre)}
+																</span>
+																<span className="shrink-0 tabular-nums text-muted-foreground">
+																	score {item.score}
+																</span>
+															</p>
+														))
+													) : (
+														<p className="text-xs text-muted-foreground">
+															No genre activity.
+														</p>
+													)}
+												</div>
+											</div>
+											<div className="rounded-lg border bg-background/70 p-3">
+												<p className="text-sm font-semibold">
+													Recent Plan Actions
+												</p>
+												<p className="mt-1 text-xs text-muted-foreground">
+													{RECENT_LIST_HELP_TEXT.planActions}
+												</p>
+												<div className="mt-2 space-y-1.5">
+													{collectedProfile.recentPlanActions.length > 0 ? (
+														collectedProfile.recentPlanActions.map((item) => (
+															<p
+																key={`${item.surface}-${item.action}-${item.recordedAt}`}
+																className="flex justify-between gap-2 text-xs"
+															>
+																<span className="min-w-0 flex-1 truncate">
+																	{formatAudienceContextValue(item.surface)} ·{" "}
+																	{formatAudienceContextValue(item.action)}
+																	{item.detail ? (
+																		<span className="text-muted-foreground">
+																			{" "}
+																			({item.detail})
+																		</span>
+																	) : null}
+																</span>
+																<span className="shrink-0 text-muted-foreground">
+																	{formatDateTime(item.recordedAt)}
+																</span>
+															</p>
+														))
+													) : (
+														<p className="text-xs text-muted-foreground">
+															No plan actions linked.
+														</p>
+													)}
+												</div>
+											</div>
+											<div className="rounded-lg border bg-background/70 p-3">
+												<p className="text-sm font-semibold">
+													Recent Event Actions
+												</p>
+												<p className="mt-1 text-xs text-muted-foreground">
+													{RECENT_LIST_HELP_TEXT.eventActions}
+												</p>
+												<div className="mt-2 space-y-1.5">
+													{collectedProfile.recentEventActions.length > 0 ? (
+														collectedProfile.recentEventActions
+															.slice(0, 8)
+															.map((item) => (
+																<p
+																	key={`${item.eventKey}-${item.actionType}-${item.recordedAt}`}
+																	className="flex justify-between gap-2 text-xs"
+																>
+																	<span className="min-w-0 flex-1 truncate">
+																		{formatAudienceContextValue(
+																			item.actionType,
+																		)}{" "}
+																		·{" "}
+																		{item.eventHref ? (
+																			<Link
+																				href={item.eventHref}
+																				target="_blank"
+																				rel="noreferrer"
+																				className="underline-offset-4 hover:underline"
+																			>
+																				{item.eventName ?? item.eventKey}
+																			</Link>
+																		) : (
+																			(item.eventName ?? item.eventKey)
+																		)}
+																	</span>
+																	<span className="shrink-0 text-muted-foreground">
+																		{formatDateTime(item.recordedAt)}
+																	</span>
+																</p>
+															))
+													) : (
+														<p className="text-xs text-muted-foreground">
+															No event actions linked.
+														</p>
+													)}
+												</div>
+											</div>
+										</div>
+									</>
+								) : (
+									<div className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
+										No audience activity profile is linked to this user yet.
+									</div>
+								)}
 							</CardContent>
 						</Card>
 					</section>
@@ -817,91 +1113,67 @@ export function UserDetailClient({
 												key={listing.id}
 												className="rounded-lg border bg-background/70 p-3"
 											>
-											<div className="flex flex-wrap items-center gap-2">
-												<Badge variant="outline">{listing.listingType}</Badge>
-												<Badge
-													variant={
-														listing.effectiveStatus === "active"
-															? "default"
-															: listing.effectiveStatus === "removed"
-																? "destructive"
-																: "outline"
-													}
-												>
-													{listing.effectiveStatus === "active"
-														? "Live listing"
-														: listing.effectiveStatus}
-												</Badge>
-												{listing.reportCount > 0 ? (
-													<Badge variant="destructive">
-														{listing.reportCount} report
-														{listing.reportCount === 1 ? "" : "s"}
+												<div className="flex flex-wrap items-center gap-2">
+													<Badge variant="outline">{listing.listingType}</Badge>
+													<Badge
+														variant={
+															listing.effectiveStatus === "active"
+																? "default"
+																: listing.effectiveStatus === "removed"
+																	? "destructive"
+																	: "outline"
+														}
+													>
+														{listing.effectiveStatus === "active"
+															? "Live listing"
+															: listing.effectiveStatus}
 													</Badge>
-												) : null}
-											</div>
-											<p className="mt-2 font-medium">{listing.eventName}</p>
-											<p className="mt-1 text-sm text-muted-foreground">
-												{listing.quantityLabel || "Quantity missing"} ·{" "}
-												{listing.priceLabel || "No price"} ·{" "}
-												{listingTimingLabel(listing)}
-											</p>
-											<div className="mt-3 flex flex-wrap gap-2">
-												<Link
-													href={withAdminBasePath(
-														`/event/${encodeURIComponent(listing.eventKey)}/${encodeURIComponent(listing.eventSlug)}`,
-													)}
-												>
-													<Button type="button" variant="outline" size="sm">
-														<ExternalLink />
-														Event
-													</Button>
-												</Link>
-												<Link
-													href={withAdminBasePath(
-														`/exchange/${encodeURIComponent(listing.eventKey)}`,
-													)}
-												>
-													<Button type="button" variant="outline" size="sm">
-														<ExternalLink />
-														Exchange
-													</Button>
-												</Link>
-												<Button
-													type="button"
-													variant="outline"
-													size="sm"
-													onClick={() =>
-														void copyValue("Listing ID", listing.id)
-													}
-												>
-													<Copy />
-													Copy ID
-												</Button>
-												{canReactivate ? (
+													{listing.reportCount > 0 ? (
+														<Badge variant="destructive">
+															{listing.reportCount} report
+															{listing.reportCount === 1 ? "" : "s"}
+														</Badge>
+													) : null}
+												</div>
+												<p className="mt-2 font-medium">{listing.eventName}</p>
+												<p className="mt-1 text-sm text-muted-foreground">
+													{listing.quantityLabel || "Quantity missing"} ·{" "}
+													{listing.priceLabel || "No price"} ·{" "}
+													{listingTimingLabel(listing)}
+												</p>
+												<div className="mt-3 flex flex-wrap gap-2">
+													<Link
+														href={withAdminBasePath(
+															`/event/${encodeURIComponent(listing.eventKey)}/${encodeURIComponent(listing.eventSlug)}`,
+														)}
+													>
+														<Button type="button" variant="outline" size="sm">
+															<ExternalLink />
+															Event
+														</Button>
+													</Link>
+													<Link
+														href={withAdminBasePath(
+															`/exchange/${encodeURIComponent(listing.eventKey)}`,
+														)}
+													>
+														<Button type="button" variant="outline" size="sm">
+															<ExternalLink />
+															Exchange
+														</Button>
+													</Link>
 													<Button
 														type="button"
 														variant="outline"
 														size="sm"
-														disabled={isPending || !hasListingActionReason}
 														onClick={() =>
-															runMutation(
-																() =>
-																	updateUserTicketListingAsAdmin({
-																		userId,
-																		email,
-																		listingId: listing.id,
-																		status: "active",
-																		reason: bulkListingReason,
-																	}),
-																"Listing reactivated",
-															)
+															void copyValue("Listing ID", listing.id)
 														}
 													>
-														Reactivate
+														<Copy />
+														Copy ID
 													</Button>
-												) : (
-													listing.effectiveStatus === "active" && (
-														<>
+													{canReactivate ? (
 														<Button
 															type="button"
 															variant="outline"
@@ -914,62 +1186,92 @@ export function UserDetailClient({
 																			userId,
 																			email,
 																			listingId: listing.id,
-																			status: "paused",
+																			status: "active",
 																			reason: bulkListingReason,
 																		}),
-																	"Listing paused",
+																	"Listing reactivated",
 																)
 															}
 														>
-															Pause
+															Reactivate
 														</Button>
-														<Button
-															type="button"
-															variant="outline"
-															size="sm"
-															disabled={isPending || !hasListingActionReason}
-															onClick={() =>
-																runMutation(
-																	() =>
-																		updateUserTicketListingAsAdmin({
-																			userId,
-																			email,
-																			listingId: listing.id,
-																			status: "resolved",
-																			reason: bulkListingReason,
-																		}),
-																	"Listing resolved",
-																)
-															}
-														>
-															Resolve
-														</Button>
-														<Button
-															type="button"
-															variant="destructive"
-															size="sm"
-															disabled={isPending || !hasListingActionReason}
-															onClick={() =>
-																runMutation(
-																	() =>
-																		updateUserTicketListingAsAdmin({
-																			userId,
-																			email,
-																			listingId: listing.id,
-																			status: "removed",
-																			reason: bulkListingReason,
-																		}),
-																	"Listing removed",
-																)
-															}
-														>
-															Remove
-														</Button>
-														</>
-													)
-												)}
+													) : (
+														listing.effectiveStatus === "active" && (
+															<>
+																<Button
+																	type="button"
+																	variant="outline"
+																	size="sm"
+																	disabled={
+																		isPending || !hasListingActionReason
+																	}
+																	onClick={() =>
+																		runMutation(
+																			() =>
+																				updateUserTicketListingAsAdmin({
+																					userId,
+																					email,
+																					listingId: listing.id,
+																					status: "paused",
+																					reason: bulkListingReason,
+																				}),
+																			"Listing paused",
+																		)
+																	}
+																>
+																	Pause
+																</Button>
+																<Button
+																	type="button"
+																	variant="outline"
+																	size="sm"
+																	disabled={
+																		isPending || !hasListingActionReason
+																	}
+																	onClick={() =>
+																		runMutation(
+																			() =>
+																				updateUserTicketListingAsAdmin({
+																					userId,
+																					email,
+																					listingId: listing.id,
+																					status: "resolved",
+																					reason: bulkListingReason,
+																				}),
+																			"Listing resolved",
+																		)
+																	}
+																>
+																	Resolve
+																</Button>
+																<Button
+																	type="button"
+																	variant="destructive"
+																	size="sm"
+																	disabled={
+																		isPending || !hasListingActionReason
+																	}
+																	onClick={() =>
+																		runMutation(
+																			() =>
+																				updateUserTicketListingAsAdmin({
+																					userId,
+																					email,
+																					listingId: listing.id,
+																					status: "removed",
+																					reason: bulkListingReason,
+																				}),
+																			"Listing removed",
+																		)
+																	}
+																>
+																	Remove
+																</Button>
+															</>
+														)
+													)}
+												</div>
 											</div>
-										</div>
 										);
 									})
 								) : (
@@ -1001,7 +1303,9 @@ export function UserDetailClient({
 												? userAdminHref(report.reporterUserId, null)
 												: null;
 											const reporterLabel = reportPersonLabel(report.reporter);
-											const ownerLabel = reportPersonLabel(report.listing.owner);
+											const ownerLabel = reportPersonLabel(
+												report.listing.owner,
+											);
 											const ownerHref =
 												report.listing.ownerUserId || report.listing.ownerEmail
 													? userAdminHref(
@@ -1064,30 +1368,42 @@ export function UserDetailClient({
 															? ` · reviewed ${formatDateTime(report.reviewedAt)}`
 															: ""}
 													</p>
-													<p className="mt-1 text-xs text-muted-foreground">
-														Reporter{" "}
-														{reporterHref ? (
-															<Link
-																href={reporterHref}
-																className="font-medium text-foreground underline-offset-2 hover:underline"
-															>
-																{reporterLabel}
-															</Link>
-														) : (
-															reporterLabel
-														)}{" "}
-														· owner{" "}
-														{ownerHref ? (
-															<Link
-																href={ownerHref}
-															className="font-medium text-foreground underline-offset-2 hover:underline"
-														>
-																{ownerLabel}
-															</Link>
-														) : (
-															ownerLabel
-														)}
-													</p>
+													<div className="mt-3 grid gap-2 sm:grid-cols-2">
+														<div className="rounded-md border bg-background/70 px-3 py-2 text-xs">
+															<p className="font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+																Listing owner
+															</p>
+															<p className="mt-1">
+																{ownerHref ? (
+																	<Link
+																		href={ownerHref}
+																		className="font-medium text-foreground underline-offset-2 hover:underline"
+																	>
+																		{ownerLabel}
+																	</Link>
+																) : (
+																	ownerLabel
+																)}
+															</p>
+														</div>
+														<div className="rounded-md border bg-background/70 px-3 py-2 text-xs">
+															<p className="font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+																Reporter
+															</p>
+															<p className="mt-1">
+																{reporterHref ? (
+																	<Link
+																		href={reporterHref}
+																		className="font-medium text-foreground underline-offset-2 hover:underline"
+																	>
+																		{reporterLabel}
+																	</Link>
+																) : (
+																	reporterLabel
+																)}
+															</p>
+														</div>
+													</div>
 													<div className="mt-3 rounded-md border border-amber-300/50 bg-background/70 px-3 py-2">
 														<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-900/80 dark:text-amber-100/80">
 															Report message
@@ -1135,30 +1451,6 @@ export function UserDetailClient({
 																>
 																	<ExternalLink />
 																	Exchange
-																</Button>
-															</Link>
-														) : null}
-														{reporterHref ? (
-															<Link href={reporterHref}>
-																<Button
-																	type="button"
-																	variant="outline"
-																	size="sm"
-																>
-																	<UserRound />
-																	Reporter
-																</Button>
-															</Link>
-														) : null}
-														{ownerHref ? (
-															<Link href={ownerHref}>
-																<Button
-																	type="button"
-																	variant="outline"
-																	size="sm"
-																>
-																	<UserRound />
-																	Owner
 																</Button>
 															</Link>
 														) : null}
@@ -1776,9 +2068,11 @@ export function UserDetailClient({
 													{noticeTargetLabel(
 														notice.targetType,
 														notice.segmentKey,
-													)}{" "}
-													· {status.label.toLowerCase()} · starts{" "}
-													{formatDateTime(notice.startsAt)}
+													)}
+													{showLifecycleBadge
+														? ` · ${status.label.toLowerCase()}`
+														: ""}{" "}
+													· starts {formatDateTime(notice.startsAt)}
 													{notice.expiresAt
 														? ` · expires ${formatDateTime(notice.expiresAt)}`
 														: ""}
@@ -1822,7 +2116,7 @@ export function UserDetailClient({
 															)
 														}
 													>
-														<Check />
+														<Ban />
 														Revoke
 													</Button>
 												) : null}

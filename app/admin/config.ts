@@ -200,10 +200,19 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 			{
 				id: "user-search",
 				label: "User Search",
-				description: "Find users by email, name, or canonical user id.",
+				description:
+					"Find users by email, name, canonical user id, or audience signal.",
 				path: "/admin/users#user-search",
 				moduleKey: "users",
-				keywords: ["users", "trust", "safety", "search", "email"],
+				keywords: ["users", "trust", "safety", "search", "email", "audience"],
+			},
+			{
+				id: "audience-records",
+				label: "Audience Records",
+				description: "Manage, import, export, and tidy collected user records.",
+				path: "/admin/users#audience-records",
+				moduleKey: "users",
+				keywords: ["users", "emails", "export", "import", "csv", "audience"],
 			},
 			{
 				id: "active-restrictions",
@@ -226,16 +235,17 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 	{
 		key: "insights",
 		label: "Analytics & Audience",
-		description: "Engagement analytics and collected user export.",
+		description: "Engagement analytics and audience-level cohorts.",
 		path: "/admin/insights",
 		sections: [
 			{
 				id: "collected-users",
-				label: "Collected User Emails",
-				description: "Manage, import, export, and tidy collected user records.",
+				label: "Audience Overview",
+				description:
+					"Registrations, context, and cohort links into user management.",
 				path: "/admin/insights#collected-users",
 				moduleKey: "insights",
-				keywords: ["users", "emails", "export", "import", "csv"],
+				keywords: ["users", "audience", "segments", "cohorts", "context"],
 			},
 			{
 				id: "event-engagement-stats",
