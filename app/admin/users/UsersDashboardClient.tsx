@@ -207,7 +207,7 @@ const noticeStatus = (notice: {
 		return { label: "Expired", variant: "outline" };
 	}
 	return notice.isActive
-		? { label: "Live", variant: "default" }
+		? { label: "Active policy", variant: "outline" }
 		: { label: "Inactive", variant: "outline" };
 };
 
@@ -217,7 +217,7 @@ const noticeLifecycleLabel = (
 
 const canRevokeNoticeStatus = (
 	status: ReturnType<typeof noticeStatus>,
-): boolean => status.label === "Live" || status.label === "Scheduled";
+): boolean => status.label === "Active policy" || status.label === "Scheduled";
 
 const userDisplayName = (user: AdminUserSummary): string => {
 	const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
@@ -587,6 +587,7 @@ export function UsersDashboardClient({
 	const [isAudienceImportOpen, setIsAudienceImportOpen] = useState(false);
 	const [audienceImportText, setAudienceImportText] = useState("");
 	const [audienceImportStatus, setAudienceImportStatus] = useState("");
+	const [audienceClearReason, setAudienceClearReason] = useState("");
 	const [isAudienceMutationPending, setIsAudienceMutationPending] =
 		useState(false);
 	const [quickProfileUser, setQuickProfileUser] =
@@ -852,26 +853,34 @@ export function UsersDashboardClient({
 		}
 	};
 
-	const deleteSelectedAudienceRecords = async () => {
+	const clearSelectedAudienceStoreRows = async () => {
 		if (selectedAudienceRecords.length === 0) return;
+		const reason = audienceClearReason.trim();
+		if (!reason) {
+			setErrorMessage("Add a reason before clearing audience store rows.");
+			return;
+		}
 		const confirmed = window.confirm(
-			`Remove ${selectedAudienceRecords.length} selected audience record(s) from the collected email store? This does not delete canonical user accounts.`,
+			`Clear ${selectedAudienceRecords.length} selected row(s) from the audience store? Canonical user accounts, audit history, listings, plans, and activity logs are not changed.`,
 		);
 		if (!confirmed) return;
 		setIsAudienceMutationPending(true);
 		const result = await deleteCollectedEmails(
 			selectedAudienceRecords.map((entry) => entry.email),
+			undefined,
+			reason,
 		);
 		if (result.success) {
 			setStatusMessage(
-				`Removed ${result.deletedCount ?? 0} audience record(s).`,
+				`Cleared ${result.deletedCount ?? 0} audience store row(s).`,
 			);
+			setAudienceClearReason("");
 			setSelectedUserIds((current) =>
 				current.filter((userId) => !selectedUserIdSet.has(userId)),
 			);
 			await loadEmails();
 		} else {
-			setErrorMessage(result.error ?? "Unable to delete audience records.");
+			setErrorMessage(result.error ?? "Unable to clear audience store rows.");
 		}
 		setIsAudienceMutationPending(false);
 	};
@@ -938,6 +947,7 @@ export function UsersDashboardClient({
 		nextSortDirection?: AdminUsersSortDirection;
 		nextPage?: number;
 		nextPageSize?: number;
+		successMessage?: string;
 	}) => {
 		const nextQuery = options?.nextQuery ?? query;
 		const nextStatus = options?.nextStatus ?? status;
@@ -976,7 +986,9 @@ export function UsersDashboardClient({
 			setDashboard(result);
 			setSelectedUserIds([]);
 			setErrorMessage(result.error ?? "");
-			setStatusMessage(result.supported ? "Users refreshed." : "");
+			setStatusMessage(
+				result.supported ? (options?.successMessage ?? "Users refreshed.") : "",
+			);
 		});
 	};
 
@@ -1376,6 +1388,15 @@ export function UsersDashboardClient({
 									{ADMIN_USER_ATTENTION_SUMMARY.toLowerCase()}
 								</p>
 							</div>
+							<Button
+								type="button"
+								className="w-full lg:col-span-3 lg:mt-6 lg:self-start"
+								onClick={submitSearch}
+								disabled={isPending}
+							>
+								<Search />
+								Search
+							</Button>
 							<div className="min-w-0 space-y-1.5 lg:col-span-4">
 								<Label htmlFor="user-sort-key">Sort</Label>
 								<select
@@ -1429,15 +1450,6 @@ export function UsersDashboardClient({
 									<option value={100}>100</option>
 								</select>
 							</div>
-							<Button
-								type="button"
-								className="w-full lg:col-span-3 lg:self-end"
-								onClick={submitSearch}
-								disabled={isPending}
-							>
-								<Search />
-								Search
-							</Button>
 						</div>
 						<div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/20 px-3 py-2">
 							<div className="flex flex-wrap items-center gap-2">
@@ -1531,7 +1543,7 @@ export function UsersDashboardClient({
 									disabled={emails.length === 0}
 								>
 									<Download />
-									Export Audience CSV
+									Export Audience Store
 								</Button>
 								<Button
 									type="button"
@@ -1540,24 +1552,55 @@ export function UsersDashboardClient({
 									onClick={() => setIsAudienceImportOpen(true)}
 								>
 									<Upload />
-									Import
+									Import Store Rows
 								</Button>
 								<Button
 									type="button"
 									variant="destructive"
 									size="sm"
-									onClick={() => void deleteSelectedAudienceRecords()}
+									onClick={() => void clearSelectedAudienceStoreRows()}
 									disabled={
 										isAudienceMutationPending ||
-										selectedAudienceRecords.length === 0
+										selectedAudienceRecords.length === 0 ||
+										audienceClearReason.trim().length === 0
 									}
-									title="Removes selected records from the collected audience store, not canonical user accounts."
+									title={
+										selectedAudienceRecords.length === 0
+											? "Select audience store rows before clearing"
+											: audienceClearReason.trim().length === 0
+												? "Add a clear reason for the audit log"
+												: "Clears selected rows from the audience store, not canonical user accounts."
+									}
 								>
 									<Trash2 />
-									Remove Audience Records
+									Clear Audience Rows
 								</Button>
 							</div>
 						</div>
+						{selectedAudienceRecords.length > 0 ? (
+							<div className="rounded-lg border bg-background/70 p-3">
+								<label
+									htmlFor="audience-clear-reason"
+									className="text-sm font-medium"
+								>
+									Audience clear reason
+								</label>
+								<p className="mt-1 text-xs text-muted-foreground">
+									Required before clearing selected audience-store rows. This
+									does not delete canonical user accounts.
+								</p>
+								<textarea
+									id="audience-clear-reason"
+									value={audienceClearReason}
+									onChange={(event) =>
+										setAudienceClearReason(event.target.value)
+									}
+									disabled={isAudienceMutationPending}
+									placeholder="Example: removing imported test emails before launch."
+									className="mt-2 min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+								/>
+							</div>
+						) : null}
 						<div className="rounded-lg border bg-muted/20 p-3">
 							<div className="flex flex-wrap items-center justify-between gap-2">
 								<div>
@@ -2413,10 +2456,10 @@ export function UsersDashboardClient({
 			>
 				<DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-xl">
 					<DialogHeader>
-						<DialogTitle>Import Audience Records</DialogTitle>
+						<DialogTitle>Import Audience Store Rows</DialogTitle>
 						<DialogDescription>
-							Append or update collected email records. This feeds exports and
-							behavior signals without replacing the canonical user list.
+							Append or update collected audience/email rows. This feeds exports
+							and behavior snapshots without replacing canonical users.
 						</DialogDescription>
 					</DialogHeader>
 					<div className="space-y-3">
@@ -2457,7 +2500,7 @@ export function UsersDashboardClient({
 								}
 							>
 								<Upload />
-								Import Paste
+								Import Rows
 							</Button>
 						</div>
 						{audienceImportStatus ? (

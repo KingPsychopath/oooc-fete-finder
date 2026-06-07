@@ -56,6 +56,10 @@ export const SearchChipSettingsCard = ({
 	const [maxDynamicChips, setMaxDynamicChips] = useState(
 		initial.maxDynamicChips,
 	);
+	const [savedSettings, setSavedSettings] = useState({
+		dynamicChipsEnabled: initial.dynamicChipsEnabled,
+		maxDynamicChips: initial.maxDynamicChips,
+	});
 	const [storeMeta, setStoreMeta] = useState(
 		initialSettings?.success ? initialSettings.store : undefined,
 	);
@@ -74,6 +78,10 @@ export const SearchChipSettingsCard = ({
 	const toggleTitle = enabled
 		? "Disable dynamic homepage chips; curated static chips stay visible"
 		: "Enable dynamic homepage chips from anonymous aggregate search signals";
+	const dynamicStateLabel =
+		!enabled || maxDynamicChips === 0 ? "Curated only" : "Dynamic On";
+	const dynamicStateVariant =
+		enabled && maxDynamicChips > 0 ? "default" : "outline";
 
 	const applySettings = useCallback(
 		(
@@ -93,6 +101,10 @@ export const SearchChipSettingsCard = ({
 		) => {
 			setEnabled(settings.dynamicChipsEnabled);
 			setMaxDynamicChips(settings.maxDynamicChips);
+			setSavedSettings({
+				dynamicChipsEnabled: settings.dynamicChipsEnabled,
+				maxDynamicChips: settings.maxDynamicChips,
+			});
 			setStoreMeta(store);
 		},
 		[],
@@ -182,6 +194,37 @@ export const SearchChipSettingsCard = ({
 		}
 	}, [applySettings, enabled, maxDynamicChips]);
 
+	const handleSaveSettings = useCallback(async () => {
+		setIsSaving(true);
+		setStatusMessage("");
+		setErrorMessage("");
+		try {
+			const result = await updateAdminSearchChipSettings(undefined, {
+				dynamicChipsEnabled: enabled,
+				maxDynamicChips,
+			});
+			if (!result.success || !result.settings) {
+				throw new Error(
+					result.error || "Failed to update search chip settings",
+				);
+			}
+			applySettings(result.settings, result.store);
+			setSignalStatus(result.signalStatus);
+			setChipDebugMatches(result.chipDebugMatches ?? []);
+			setStatusMessage(result.message || "Search chip settings saved");
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error ? error.message : "Unknown save error",
+			);
+		} finally {
+			setIsSaving(false);
+		}
+	}, [applySettings, enabled, maxDynamicChips]);
+
+	const hasUnsavedSettings =
+		enabled !== savedSettings.dynamicChipsEnabled ||
+		maxDynamicChips !== savedSettings.maxDynamicChips;
+
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
 			<CardHeader className="space-y-2">
@@ -193,8 +236,8 @@ export const SearchChipSettingsCard = ({
 							chips beside the curated suggestions.
 						</CardDescription>
 					</div>
-					<Badge variant={enabled ? "default" : "outline"}>
-						{enabled ? "Dynamic On" : "Dynamic Off"}
+					<Badge variant={dynamicStateVariant}>
+						{dynamicStateLabel}
 					</Badge>
 				</div>
 			</CardHeader>
@@ -205,7 +248,7 @@ export const SearchChipSettingsCard = ({
 							Dynamic Chips
 						</p>
 						<p className="mt-1 text-sm font-medium">
-							{enabled ? "Enabled" : "Disabled"}
+							{dynamicStateLabel}
 						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
@@ -226,9 +269,43 @@ export const SearchChipSettingsCard = ({
 					</div>
 				</div>
 
+				<div className="space-y-3 rounded-md border bg-background/60 p-3">
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<p className="text-sm font-medium">Dynamic chip cap</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								Limit how many anonymous popular-search chips can join the
+								curated homepage chips.
+							</p>
+						</div>
+						{hasUnsavedSettings ? (
+							<Badge variant="secondary">Unsaved</Badge>
+						) : null}
+					</div>
+					<div className="flex flex-wrap gap-2">
+						{[0, 1, 2, 3, 4].map((count) => (
+							<Button
+								key={count}
+								type="button"
+								size="sm"
+								variant={maxDynamicChips === count ? "default" : "outline"}
+								disabled={isSaving || isRefreshing}
+								onClick={() => setMaxDynamicChips(count)}
+								title={
+									count === 0
+										? "Keep only curated static chips"
+										: `Allow up to ${count} dynamic popular chip${count === 1 ? "" : "s"}`
+								}
+							>
+								{count}
+							</Button>
+						))}
+					</div>
+				</div>
+
 				<p className="text-sm text-muted-foreground">
 					Static chips always remain curated. Dynamic chips are canonicalized,
-					filtered for safety, capped at four, and ranked from anonymous
+					filtered for safety, capped by the control above, and ranked from anonymous
 					aggregate searches over the last{" "}
 					{signalStatus?.windowDays?.toLocaleString() ?? 7} days.
 				</p>
@@ -339,6 +416,19 @@ export const SearchChipSettingsCard = ({
 						title={toggleTitle}
 					>
 						{enabled ? "Turn Off Dynamic Chips" : "Turn On Dynamic Chips"}
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						disabled={isSaving || isRefreshing || !hasUnsavedSettings}
+						onClick={handleSaveSettings}
+						title={
+							hasUnsavedSettings
+								? "Save dynamic chip status and cap"
+								: "No search chip changes to save"
+						}
+					>
+						{isSaving ? "Saving..." : "Save Chip Settings"}
 					</Button>
 					<Button
 						type="button"

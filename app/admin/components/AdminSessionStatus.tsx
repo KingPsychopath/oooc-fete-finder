@@ -122,6 +122,7 @@ export const AdminSessionStatus = ({
 	const [isRevokingAll, setIsRevokingAll] = useState(false);
 	const [revokingJti, setRevokingJti] = useState<string | null>(null);
 	const [statusMessage, setStatusMessage] = useState("");
+	const [revocationReason, setRevocationReason] = useState("");
 	const [showExpired, setShowExpired] = useState(false);
 
 	const loadStatus = useCallback(async () => {
@@ -141,6 +142,22 @@ export const AdminSessionStatus = ({
 		}
 		void loadStatus();
 	}, [initialTokenSessions?.success, loadStatus]);
+
+	useEffect(() => {
+		const revealHashedSession = () => {
+			if (!window.location.hash.startsWith("#admin-session-")) return;
+			setShowExpired(true);
+			window.setTimeout(() => {
+				document
+					.getElementById(window.location.hash.slice(1))
+					?.scrollIntoView({ behavior: "smooth", block: "center" });
+			}, 120);
+		};
+
+		revealHashedSession();
+		window.addEventListener("hashchange", revealHashedSession);
+		return () => window.removeEventListener("hashchange", revealHashedSession);
+	}, []);
 
 	useEffect(() => {
 		let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -182,6 +199,11 @@ export const AdminSessionStatus = ({
 	}, [loadStatus]);
 
 	const handleRevokeSingle = async (jti: string) => {
+		const reason = revocationReason.trim();
+		if (!reason) {
+			setStatusMessage("Add a revocation reason before revoking a session.");
+			return;
+		}
 		if (!window.confirm(`Revoke this session?\n\n${jti}`)) {
 			return;
 		}
@@ -189,12 +211,13 @@ export const AdminSessionStatus = ({
 		setRevokingJti(jti);
 		setStatusMessage("");
 		try {
-			const result = await revokeAdminTokenSessionByJti(jti);
+			const result = await revokeAdminTokenSessionByJti(jti, undefined, reason);
 			if (!result.success) {
 				setStatusMessage(result.error || "Failed to revoke session");
 				return;
 			}
 			setStatusMessage(`Session ${shortJti(jti)} revoked`);
+			setRevocationReason("");
 			await loadStatus();
 		} finally {
 			setRevokingJti(null);
@@ -204,6 +227,11 @@ export const AdminSessionStatus = ({
 	const handleRevokeAll = async () => {
 		if (counts.active === 0) {
 			setStatusMessage("No active admin sessions to revoke.");
+			return;
+		}
+		const reason = revocationReason.trim();
+		if (!reason) {
+			setStatusMessage("Add a revocation reason before revoking sessions.");
 			return;
 		}
 		if (
@@ -217,7 +245,7 @@ export const AdminSessionStatus = ({
 		setIsRevokingAll(true);
 		setStatusMessage("");
 		try {
-			const result = await revokeAllAdminTokenSessionsAction();
+			const result = await revokeAllAdminTokenSessionsAction(undefined, reason);
 			if (!result.success) {
 				setStatusMessage(result.error || "Failed to revoke all sessions");
 				return;
@@ -225,6 +253,7 @@ export const AdminSessionStatus = ({
 			setStatusMessage(
 				`All admin sessions revoked (token version ${result.nextTokenVersion})`,
 			);
+			setRevocationReason("");
 			await loadStatus();
 		} finally {
 			setIsRevokingAll(false);
@@ -247,6 +276,8 @@ export const AdminSessionStatus = ({
 	const revokeAllTitle =
 		counts.active === 0
 			? "No active admin sessions to revoke"
+			: revocationReason.trim().length === 0
+				? "Add a revocation reason before revoking sessions"
 			: `Revoke ${counts.active} active admin session${counts.active === 1 ? "" : "s"}, including this browser`;
 
 	if (!sessionInfo.isValid) {
@@ -313,12 +344,37 @@ export const AdminSessionStatus = ({
 						: ""}
 				</div>
 
+				<div className="rounded-md border bg-background/60 p-3">
+					<label
+						htmlFor="admin-session-revocation-reason"
+						className="text-sm font-medium"
+					>
+						Revocation reason
+					</label>
+					<p className="mt-1 text-xs text-muted-foreground">
+						Required before revoking one session or all active admin sessions.
+						This reason is written to admin audit history.
+					</p>
+					<textarea
+						id="admin-session-revocation-reason"
+						value={revocationReason}
+						onChange={(event) => setRevocationReason(event.target.value)}
+						disabled={isRevokingAll || Boolean(revokingJti)}
+						placeholder="Example: rotating access after shared machine use."
+						className="mt-2 min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+					/>
+				</div>
+
 				<div className="flex flex-wrap gap-2">
 					<Button
 						onClick={handleRevokeAll}
 						variant="outline"
 						size="sm"
-						disabled={isRevokingAll || counts.active === 0}
+						disabled={
+							isRevokingAll ||
+							counts.active === 0 ||
+							revocationReason.trim().length === 0
+						}
 						title={revokeAllTitle}
 					>
 						{isRevokingAll ? "Revoking..." : "Revoke All Sessions"}
@@ -328,6 +384,7 @@ export const AdminSessionStatus = ({
 						variant="outline"
 						size="sm"
 						className="gap-2 border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800"
+						title="Logout from this admin session"
 					>
 						<LogOut className="h-4 w-4" />
 						Logout
@@ -360,6 +417,11 @@ export const AdminSessionStatus = ({
 											size="sm"
 											className="h-auto py-1 text-xs text-muted-foreground hover:text-foreground"
 											onClick={() => setShowExpired((v) => !v)}
+											title={
+												showExpired
+													? "Hide expired session history"
+													: "Show expired session history kept for audit context"
+											}
 										>
 											{showExpired
 												? "Hide expired"
@@ -387,6 +449,7 @@ export const AdminSessionStatus = ({
 											return (
 												<details
 													key={session.jti}
+													id={`admin-session-${encodeURIComponent(session.jti)}`}
 													className="rounded-md border bg-background/80 p-3"
 												>
 													<summary className="cursor-pointer list-none">
@@ -458,12 +521,15 @@ export const AdminSessionStatus = ({
 																variant="outline"
 																disabled={
 																	session.status !== "active" ||
-																	revokingJti === session.jti
+																	revokingJti === session.jti ||
+																	revocationReason.trim().length === 0
 																}
 																title={
-																	session.status === "active"
-																		? `Revoke session ${shortJti(session.jti)}`
-																		: "Only active sessions can be revoked"
+																	session.status !== "active"
+																		? "Only active sessions can be revoked"
+																		: revocationReason.trim().length === 0
+																			? "Add a revocation reason before revoking this session"
+																			: `Revoke session ${shortJti(session.jti)}`
 																}
 																onClick={() =>
 																	void handleRevokeSingle(session.jti)

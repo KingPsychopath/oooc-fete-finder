@@ -226,7 +226,10 @@ export async function schedulePromotedEvent(
 	return schedulePromotedEvents([eventKey], requestedStartAt, durationHours);
 }
 
-export async function cancelPromotedSchedule(entryId: string): Promise<{
+export async function cancelPromotedSchedule(
+	entryId: string,
+	reason?: string,
+): Promise<{
 	success: boolean;
 	message: string;
 	error?: string;
@@ -245,6 +248,7 @@ export async function cancelPromotedSchedule(entryId: string): Promise<{
 			targetId: entryId,
 			targetLabel: entryId,
 			summary: "Promoted placement cancelled",
+			metadata: { reason: reason?.trim() ?? "" },
 			severity: "warning",
 			href: promotedManagerHref(entryId),
 		});
@@ -265,6 +269,7 @@ export async function reschedulePromotedEvent(
 	entryId: string,
 	requestedStartAt: string,
 	durationHours?: number,
+	reason?: string,
 ): Promise<{
 	success: boolean;
 	message: string;
@@ -288,7 +293,11 @@ export async function reschedulePromotedEvent(
 			targetId: entryId,
 			targetLabel: entryId,
 			summary: "Promoted placement rescheduled",
-			metadata: { requestedStartAt, durationHours },
+			metadata: {
+				requestedStartAt,
+				durationHours,
+				reason: reason?.trim() ?? "",
+			},
 			href: promotedManagerHref(entryId),
 		});
 		return {
@@ -305,7 +314,7 @@ export async function reschedulePromotedEvent(
 	}
 }
 
-export async function clearPromotedQueueHistory(): Promise<{
+export async function clearPromotedQueueHistory(reason?: string): Promise<{
 	success: boolean;
 	message: string;
 	error?: string;
@@ -320,7 +329,7 @@ export async function clearPromotedQueueHistory(): Promise<{
 			targetType: "promoted_queue",
 			targetLabel: "Promoted queue and history",
 			summary: `Cleared ${clearedCount} promoted queue/history entr${clearedCount === 1 ? "y" : "ies"}`,
-			metadata: { clearedCount },
+			metadata: { clearedCount, reason: reason?.trim() ?? "" },
 			severity: "destructive",
 			href: promotedManagerHref(),
 		});
@@ -337,7 +346,7 @@ export async function clearPromotedQueueHistory(): Promise<{
 	}
 }
 
-export async function clearPromotedQueue(): Promise<{
+export async function clearPromotedQueue(reason?: string): Promise<{
 	success: boolean;
 	message: string;
 	error?: string;
@@ -352,7 +361,7 @@ export async function clearPromotedQueue(): Promise<{
 			targetType: "promoted_queue",
 			targetLabel: "Promoted scheduled queue",
 			summary: `Cleared ${clearedCount} scheduled promoted entr${clearedCount === 1 ? "y" : "ies"}`,
-			metadata: { clearedCount },
+			metadata: { clearedCount, reason: reason?.trim() ?? "" },
 			severity: "destructive",
 			href: promotedManagerHref(),
 		});
@@ -370,7 +379,7 @@ export async function clearPromotedQueue(): Promise<{
 	}
 }
 
-export async function clearPromotedHistory(): Promise<{
+export async function clearPromotedHistory(reason?: string): Promise<{
 	success: boolean;
 	message: string;
 	error?: string;
@@ -385,7 +394,7 @@ export async function clearPromotedHistory(): Promise<{
 			targetType: "promoted_history",
 			targetLabel: "Promoted history",
 			summary: `Cleared ${clearedCount} promoted history entr${clearedCount === 1 ? "y" : "ies"}`,
-			metadata: { clearedCount },
+			metadata: { clearedCount, reason: reason?.trim() ?? "" },
 			severity: "destructive",
 			href: promotedManagerHref(),
 		});

@@ -205,17 +205,17 @@ const noticeStatus = (notice: {
 		return { label: "Expired", variant: "outline" };
 	}
 	return notice.isActive
-		? { label: "Live", variant: "default" }
+		? { label: "Active policy", variant: "outline" }
 		: { label: "Inactive", variant: "outline" };
 };
 
 const shouldShowNoticeLifecycleBadge = (
 	status: ReturnType<typeof noticeStatus>,
-): boolean => status.label !== "Live";
+): boolean => status.label !== "Active policy";
 
 const canRevokeNoticeStatus = (
 	status: ReturnType<typeof noticeStatus>,
-): boolean => status.label === "Live" || status.label === "Scheduled";
+): boolean => status.label === "Active policy" || status.label === "Scheduled";
 
 const noticeRecipientStatus = (
 	notice: UserNotice,
@@ -665,7 +665,7 @@ export function UserDetailClient({
 										{statusLabel(user.status)}
 									</Badge>
 								) : (
-									<Badge variant="outline">Collected user</Badge>
+									<Badge variant="outline">Audience-only row</Badge>
 								)}
 								{activeRestrictions.length > 0 ? (
 									<Badge variant="destructive">
@@ -772,6 +772,7 @@ export function UserDetailClient({
 								<Fact
 									label="Saved Events"
 									value={detail.savedEventKeys.length}
+									href="#submissions-plans"
 								/>
 								<Fact label="Pending Notices" value={pendingNotices.length} />
 								<Fact
@@ -1360,7 +1361,12 @@ export function UserDetailClient({
 											return (
 												<div
 													key={report.id}
-													className="rounded-lg border border-amber-300/40 bg-amber-50/25 p-3 text-sm dark:border-amber-900/50 dark:bg-amber-950/15"
+													className={cn(
+														"rounded-lg border p-3 text-sm",
+														report.reviewedAt
+															? "bg-background/70"
+															: "border-amber-300/40 bg-amber-50/25 dark:border-amber-900/50 dark:bg-amber-950/15",
+													)}
 												>
 													<div className="flex flex-wrap gap-2">
 														<Badge

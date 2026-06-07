@@ -22,6 +22,7 @@ import {
 	type EventSubmissionStatus,
 } from "@/features/events/submissions/types";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { withAdminBasePath } from "../config";
 import { ADMIN_EVENT_SHEET_REFRESH_EVENT } from "./admin-content-events";
 
 const STATUS_TABS: Array<{ key: EventSubmissionStatus; label: string }> = [
@@ -41,6 +42,11 @@ const getInitialSubmissionStatus = (): EventSubmissionStatus => {
 	const requestedStatus = params.get("submissionStatus");
 	return isSubmissionStatus(requestedStatus) ? requestedStatus : "pending";
 };
+
+const buildEventEvidenceHref = (eventKey: string): string =>
+	withAdminBasePath(
+		`/admin/insights?eventSearch=${encodeURIComponent(eventKey)}#event-engagement-stats`,
+	);
 
 type ReviewQueueFilter =
 	| "all"
@@ -173,6 +179,7 @@ export const EventSubmissionsCard = ({
 	const [isLoading, setIsLoading] = useState(false);
 	const [isMutating, setIsMutating] = useState(false);
 	const [busySubmissionId, setBusySubmissionId] = useState<string | null>(null);
+	const [intakeChangeReason, setIntakeChangeReason] = useState("");
 	const [statusMessage, setStatusMessage] = useState("");
 	const [errorMessage, setErrorMessage] = useState("");
 	const [selectedDeclineReasonById, setSelectedDeclineReasonById] = useState<
@@ -294,17 +301,29 @@ export const EventSubmissionsCard = ({
 					? payload.settings.newEventsEnabled
 					: payload.settings.eventUpdatesEnabled
 				: true;
+			const nextEnabled = !enabled;
+			const reason = intakeChangeReason.trim();
+			if (!nextEnabled && !reason) {
+				setErrorMessage("Add an intake change note before closing submissions.");
+				return;
+			}
 			setIsMutating(true);
 			setStatusMessage("");
 			setErrorMessage("");
 			try {
-				const result = await updateEventSubmissionEnabled(setting, !enabled);
+				const result = await updateEventSubmissionEnabled(
+					setting,
+					nextEnabled,
+					undefined,
+					reason,
+				);
 				if (!result.success) {
 					setErrorMessage(
 						result.error || "Failed to update submission setting",
 					);
 					return;
 				}
+				if (!nextEnabled) setIntakeChangeReason("");
 				setStatusMessage(result.message || "Submission setting updated");
 				await loadDashboard();
 				if (onSubmissionReviewed) {
@@ -315,7 +334,7 @@ export const EventSubmissionsCard = ({
 				setBusySubmissionId(null);
 			}
 		},
-		[loadDashboard, onSubmissionReviewed, payload],
+		[loadDashboard, onSubmissionReviewed, payload, intakeChangeReason],
 	);
 
 	const handleAccept = useCallback(
@@ -466,6 +485,13 @@ export const EventSubmissionsCard = ({
 							role="switch"
 							aria-checked={newEventsEnabled}
 							aria-label="Toggle new event submissions"
+							title={
+								newEventsEnabled && !intakeChangeReason.trim()
+									? "Add an intake change note before closing new event submissions"
+									: newEventsEnabled
+										? "Close new event submissions"
+										: "Reopen new event submissions"
+							}
 							onClick={() => void handleToggleSubmissions("new_events")}
 							disabled={isLoading || isMutating}
 							className={`group inline-flex h-8 items-center gap-2 rounded-full border px-2.5 text-xs tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
@@ -493,6 +519,13 @@ export const EventSubmissionsCard = ({
 							role="switch"
 							aria-checked={eventUpdatesEnabled}
 							aria-label="Toggle event update requests"
+							title={
+								eventUpdatesEnabled && !intakeChangeReason.trim()
+									? "Add an intake change note before closing update requests"
+									: eventUpdatesEnabled
+										? "Close event update requests"
+										: "Reopen event update requests"
+							}
 							onClick={() => void handleToggleSubmissions("event_updates")}
 							disabled={isLoading || isMutating}
 							className={`group inline-flex h-8 items-center gap-2 rounded-full border px-2.5 text-xs tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
@@ -525,6 +558,26 @@ export const EventSubmissionsCard = ({
 							{isLoading ? "Refreshing..." : "Refresh"}
 						</Button>
 					</div>
+				</div>
+				<div className="rounded-md border bg-background/60 p-3">
+					<label
+						htmlFor="submission-intake-change-reason"
+						className="text-sm font-medium"
+					>
+						Intake change note
+					</label>
+					<p className="mt-1 text-xs text-muted-foreground">
+						Required when closing new event or update submissions. Reopening can
+						be done without a note.
+					</p>
+					<textarea
+						id="submission-intake-change-reason"
+						value={intakeChangeReason}
+						onChange={(event) => setIntakeChangeReason(event.target.value)}
+						disabled={isLoading || isMutating}
+						placeholder="Example: pausing new submissions during sheet cleanup."
+						className="mt-2 min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+					/>
 				</div>
 				{settingsStatus && (
 					<div className="rounded-md border bg-background/60 px-3 py-2 text-xs text-muted-foreground">
@@ -577,19 +630,6 @@ export const EventSubmissionsCard = ({
 								tabCounts.pending + tabCounts.accepted + tabCounts.declined}
 						</p>
 					</div>
-				</div>
-				<div className="flex flex-wrap gap-2">
-					{statusSummaryItems.map((tab) => (
-						<Button
-							key={tab.key}
-							type="button"
-							size="sm"
-							variant={activeStatus === tab.key ? "default" : "outline"}
-							onClick={() => setActiveStatus(tab.key)}
-						>
-							{tab.label} ({tab.count})
-						</Button>
-					))}
 				</div>
 				<div className="rounded-md border bg-background/60 p-2">
 					<p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -858,9 +898,13 @@ export const EventSubmissionsCard = ({
 										)}
 
 										{eventKey && (
-											<p className="mt-2 break-all rounded-md border border-amber-200 bg-white/50 px-3 py-2 font-mono text-[11px] text-muted-foreground dark:bg-background/30">
+											<a
+												href={buildEventEvidenceHref(eventKey)}
+												className="mt-2 block break-all rounded-md border border-amber-200 bg-white/50 px-3 py-2 font-mono text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline dark:bg-background/30"
+												title="Open this event key in admin insights"
+											>
 												{eventKey}
-											</p>
+											</a>
 										)}
 
 										<div className="mt-2 text-[11px] text-muted-foreground">
@@ -1024,9 +1068,13 @@ export const EventSubmissionsCard = ({
 										)}
 
 										{eventKey && (
-											<p className="mt-2 break-all rounded-md border border-blue-200 bg-white/50 px-3 py-2 font-mono text-[11px] text-muted-foreground dark:bg-background/30">
+											<a
+												href={buildEventEvidenceHref(eventKey)}
+												className="mt-2 block break-all rounded-md border border-blue-200 bg-white/50 px-3 py-2 font-mono text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline dark:bg-background/30"
+												title="Open this event key in admin insights"
+											>
 												{eventKey}
-											</p>
+											</a>
 										)}
 
 										<div className="mt-2 text-[11px] text-muted-foreground">
@@ -1343,6 +1391,15 @@ export const EventSubmissionsCard = ({
 											? ` • Reason: ${submission.reviewReason}`
 											: ""}
 									</div>
+									{submission.acceptedEventKey ? (
+										<a
+											href={buildEventEvidenceHref(submission.acceptedEventKey)}
+											className="mt-2 inline-flex rounded-md border bg-background/80 px-2.5 py-1.5 text-xs font-medium text-foreground underline-offset-2 hover:underline"
+											title="Open the published event in admin insights"
+										>
+											Published event: {submission.acceptedEventKey}
+										</a>
+									) : null}
 
 									{submission.status === "pending" && (
 										<div className="mt-3 space-y-2 rounded-md border bg-background/80 p-2.5">

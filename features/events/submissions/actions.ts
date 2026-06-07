@@ -134,6 +134,7 @@ export async function updateEventSubmissionEnabled(
 	setting: EventSubmissionSettingKey,
 	enabled: boolean,
 	keyOrToken?: string,
+	reason?: string,
 ): Promise<{
 	success: boolean;
 	settings?: EventSubmissionSettings;
@@ -143,6 +144,13 @@ export async function updateEventSubmissionEnabled(
 }> {
 	try {
 		await assertAdmin(keyOrToken);
+		const normalizedReason = reason?.trim() ?? "";
+		if (!enabled && !normalizedReason) {
+			return {
+				success: false,
+				error: "Add a reason before closing this submission intake.",
+			};
+		}
 		const settings = await EventSubmissionSettingsStore.updateEnabled(
 			setting,
 			enabled,
@@ -164,6 +172,11 @@ export async function updateEventSubmissionEnabled(
 			targetType: "event_submission_settings",
 			targetLabel: title,
 			summary: enabled ? `${title} opened` : `${title} closed`,
+			metadata: {
+				setting,
+				enabled,
+				reason: normalizedReason,
+			},
 			severity: enabled ? "info" : "warning",
 			href: "/admin/content#event-submissions",
 		});

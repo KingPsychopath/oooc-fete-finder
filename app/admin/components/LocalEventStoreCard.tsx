@@ -110,6 +110,7 @@ export const LocalEventStoreCard = ({
 	const [message, setMessage] = useState("");
 	const [error, setError] = useState("");
 	const [sampleNote, setSampleNote] = useState("");
+	const [operationReason, setOperationReason] = useState("");
 	const fileInputRef = useRef<HTMLInputElement | null>(null);
 
 	const loadBackupState = useCallback(async () => {
@@ -199,6 +200,22 @@ export const LocalEventStoreCard = ({
 		loadStoreStatusAndPreview,
 	]);
 
+	useEffect(() => {
+		const revealHashedBackup = () => {
+			if (!window.location.hash.startsWith("#event-store-backup-")) return;
+			setShowSnapshotPicker(true);
+			window.setTimeout(() => {
+				document
+					.getElementById(window.location.hash.slice(1))
+					?.scrollIntoView({ behavior: "smooth", block: "center" });
+			}, 120);
+		};
+
+		revealHashedBackup();
+		window.addEventListener("hashchange", revealHashedBackup);
+		return () => window.removeEventListener("hashchange", revealHashedBackup);
+	}, []);
+
 	if (!isAuthenticated) {
 		return null;
 	}
@@ -281,6 +298,11 @@ export const LocalEventStoreCard = ({
 	};
 
 	const handleRestoreLatestBackup = async () => {
+		const reason = operationReason.trim();
+		if (!reason) {
+			setError("Add an operation note before restoring a snapshot.");
+			return;
+		}
 		const latestBackup = backupStatus.latestBackup;
 		if (!latestBackup) {
 			setError("No backup is available to restore.");
@@ -296,17 +318,24 @@ export const LocalEventStoreCard = ({
 			const result = await restoreLatestEventStoreBackup(
 				undefined,
 				latestBackup.id,
+				reason,
 			);
 			if (!result.success) {
 				throw new Error(result.error || result.message);
 			}
 
 			setMessage(result.message);
+			setOperationReason("");
 			await loadStatusAndPreview();
 		});
 	};
 
 	const handleRestoreSelectedSnapshot = async () => {
+		const reason = operationReason.trim();
+		if (!reason) {
+			setError("Add an operation note before restoring a snapshot.");
+			return;
+		}
 		const selectedBackup = recentBackups.find(
 			(backup) => backup.id === selectedBackupId,
 		);
@@ -315,21 +344,23 @@ export const LocalEventStoreCard = ({
 			return;
 		}
 
-			const confirmed = window.confirm(
-				`Restore snapshot from ${formatAdminDateTime(selectedBackup.createdAt)} (${selectedBackup.trigger}, ${selectedBackup.rowCount} rows, ${selectedBackup.userCollectionCount ?? "unknown"} emails)? This overwrites current store, featured schedule data, and collected emails when the snapshot includes them.`,
-			);
+		const confirmed = window.confirm(
+			`Restore snapshot from ${formatAdminDateTime(selectedBackup.createdAt)} (${selectedBackup.trigger}, ${selectedBackup.rowCount} rows, ${selectedBackup.userCollectionCount ?? "unknown"} emails)? This overwrites current store, featured schedule data, and collected emails when the snapshot includes them.`,
+		);
 		if (!confirmed) return;
 
 		await withTask(async () => {
 			const result = await restoreLatestEventStoreBackup(
 				undefined,
 				selectedBackup.id,
+				reason,
 			);
 			if (!result.success) {
 				throw new Error(result.error || result.message);
 			}
 
 			setMessage(result.message);
+			setOperationReason("");
 			await loadStatusAndPreview();
 		});
 	};
@@ -387,6 +418,11 @@ export const LocalEventStoreCard = ({
 	};
 
 	const handleClearStore = async () => {
+		const reason = operationReason.trim();
+		if (!reason) {
+			setError("Add an operation note before clearing the managed store.");
+			return;
+		}
 		if (
 			!window.confirm(
 				`Clear ${status?.rowCount ?? 0} event row${(status?.rowCount ?? 0) === 1 ? "" : "s"} from the store? This cannot be undone.`,
@@ -396,12 +432,13 @@ export const LocalEventStoreCard = ({
 		}
 
 		await withTask(async () => {
-			const result = await clearLocalEventStoreCsv();
+			const result = await clearLocalEventStoreCsv(undefined, reason);
 			if (!result.success) {
 				throw new Error(result.error || result.message);
 			}
 
 			setMessage(result.message);
+			setOperationReason("");
 			await loadStatusAndPreview();
 		});
 	};
@@ -451,12 +488,18 @@ export const LocalEventStoreCard = ({
 		runtimeDataStatus.dataSource !== "store";
 	const hasStoreRows = (status?.rowCount ?? 0) > 0;
 	const latestBackup = backupStatus.latestBackup;
-	const restoreDisabled = isLoading || !backupSupported || !latestBackup;
+	const selectedBackup = recentBackups.find(
+		(backup) => backup.id === selectedBackupId,
+	);
+	const hasOperationReason = operationReason.trim().length > 0;
+	const restoreDisabled =
+		isLoading || !backupSupported || !latestBackup || !hasOperationReason;
 	const selectedRestoreDisabled =
 		isLoading ||
 		!backupSupported ||
 		!selectedBackupId ||
-		recentBackups.length === 0;
+		recentBackups.length === 0 ||
+		!hasOperationReason;
 	const uploadTitle = isLoading
 		? "Wait for the current store task to finish"
 		: "Upload a CSV file into the managed event store";
@@ -465,11 +508,16 @@ export const LocalEventStoreCard = ({
 		: isLoading
 			? "Wait for the current store task to finish"
 			: "Create a snapshot of events, placements, paid orders, submissions, settings, and collected emails";
-	const restoreLatestTitle = !backupSupported
-		? backupReason || "Postgres-backed store is required for restores"
-		: !latestBackup
-			? "No snapshot is available to restore"
-			: `Restore latest snapshot from ${formatAdminDateTime(latestBackup.createdAt)}`;
+	const restoreLatestTitle = (() => {
+		if (!backupSupported) {
+			return backupReason || "Postgres-backed store is required for restores";
+		}
+		if (!latestBackup) return "No snapshot is available to restore";
+		if (!hasOperationReason) {
+			return "Add an operation note before restoring a snapshot";
+		}
+		return `Restore latest snapshot from ${formatAdminDateTime(latestBackup.createdAt)}`;
+	})();
 	const exportStoreTitle = hasStoreRows
 		? `Export ${status?.rowCount ?? 0} raw store row${(status?.rowCount ?? 0) === 1 ? "" : "s"} as CSV`
 		: "No store rows to export";
@@ -477,15 +525,24 @@ export const LocalEventStoreCard = ({
 		? "Export generated event rows as CSV"
 		: "No generated event rows to export";
 	const clearStoreTitle = hasStoreRows
-		? `Clear ${status?.rowCount ?? 0} event row${(status?.rowCount ?? 0) === 1 ? "" : "s"} from the store`
+		? hasOperationReason
+			? `Clear ${status?.rowCount ?? 0} event row${(status?.rowCount ?? 0) === 1 ? "" : "s"} from the store`
+			: "Add an operation note before clearing the managed store"
 		: "No store rows to clear";
-	const selectedRestoreTitle = !backupSupported
-		? backupReason || "Postgres-backed store is required for restores"
-		: recentBackups.length === 0
-			? "No snapshots are available to restore"
-			: !selectedBackupId
-				? "Pick a snapshot to restore"
-				: "Restore the selected snapshot";
+	const selectedRestoreTitle = (() => {
+		if (!backupSupported) {
+			return backupReason || "Postgres-backed store is required for restores";
+		}
+		if (recentBackups.length === 0) return "No snapshots are available to restore";
+		if (!selectedBackupId) return "Pick a snapshot to restore";
+		if (!hasOperationReason) {
+			return "Add an operation note before restoring a snapshot";
+		}
+		if (selectedBackup) {
+			return `Restore snapshot from ${formatAdminDateTime(selectedBackup.createdAt)}`;
+		}
+		return "Restore the selected snapshot";
+	})();
 
 	return (
 		<Card className="ooo-admin-card min-w-0 overflow-hidden">
@@ -578,6 +635,22 @@ export const LocalEventStoreCard = ({
 					</div>
 				)}
 
+				<div className="space-y-2">
+					<label
+						htmlFor="event-store-operation-reason"
+						className="text-sm font-medium"
+					>
+						Operation note
+					</label>
+					<textarea
+						id="event-store-operation-reason"
+						value={operationReason}
+						onChange={(event) => setOperationReason(event.target.value)}
+						placeholder="Required for restore and clear actions. Example: restoring before failed CSV import."
+						className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
+					/>
+				</div>
+
 				<div className="flex flex-wrap gap-2">
 					<Button
 						type="button"
@@ -626,7 +699,7 @@ export const LocalEventStoreCard = ({
 					<Button
 						type="button"
 						variant="destructive"
-						disabled={isLoading || !hasStoreRows}
+						disabled={isLoading || !hasStoreRows || !hasOperationReason}
 						onClick={handleClearStore}
 						title={clearStoreTitle}
 					>
@@ -674,6 +747,7 @@ export const LocalEventStoreCard = ({
 									value={selectedBackupId}
 									onChange={(event) => setSelectedBackupId(event.target.value)}
 									className="h-9 w-full rounded-md border bg-background px-2 text-xs sm:max-w-xl"
+									title="Choose which snapshot to restore"
 								>
 									{recentBackups.map((backup) => (
 										<option key={backup.id} value={backup.id}>
@@ -695,6 +769,36 @@ export const LocalEventStoreCard = ({
 								</Button>
 							</div>
 						)}
+						{showSnapshotPicker && recentBackups.length > 0 && (
+							<div className="mt-3 max-h-64 space-y-2 overflow-auto pr-1">
+								{recentBackups.map((backup) => {
+									const isSelected = backup.id === selectedBackupId;
+									return (
+										<button
+											key={backup.id}
+											id={`event-store-backup-${backup.id}`}
+											type="button"
+											onClick={() => setSelectedBackupId(backup.id)}
+											className={`block w-full scroll-mt-44 rounded-md border px-3 py-2 text-left text-xs transition-colors ${
+												isSelected
+													? "border-foreground/40 bg-muted"
+													: "bg-background/70 hover:bg-muted/45"
+											}`}
+											title={`Select snapshot from ${formatAdminDateTime(backup.createdAt)}`}
+										>
+											<span className="block font-medium text-foreground">
+												{formatAdminDateTime(backup.createdAt)}
+											</span>
+											<span className="mt-0.5 block text-muted-foreground">
+												{backup.trigger} · {backup.rowCount} rows ·{" "}
+												{backup.featuredEntryCount} placements ·{" "}
+												{backup.userCollectionCount ?? "unknown"} emails
+											</span>
+										</button>
+									);
+								})}
+							</div>
+						)}
 					</div>
 				)}
 
@@ -714,6 +818,11 @@ export const LocalEventStoreCard = ({
 									size="sm"
 									disabled={isLoading || !canViewPreviousSample}
 									onClick={handlePreviousSample}
+									title={
+										canViewPreviousSample
+											? "Show the previous two store rows"
+											: "Already showing the first store sample"
+									}
 								>
 									Previous
 								</Button>
@@ -723,6 +832,7 @@ export const LocalEventStoreCard = ({
 									size="sm"
 									disabled={isLoading}
 									onClick={handleShuffleSample}
+									title="Show a random two-row store sample"
 								>
 									Shuffle
 								</Button>
@@ -732,6 +842,11 @@ export const LocalEventStoreCard = ({
 									size="sm"
 									disabled={isLoading || !canViewNextSample}
 									onClick={handleNextSample}
+									title={
+										canViewNextSample
+											? "Show the next two store rows"
+											: "Already showing the last store sample"
+									}
 								>
 									Next
 								</Button>

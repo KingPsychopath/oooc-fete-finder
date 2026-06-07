@@ -99,6 +99,12 @@ const revalidateGenreTaxonomyConsumers = (): void => {
 	revalidateTag("music-genre-taxonomy", "max");
 };
 
+const eventStoreBackupAdminHref = (backupId?: string | null): string =>
+	`/admin/operations#${backupId ? `event-store-backup-${encodeURIComponent(backupId)}` : "data-store-controls"}`;
+
+const locationReviewAdminHref = (locationId?: string | null): string =>
+	`/admin/content#${locationId ? `location-review-${encodeURIComponent(locationId)}` : "location-review"}`;
+
 const loadAdminGenreTaxonomy = async (): Promise<GenreTaxonomySnapshot> => {
 	const repository = getMusicGenreTaxonomyRepository();
 	return repository ? await repository.listTaxonomy() : DEFAULT_GENRE_TAXONOMY;
@@ -354,6 +360,8 @@ export async function getLiveSiteEventsSnapshot(
 	lastUpdate?: string;
 	rows?: Array<{
 		id: string;
+		eventKey: string;
+		slug: string;
 		name: string;
 		date: string;
 		time: string;
@@ -382,16 +390,25 @@ export async function getLiveSiteEventsSnapshot(
 		}
 
 		const normalizedLimit = Math.max(5, Math.min(limit, 1000));
-		const rows = sourceRead.data.slice(0, normalizedLimit).map((event) => ({
-			id: event.id,
-			name: event.name,
-			date: event.date || "",
-			time: event.time || "",
-			location: event.location || "",
-			arrondissement: String(event.arrondissement ?? ""),
-			genre: event.genre.join(", "),
-			type: event.type,
-		}));
+		const rows = sourceRead.data.slice(0, normalizedLimit).map((event) => {
+			const runtimeEvent = event as typeof event & {
+				eventKey?: string | null;
+				slug?: string | null;
+			};
+			const eventKey = runtimeEvent.eventKey || event.id;
+			return {
+				id: event.id,
+				eventKey,
+				slug: runtimeEvent.slug || "",
+				name: event.name,
+				date: event.date || "",
+				time: event.time || "",
+				location: event.location || "",
+				arrondissement: String(event.arrondissement ?? ""),
+				genre: event.genre.join(", "),
+				type: event.type,
+			};
+		});
 
 		return {
 			success: true,
@@ -470,6 +487,20 @@ export async function revalidatePages(
 				success: revalidationResult.success,
 			});
 		}
+		await recordAdminActivity({
+			action: "runtime.revalidated",
+			category: "operations",
+			targetType: "runtime_cache",
+			targetLabel: normalizedPath,
+			summary: `Runtime data revalidated for ${normalizedPath}`,
+			metadata: {
+				path: normalizedPath,
+				cacheRefreshed: revalidationResult.cacheRefreshed ?? false,
+				pageRevalidated: revalidationResult.pageRevalidated ?? false,
+				processingTimeMs: processingTime,
+			},
+			href: "/admin/operations#events-data-status",
+		});
 		return {
 			...revalidationResult,
 			processingTimeMs: processingTime,
@@ -596,7 +627,7 @@ export async function createEventStoreBackup(keyOrToken?: string): Promise<{
 				userCollectionCount: result.backup?.userCollectionCount ?? null,
 				prunedCount: result.prunedCount ?? 0,
 			},
-			href: "/admin/operations#data-store-controls",
+			href: eventStoreBackupAdminHref(result.backup?.id),
 		});
 
 		return {
@@ -660,6 +691,7 @@ export async function getEventStoreRecentBackups(
 export async function restoreLatestEventStoreBackup(
 	keyOrToken?: string,
 	backupId?: string,
+	reason?: string,
 ): Promise<{
 	success: boolean;
 	message: string;
@@ -707,9 +739,10 @@ export async function restoreLatestEventStoreBackup(
 				rowCount: result.restoredRowCount ?? 0,
 				featuredEntryCount: result.restoredFeaturedCount ?? 0,
 				userCollectionCount: result.restoredUserCollectionCount ?? null,
+				reason: reason?.trim() ?? "",
 			},
 			severity: "warning",
-			href: "/admin/operations#data-store-controls",
+			href: eventStoreBackupAdminHref(result.restoredFrom?.id ?? backupId),
 		});
 
 		return {
@@ -912,7 +945,10 @@ export async function saveLocalEventStoreCsv(
 /**
  * Clear local event store CSV content
  */
-export async function clearLocalEventStoreCsv(keyOrToken?: string): Promise<{
+export async function clearLocalEventStoreCsv(
+	keyOrToken?: string,
+	reason?: string,
+): Promise<{
 	success: boolean;
 	message: string;
 	error?: string;
@@ -930,6 +966,9 @@ export async function clearLocalEventStoreCsv(keyOrToken?: string): Promise<{
 			targetType: "event_store",
 			targetLabel: "Managed event store",
 			summary: "Managed event store cleared and homepage revalidated",
+			metadata: {
+				reason: reason?.trim() ?? "",
+			},
 			severity: "destructive",
 			href: "/admin/operations#data-store-controls",
 		});
@@ -950,6 +989,7 @@ export async function factoryResetApplicationState(
 	keyOrToken: string | undefined,
 	stepUpPasscode: string,
 	mode: "standard" | "hard" = "standard",
+	reason?: string,
 ): Promise<{
 	success: boolean;
 	message: string;
@@ -983,6 +1023,14 @@ export async function factoryResetApplicationState(
 			success: false,
 			message: "Invalid factory reset passcode",
 			error: "Step-up authentication failed.",
+		};
+	}
+	const resetReason = reason?.trim() ?? "";
+	if (!resetReason) {
+		return {
+			success: false,
+			message: "Factory reset reason is required",
+			error: "Add a reset reason for the admin audit log.",
 		};
 	}
 
@@ -1040,6 +1088,7 @@ export async function factoryResetApplicationState(
 			clearedAdminSessions,
 			clearedActionMetrics,
 			clearedRateLimitCounters,
+			reason: resetReason,
 		});
 		await recordAdminActivity({
 			action:
@@ -1060,6 +1109,7 @@ export async function factoryResetApplicationState(
 				clearedAdminSessions,
 				clearedActionMetrics,
 				clearedRateLimitCounters,
+				reason: resetReason,
 			},
 			severity: "destructive",
 			href: "/admin/operations#factory-reset",
@@ -1901,7 +1951,7 @@ export async function resolveEventLocation(
 			targetLabel: name,
 			summary: `${name} geocoded and saved`,
 			metadata: { arrondissement },
-			href: "/admin/content#location-review",
+			href: locationReviewAdminHref(storageKey),
 		});
 		return {
 			success: true,
@@ -1990,7 +2040,7 @@ export async function saveManualEventLocation(
 			targetLabel: name,
 			summary: `${name} manual coordinates saved`,
 			metadata: { arrondissement },
-			href: "/admin/content#location-review",
+			href: locationReviewAdminHref(storageKey),
 		});
 		return {
 			success: true,
@@ -2054,7 +2104,7 @@ export async function clearEventLocationResolution(
 				summary: `${name} stored coordinates removed`,
 				metadata: { arrondissement },
 				severity: "warning",
-				href: "/admin/content#location-review",
+				href: locationReviewAdminHref(storageKey),
 			});
 		}
 		return {

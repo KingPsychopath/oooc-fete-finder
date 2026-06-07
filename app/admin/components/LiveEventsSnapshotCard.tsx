@@ -11,7 +11,9 @@ import {
 } from "@/components/ui/card";
 import { getLiveSiteEventsSnapshot } from "@/features/data-management/actions";
 import { formatAdminDateTime } from "@/lib/ui/admin-date-format";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { withAdminBasePath } from "../config";
 
 type SnapshotState = Awaited<ReturnType<typeof getLiveSiteEventsSnapshot>>;
 
@@ -21,6 +23,23 @@ type LiveEventsSnapshotCardProps = {
 };
 
 const DEFAULT_VISIBLE_ROWS = 5;
+
+const normalizeBasePath = (value: string): string => {
+	if (!value || value === "/") return "";
+	return value.endsWith("/") ? value.slice(0, -1) : value;
+};
+
+const buildEventHref = (eventKey: string, slug: string): string => {
+	const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || "");
+	const encodedKey = encodeURIComponent(eventKey);
+	const encodedSlug = slug ? `/${encodeURIComponent(slug)}` : "";
+	return `${basePath}/event/${encodedKey}${encodedSlug}`;
+};
+
+const buildEventEvidenceHref = (eventKey: string): string =>
+	withAdminBasePath(
+		`/admin/insights?eventSearch=${encodeURIComponent(eventKey)}#event-engagement-stats`,
+	);
 
 const sourceDisplay = (source?: SnapshotState["source"]) => {
 	if (source === "store")
@@ -171,18 +190,42 @@ export const LiveEventsSnapshotCard = ({
 										<th className="px-2 py-2 text-left font-medium">Arr.</th>
 										<th className="px-2 py-2 text-left font-medium">Genre</th>
 										<th className="px-2 py-2 text-left font-medium">Type</th>
+										<th className="px-2 py-2 text-left font-medium">
+											Evidence
+										</th>
 									</tr>
 								</thead>
 								<tbody>
 									{visibleRows.map((row) => (
 										<tr key={row.id} className="border-t">
-											<td className="px-2 py-2">{row.name}</td>
+											<td className="px-2 py-2">
+												<Link
+													href={buildEventHref(row.eventKey, row.slug)}
+													className="font-medium underline-offset-2 hover:underline"
+													target="_blank"
+													rel="noreferrer"
+													title="Open the public event page in a new tab"
+												>
+													{row.name}
+												</Link>
+												<div className="text-[11px] text-muted-foreground">
+													{row.eventKey}
+												</div>
+											</td>
 											<td className="px-2 py-2">{row.date}</td>
 											<td className="px-2 py-2">{row.time}</td>
 											<td className="px-2 py-2">{row.location}</td>
 											<td className="px-2 py-2">{row.arrondissement}</td>
 											<td className="px-2 py-2">{row.genre}</td>
 											<td className="px-2 py-2">{row.type}</td>
+											<td className="px-2 py-2">
+												<Link
+													href={buildEventEvidenceHref(row.eventKey)}
+													className="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+												>
+													Open insights
+												</Link>
+											</td>
 										</tr>
 									))}
 								</tbody>

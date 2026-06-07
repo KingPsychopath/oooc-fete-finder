@@ -336,7 +336,7 @@ export async function updatePartnerActivationStatus(input: {
 			targetId: updated.id,
 			targetLabel: updated.eventName ?? updated.customerEmail,
 			summary: `Paid order marked ${input.status}`,
-			metadata: { status: input.status },
+			metadata: { status: input.status, notes: input.notes ?? "" },
 			severity: input.status === "dismissed" ? "warning" : "info",
 			href: paidOrderAdminHref(updated.id, input.status),
 		});
@@ -358,12 +358,21 @@ export async function updatePartnerActivationStatus(input: {
 
 export async function revokePartnerStatsLink(input: {
 	activationId: string;
+	notes: string;
 }): Promise<
 	| { success: true; message: string }
 	| { success: false; message: string; error: string }
 > {
 	try {
 		await assertAdmin();
+		const notes = input.notes.trim();
+		if (!notes) {
+			return {
+				success: false,
+				message: "Add an operator note before revoking a partner stats link",
+				error: "Add an operator note before revoking a partner stats link",
+			};
+		}
 		const repository = getPartnerActivationRepository();
 		if (!repository) {
 			return {
@@ -374,7 +383,7 @@ export async function revokePartnerStatsLink(input: {
 		}
 		const updated = await repository.revokePartnerStats({
 			id: input.activationId,
-			notes: "Partner stats link revoked",
+			notes,
 		});
 		if (!updated) {
 			return {
@@ -399,6 +408,7 @@ export async function revokePartnerStatsLink(input: {
 			summary: "Partner stats link revoked",
 			severity: "warning",
 			href: paidOrderAdminHref(updated.id, "activated"),
+			metadata: { notes },
 		});
 		return {
 			success: true,
@@ -415,12 +425,21 @@ export async function revokePartnerStatsLink(input: {
 
 export async function regeneratePartnerStatsLink(input: {
 	activationId: string;
+	notes: string;
 }): Promise<
 	| { success: true; statsPath: string; message: string }
 	| { success: false; message: string; error: string }
 > {
 	try {
 		await assertAdmin();
+		const notes = input.notes.trim();
+		if (!notes) {
+			return {
+				success: false,
+				message: "Add an operator note before regenerating a partner stats link",
+				error: "Add an operator note before regenerating a partner stats link",
+			};
+		}
 		const repository = getPartnerActivationRepository();
 		if (!repository) {
 			return {
@@ -447,7 +466,7 @@ export async function regeneratePartnerStatsLink(input: {
 		const updated = await repository.regeneratePartnerStatsToken({
 			id: input.activationId,
 			partnerStatsToken: randomUUID().replace(/-/g, ""),
-			notes: "Partner stats link regenerated",
+			notes,
 		});
 		const statsPath = updated ? toReportPath(updated) : null;
 		if (!updated || !statsPath) {
@@ -465,6 +484,7 @@ export async function regeneratePartnerStatsLink(input: {
 			targetLabel: updated.eventName ?? updated.fulfilledEventKey,
 			summary: "Partner stats link regenerated",
 			href: paidOrderAdminHref(updated.id, "activated"),
+			metadata: { notes },
 		});
 		return {
 			success: true,

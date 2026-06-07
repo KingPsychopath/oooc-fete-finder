@@ -68,6 +68,7 @@ type Setup = {
 	getSettings: ReturnType<typeof vi.fn>;
 	getStatus: ReturnType<typeof vi.fn>;
 	updateEnabled: ReturnType<typeof vi.fn>;
+	recordAdminActivity: ReturnType<typeof vi.fn>;
 	revalidatePath: ReturnType<typeof vi.fn>;
 	revalidateTag: ReturnType<typeof vi.fn>;
 	updateEventSubmissionEnabled: EventSubmissionActions["updateEventSubmissionEnabled"];
@@ -179,11 +180,15 @@ const loadActions = async (): Promise<Setup> => {
 		updatedAt: "2026-02-18T11:00:00.000Z",
 		updatedBy: "admin-panel",
 	});
+	const recordAdminActivity = vi.fn().mockResolvedValue(undefined);
 	const revalidatePath = vi.fn();
 	const revalidateTag = vi.fn();
 
 	vi.doMock("@/features/auth/admin-validation", () => ({
 		validateAdminAccessFromServerContext: validateAdminAccess,
+	}));
+	vi.doMock("@/features/admin/activity/record", () => ({
+		recordAdminActivity,
 	}));
 
 	vi.doMock("@/features/events/submissions/store", () => ({
@@ -229,6 +234,7 @@ const loadActions = async (): Promise<Setup> => {
 		getSettings,
 		getStatus,
 		updateEnabled,
+		recordAdminActivity,
 		revalidatePath,
 		revalidateTag,
 	};
@@ -436,10 +442,16 @@ describe("event submission admin actions", () => {
 		const {
 			updateEventSubmissionEnabled,
 			updateEnabled,
+			recordAdminActivity,
 			revalidatePath,
 			revalidateTag,
 		} = await loadActions();
-		const result = await updateEventSubmissionEnabled("new_events", false);
+		const result = await updateEventSubmissionEnabled(
+			"new_events",
+			false,
+			undefined,
+			"sheet cleanup",
+		);
 
 		expect(result.success).toBe(true);
 		expect(updateEnabled).toHaveBeenCalledWith(
@@ -453,5 +465,28 @@ describe("event submission admin actions", () => {
 			"event-submission-settings",
 			"max",
 		);
+		expect(recordAdminActivity).toHaveBeenCalledWith(
+			expect.objectContaining({
+				action: "submissions.new_events.disabled",
+				summary: "New event submissions closed",
+				metadata: expect.objectContaining({
+					setting: "new_events",
+					enabled: false,
+					reason: "sheet cleanup",
+				}),
+			}),
+		);
+	});
+
+	it("requires a reason before closing a submission intake", async () => {
+		const { updateEventSubmissionEnabled, updateEnabled, recordAdminActivity } =
+			await loadActions();
+
+		const result = await updateEventSubmissionEnabled("new_events", false);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("reason");
+		expect(updateEnabled).not.toHaveBeenCalled();
+		expect(recordAdminActivity).not.toHaveBeenCalled();
 	});
 });

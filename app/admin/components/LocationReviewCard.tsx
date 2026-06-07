@@ -321,6 +321,39 @@ export const LocationReviewCard = ({
 		void loadReviewData();
 	}, [initialPayload?.success, loadReviewData]);
 
+	useEffect(() => {
+		const revealHashedLocation = () => {
+			if (!window.location.hash.startsWith("#location-review-")) return;
+			const targetId = decodeURIComponent(
+				window.location.hash.replace(/^#location-review-/, ""),
+			);
+			const targetItem = items.find((item) => item.id === targetId);
+			if (targetItem) {
+				const sortedAllItems = [...items].sort((left, right) =>
+					left.locationName.localeCompare(right.locationName),
+				);
+				const targetIndex = Math.max(
+					0,
+					sortedAllItems.findIndex((item) => item.id === targetId),
+				);
+				setQuery("");
+				setStatusFilter("all");
+				setSortMode("location-asc");
+				setPage(Math.floor(targetIndex / pageSize) + 1);
+			}
+			window.setTimeout(() => {
+				document
+					.getElementById(`location-review-${targetId}`)
+					?.scrollIntoView({ behavior: "smooth", block: "center" });
+			}, 150);
+		};
+
+		revealHashedLocation();
+		window.addEventListener("hashchange", revealHashedLocation);
+		return () =>
+			window.removeEventListener("hashchange", revealHashedLocation);
+	}, [items, pageSize]);
+
 	const withItemTask = async (
 		item: EventLocationReviewItem,
 		task: () => Promise<{ success: boolean; message: string; error?: string }>,
@@ -599,6 +632,37 @@ export const LocationReviewCard = ({
 		setPage(1);
 	};
 
+	const applyStatusEvidenceFilter = (nextStatus: StatusFilter) => {
+		setQuery("");
+		setStatusFilter(nextStatus);
+		setPage(1);
+	};
+
+	const renderStatusCountButton = (
+		nextStatus: StatusFilter,
+		label: string,
+		count: number,
+		tone: "default" | "quiet" | "danger" = "quiet",
+	) => (
+		<button
+			type="button"
+			onClick={() => applyStatusEvidenceFilter(nextStatus)}
+			className={cn(
+				"inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors",
+				statusFilter === nextStatus
+					? "border-foreground/45 bg-foreground text-background"
+					: "border-border bg-background/55 text-muted-foreground hover:border-foreground/35 hover:text-foreground",
+				tone === "danger" &&
+					statusFilter !== nextStatus &&
+					"border-rose-200 bg-rose-50 text-rose-800 hover:bg-rose-100",
+			)}
+			title={`Show ${label.toLowerCase()} locations`}
+		>
+			<span>{count}</span>
+			<span>{label}</span>
+		</button>
+	);
+
 	const toggleSelected = (itemId: string) => {
 		setSelectedIds((current) => {
 			const next = new Set(current);
@@ -679,17 +743,32 @@ export const LocationReviewCard = ({
 					<Badge variant={providerConfigured ? "default" : "outline"}>
 						Geocoder {providerConfigured ? "configured" : "not configured"}
 					</Badge>
-					<Badge variant="outline">{counts.needsReview} need review</Badge>
-					<Badge variant="secondary">{counts.trusted} trusted</Badge>
-					<Badge variant="outline">{counts.unresolved} unresolved</Badge>
-					{counts.approximate > 0 && (
-						<Badge variant="outline">{counts.approximate} approximate</Badge>
+					{renderStatusCountButton(
+						"needs-review",
+						"need review",
+						counts.needsReview,
+						counts.needsReview > 0 ? "danger" : "quiet",
 					)}
-					{counts.needsLocation > 0 && (
-						<Badge variant="destructive">
-							{counts.needsLocation} need location
-						</Badge>
+					{renderStatusCountButton("trusted", "trusted", counts.trusted)}
+					{renderStatusCountButton(
+						"unresolved",
+						"unresolved",
+						counts.unresolved,
+						counts.unresolved > 0 ? "danger" : "quiet",
 					)}
+					{counts.approximate > 0 &&
+						renderStatusCountButton(
+							"approximate",
+							"approximate",
+							counts.approximate,
+						)}
+					{counts.needsLocation > 0 &&
+						renderStatusCountButton(
+							"needs-location",
+							"need location",
+							counts.needsLocation,
+							"danger",
+						)}
 					<Button
 						type="button"
 						variant="outline"
@@ -938,7 +1017,38 @@ export const LocationReviewCard = ({
 						</div>
 					) : visibleItems.length === 0 ? (
 						<div className="rounded-md border bg-background/60 p-4 text-sm text-muted-foreground">
-							No locations match the current filters.
+							{statusFilter === "needs-review" &&
+							counts.needsReview === 0 &&
+							items.length > 0 ? (
+								<div className="space-y-3">
+									<p>
+										No locations need review. Trusted location history is
+										available if you need audit context.
+									</p>
+									<div className="flex flex-wrap gap-2">
+										<Button
+											type="button"
+											variant="outline"
+											size="sm"
+											onClick={() => applyStatusEvidenceFilter("trusted")}
+											title="Show trusted location records"
+										>
+											Show trusted
+										</Button>
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											onClick={() => applyStatusEvidenceFilter("all")}
+											title="Show all location records"
+										>
+											Show all
+										</Button>
+									</div>
+								</div>
+							) : (
+								"No locations match the current filters."
+							)}
 						</div>
 					) : (
 						visibleItems.map((item) => {

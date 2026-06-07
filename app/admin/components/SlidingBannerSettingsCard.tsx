@@ -336,11 +336,42 @@ export const SlidingBannerSettingsCard = ({
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Store Location
+							Desktop Slots
 						</p>
-						<p className="mt-1 text-xs text-muted-foreground">
-							{storeMeta?.location || "Unavailable"}
+						<p className="mt-1 text-sm font-medium">
+							{desktopMessageCount}
 						</p>
+					</div>
+				</div>
+
+				<div className="rounded-md border bg-background/60 p-3">
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<div>
+							<p className="text-sm font-medium">Banner preview</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								Shows the first {desktopMessageCount} message
+								{desktopMessageCount === 1 ? "" : "s"} currently drafted.
+							</p>
+						</div>
+						<Badge variant={enabled ? "default" : "outline"}>
+							{enabled ? "Will show" : "Hidden"}
+						</Badge>
+					</div>
+					<div className="mt-3 grid gap-2 sm:grid-cols-2">
+						{parsedMessages.length > 0 ? (
+							parsedMessages.slice(0, desktopMessageCount).map((message) => (
+								<div
+									key={message}
+									className="rounded-md border bg-muted/25 px-3 py-2 text-sm font-medium"
+								>
+									{message}
+								</div>
+							))
+						) : (
+							<p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+								Add at least one message before enabling the banner.
+							</p>
+						)}
 					</div>
 				</div>
 
@@ -439,12 +470,11 @@ export const SlidingBannerSettingsCard = ({
 						{errorMessage}
 					</div>
 				)}
-
-				{storeMeta?.location && (
+				{storeMeta?.location ? (
 					<p className="text-xs text-muted-foreground">
-						Store location: {storeMeta.location}
+						Settings source: {storeMeta.location}
 					</p>
-				)}
+				) : null}
 			</CardContent>
 		</Card>
 	);

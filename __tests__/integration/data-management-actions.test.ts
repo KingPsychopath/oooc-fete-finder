@@ -22,8 +22,11 @@ const makeEvent = (id: string) => ({
 
 type Setup = {
 	getLiveSiteEventsSnapshot: typeof DataManagementActions.getLiveSiteEventsSnapshot;
+	revalidatePages: typeof DataManagementActions.revalidatePages;
 	getLiveEvents: ReturnType<typeof vi.fn>;
 	getEventsData: ReturnType<typeof vi.fn>;
+	fullEventsRevalidation: ReturnType<typeof vi.fn>;
+	recordAdminActivity: ReturnType<typeof vi.fn>;
 	validateAdminAccess: ReturnType<typeof vi.fn>;
 };
 
@@ -32,6 +35,8 @@ const loadActions = async (): Promise<Setup> => {
 
 	const getLiveEvents = vi.fn();
 	const getEventsData = vi.fn();
+	const fullEventsRevalidation = vi.fn();
+	const recordAdminActivity = vi.fn().mockResolvedValue(undefined);
 	const validateAdminAccess = vi.fn().mockResolvedValue(true);
 
 	vi.doMock("@/lib/config/env", () => ({
@@ -52,9 +57,12 @@ const loadActions = async (): Promise<Setup> => {
 	vi.doMock("@/features/data-management/runtime-service", () => ({
 		getLiveEvents,
 		forceRefreshEventsData: vi.fn(),
-		fullEventsRevalidation: vi.fn(),
+		fullEventsRevalidation,
 		getRuntimeDataStatusFromSource: vi.fn(),
 		revalidateEventsPaths: vi.fn(),
+	}));
+	vi.doMock("@/features/admin/activity/record", () => ({
+		recordAdminActivity,
 	}));
 
 	vi.doMock("@/features/data-management/local-event-store", () => ({
@@ -75,8 +83,11 @@ const loadActions = async (): Promise<Setup> => {
 	const actions = await import("@/features/data-management/actions");
 	return {
 		getLiveSiteEventsSnapshot: actions.getLiveSiteEventsSnapshot,
+		revalidatePages: actions.revalidatePages,
 		getLiveEvents,
 		getEventsData,
+		fullEventsRevalidation,
+		recordAdminActivity,
 		validateAdminAccess,
 	};
 };
@@ -104,6 +115,11 @@ describe("getLiveSiteEventsSnapshot", () => {
 		expect(result.success).toBe(true);
 		expect(result.source).toBe("store");
 		expect(result.totalCount).toBe(1);
+		expect(result.rows?.[0]).toMatchObject({
+			eventKey: "evt_1",
+			slug: "event-1",
+			name: "Event 1",
+		});
 		expect(getLiveEvents).toHaveBeenCalledTimes(1);
 	});
 
@@ -129,6 +145,34 @@ describe("getLiveSiteEventsSnapshot", () => {
 		expect(getLiveEvents).not.toHaveBeenCalled();
 	});
 
+	it("falls back to runtime id when a live payload omits eventKey", async () => {
+		const { getLiveSiteEventsSnapshot, getLiveEvents } = await loadActions();
+		const eventWithoutKey = makeEvent("legacy") as Partial<
+			ReturnType<typeof makeEvent>
+		>;
+		delete eventWithoutKey.eventKey;
+		delete eventWithoutKey.slug;
+		getLiveEvents.mockResolvedValue({
+			success: true,
+			data: [eventWithoutKey],
+			count: 1,
+			cached: false,
+			source: "store",
+			lastUpdate: "2026-02-17T00:00:00.000Z",
+		});
+
+		const result = await getLiveSiteEventsSnapshot("token", 50, {
+			forceRefresh: false,
+		});
+
+		expect(result.success).toBe(true);
+		expect(result.rows?.[0]).toMatchObject({
+			id: "evt_legacy",
+			eventKey: "evt_legacy",
+			slug: "",
+		});
+	});
+
 	it("returns unauthorized when admin validation fails", async () => {
 		const { getLiveSiteEventsSnapshot, validateAdminAccess } =
 			await loadActions();
@@ -140,5 +184,41 @@ describe("getLiveSiteEventsSnapshot", () => {
 
 		expect(result.success).toBe(false);
 		expect(result.error).toBe("Unauthorized access");
+	});
+});
+
+describe("revalidatePages", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("records an admin activity event after runtime revalidation", async () => {
+		const { revalidatePages, fullEventsRevalidation, recordAdminActivity } =
+			await loadActions();
+		fullEventsRevalidation.mockResolvedValue({
+			success: true,
+			cacheRefreshed: true,
+			pageRevalidated: true,
+			message: "Revalidated",
+		});
+
+		const result = await revalidatePages("token", "/");
+
+		expect(result.success).toBe(true);
+		expect(fullEventsRevalidation).toHaveBeenCalledWith("/");
+		expect(recordAdminActivity).toHaveBeenCalledWith(
+			expect.objectContaining({
+				action: "runtime.revalidated",
+				category: "operations",
+				targetType: "runtime_cache",
+				targetLabel: "/",
+				href: "/admin/operations#events-data-status",
+				metadata: expect.objectContaining({
+					path: "/",
+					cacheRefreshed: true,
+					pageRevalidated: true,
+				}),
+			}),
+		);
 	});
 });

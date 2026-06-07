@@ -22,6 +22,7 @@ interface SystemResetCardProps {
 export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 	const [stepUpPasscode, setStepUpPasscode] = useState("");
 	const [confirmationText, setConfirmationText] = useState("");
+	const [resetReason, setResetReason] = useState("");
 	const [hardResetEnabled, setHardResetEnabled] = useState(false);
 	const [isResetting, setIsResetting] = useState(false);
 	const [message, setMessage] = useState("");
@@ -30,6 +31,12 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 	const handleFactoryReset = useCallback(async () => {
 		if (confirmationText.trim() !== CONFIRMATION_PHRASE) {
 			setError(`Type "${CONFIRMATION_PHRASE}" to confirm.`);
+			setMessage("");
+			return;
+		}
+		const reason = resetReason.trim();
+		if (!reason) {
+			setError("Add a reset reason for the audit log.");
 			setMessage("");
 			return;
 		}
@@ -58,6 +65,7 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 				undefined,
 				stepUpPasscode,
 				hardResetEnabled ? "hard" : "standard",
+				reason,
 			);
 			if (!result.success) {
 				throw new Error(result.error || result.message);
@@ -71,6 +79,7 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 			);
 			setStepUpPasscode("");
 			setConfirmationText("");
+			setResetReason("");
 			setHardResetEnabled(false);
 			if (onResetCompleted) {
 				await onResetCompleted();
@@ -84,18 +93,27 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 		} finally {
 			setIsResetting(false);
 		}
-	}, [confirmationText, hardResetEnabled, onResetCompleted, stepUpPasscode]);
+	}, [
+		confirmationText,
+		hardResetEnabled,
+		onResetCompleted,
+		resetReason,
+		stepUpPasscode,
+	]);
 
 	const canSubmit =
 		!isResetting &&
 		stepUpPasscode.trim().length > 0 &&
-		confirmationText.trim() === CONFIRMATION_PHRASE;
+		confirmationText.trim() === CONFIRMATION_PHRASE &&
+		resetReason.trim().length > 0;
 	const submitTitle = isResetting
 		? "Factory reset is running"
 		: stepUpPasscode.trim().length === 0
 			? "Enter the factory reset passcode"
 			: confirmationText.trim() !== CONFIRMATION_PHRASE
 				? `Type ${CONFIRMATION_PHRASE} exactly`
+				: resetReason.trim().length === 0
+					? "Add a reset reason for the audit log"
 				: hardResetEnabled
 					? "Run hard factory reset: clears runtime/admin data, revokes admin sessions, clears metrics, and clears rate-limit counters"
 					: "Run standard factory reset: clears managed runtime/admin data";
@@ -138,6 +156,17 @@ export const SystemResetCard = ({ onResetCompleted }: SystemResetCardProps) => {
 						onChange={(event) => setConfirmationText(event.target.value)}
 						placeholder={CONFIRMATION_PHRASE}
 						autoComplete="off"
+					/>
+				</div>
+
+				<div className="space-y-2">
+					<Label htmlFor="admin-reset-reason">Reset reason</Label>
+					<textarea
+						id="admin-reset-reason"
+						value={resetReason}
+						onChange={(event) => setResetReason(event.target.value)}
+						placeholder="Required for audit history. Example: clean staging seed before launch rehearsal."
+						className="min-h-20 w-full rounded-md border border-red-200 bg-background px-3 py-2 text-sm shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring"
 					/>
 				</div>
 

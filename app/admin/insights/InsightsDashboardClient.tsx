@@ -299,12 +299,12 @@ const AudienceOverviewCard = ({
 							disabled={emails.length === 0}
 							title={
 								emails.length === 0
-									? "No audience records to export"
-									: "Export all audience records as CSV"
+									? "No audience store rows to export"
+									: "Export all audience store rows as CSV"
 							}
 						>
 							<Download />
-							Export CSV
+							Export Audience Store
 						</Button>
 					</div>
 				</div>

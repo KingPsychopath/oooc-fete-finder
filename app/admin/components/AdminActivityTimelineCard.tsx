@@ -114,6 +114,57 @@ const formatActionLabel = (action: string): string =>
 const normalize = (value: string | null | undefined): string =>
 	(value ?? "").toLowerCase();
 
+const toReadableMetadataValue = (value: unknown): string => {
+	if (typeof value === "string") return value.trim();
+	if (typeof value === "number" || typeof value === "boolean") {
+		return String(value);
+	}
+	return "";
+};
+
+const metadataText = (
+	metadata: Record<string, unknown> | null | undefined,
+	keys: string[],
+): string => {
+	if (!metadata) return "";
+	for (const key of keys) {
+		const value = toReadableMetadataValue(metadata[key]);
+		if (value) return value;
+	}
+	return "";
+};
+
+const operatorContextForEvent = (event: AdminActivityEvent): string => {
+	const context = metadataText(event.metadata, [
+		"reason",
+		"notes",
+		"moderationNote",
+		"adminNote",
+		"note",
+	]);
+	if (!context) return "";
+	return context;
+};
+
+const metadataSearchText = (metadata: Record<string, unknown>): string =>
+	[
+		metadataText(metadata, [
+			"reason",
+			"notes",
+			"moderationNote",
+			"adminNote",
+			"note",
+			"status",
+			"scope",
+			"noticeId",
+			"restrictionId",
+			"listingId",
+			"acceptedEventKey",
+		]),
+	]
+		.filter(Boolean)
+		.join(" ");
+
 export function AdminActivityTimelineCard({
 	events,
 	categoryCounts,
@@ -143,6 +194,7 @@ export function AdminActivityTimelineCard({
 				event.targetLabel,
 				event.targetId,
 				event.targetType,
+				metadataSearchText(event.metadata),
 			].some((value) => normalize(value).includes(needle));
 		});
 
@@ -393,74 +445,85 @@ export function AdminActivityTimelineCard({
 							</div>
 						) : (
 							<ol className="divide-y">
-								{visibleEvents.map((event) => (
-									<li key={event.id} className="p-3">
-										<div className="flex items-start gap-3">
-											<div
-												className={cn(
-													"mt-0.5 h-2.5 w-2.5 rounded-full border",
-													event.severity === "destructive"
-														? "border-rose-500 bg-rose-500"
-														: event.severity === "warning"
-															? "border-amber-500 bg-amber-500"
-															: "border-emerald-500 bg-emerald-500",
-												)}
-											/>
-											<div className="min-w-0 flex-1 space-y-2">
-												<div className="flex flex-wrap items-start justify-between gap-2">
-													<div className="min-w-0">
-														<p className="text-sm font-medium leading-snug">
-															{event.summary}
-														</p>
-														<p className="mt-1 text-xs text-muted-foreground">
-															{formatRelativeTime(event.occurredAt)} •{" "}
-															{formatAdminDateTime(event.occurredAt)} •{" "}
-															{event.actorLabel}
-														</p>
+								{visibleEvents.map((event) => {
+									const operatorContext = operatorContextForEvent(event);
+									return (
+										<li key={event.id} className="p-3">
+											<div className="flex items-start gap-3">
+												<div
+													className={cn(
+														"mt-0.5 h-2.5 w-2.5 rounded-full border",
+														event.severity === "destructive"
+															? "border-rose-500 bg-rose-500"
+															: event.severity === "warning"
+																? "border-amber-500 bg-amber-500"
+																: "border-emerald-500 bg-emerald-500",
+													)}
+												/>
+												<div className="min-w-0 flex-1 space-y-2">
+													<div className="flex flex-wrap items-start justify-between gap-2">
+														<div className="min-w-0">
+															<p className="text-sm font-medium leading-snug">
+																{event.summary}
+															</p>
+															<p className="mt-1 text-xs text-muted-foreground">
+																{formatRelativeTime(event.occurredAt)} •{" "}
+																{formatAdminDateTime(event.occurredAt)} •{" "}
+																{event.actorLabel}
+															</p>
+														</div>
+														<div className="flex flex-wrap justify-end gap-1.5">
+															<span
+																className={cn(
+																	"inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-medium",
+																	CATEGORY_ACCENT[event.category],
+																)}
+															>
+																{CATEGORY_LABELS[event.category]}
+															</span>
+															<span
+																className={cn(
+																	"inline-flex h-6 items-center rounded-full px-2 text-[11px] font-medium",
+																	SEVERITY_ACCENT[event.severity],
+																)}
+															>
+																{SEVERITY_LABELS[event.severity]}
+															</span>
+														</div>
 													</div>
-													<div className="flex flex-wrap justify-end gap-1.5">
-														<span
-															className={cn(
-																"inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-medium",
-																CATEGORY_ACCENT[event.category],
+													{operatorContext ? (
+														<div className="rounded-md border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
+															<span className="font-medium text-foreground">
+																Operator context:
+															</span>{" "}
+															{operatorContext}
+														</div>
+													) : null}
+													<div className="flex flex-wrap items-center justify-between gap-2">
+														<div className="min-w-0 text-xs text-muted-foreground">
+															<span className="font-mono">
+																{formatActionLabel(event.action)}
+															</span>
+															{event.targetLabel && (
+																<span> • {event.targetLabel}</span>
 															)}
-														>
-															{CATEGORY_LABELS[event.category]}
-														</span>
-														<span
-															className={cn(
-																"inline-flex h-6 items-center rounded-full px-2 text-[11px] font-medium",
-																SEVERITY_ACCENT[event.severity],
-															)}
-														>
-															{SEVERITY_LABELS[event.severity]}
-														</span>
-													</div>
-												</div>
-												<div className="flex flex-wrap items-center justify-between gap-2">
-													<div className="min-w-0 text-xs text-muted-foreground">
-														<span className="font-mono">
-															{formatActionLabel(event.action)}
-														</span>
-														{event.targetLabel && (
-															<span> • {event.targetLabel}</span>
+														</div>
+														{event.href && (
+															<Link
+																href={withAdminBasePath(event.href)}
+																className="inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-xs font-medium transition-colors hover:bg-muted"
+																title={`${openLabelForEvent(event)} from audit history`}
+															>
+																{openLabelForEvent(event)}
+																<ExternalLink className="h-3 w-3" />
+															</Link>
 														)}
 													</div>
-													{event.href && (
-														<Link
-															href={withAdminBasePath(event.href)}
-															className="inline-flex h-7 items-center gap-1 rounded-md border bg-background px-2 text-xs font-medium transition-colors hover:bg-muted"
-															title={`${openLabelForEvent(event)} from audit history`}
-														>
-															{openLabelForEvent(event)}
-															<ExternalLink className="h-3 w-3" />
-														</Link>
-													)}
 												</div>
 											</div>
-										</div>
-									</li>
-								))}
+										</li>
+									);
+								})}
 							</ol>
 						)}
 					</div>

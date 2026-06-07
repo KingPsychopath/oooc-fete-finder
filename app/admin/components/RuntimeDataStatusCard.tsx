@@ -141,6 +141,17 @@ export const RuntimeDataStatusCard = ({
 							Updated when the runtime source is read.
 						</p>
 					</div>
+					<div className="rounded-md border bg-background/60 p-3">
+						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+							Store Source
+						</p>
+						<p className="mt-1 text-sm font-medium">
+							{runtimeDataStatus.storeProvider}
+						</p>
+						<p className="mt-1 truncate text-xs text-muted-foreground">
+							{runtimeDataStatus.storeProviderLocation || "No location reported"}
+						</p>
+					</div>
 				</div>
 
 				{fallbackActive && (

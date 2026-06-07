@@ -233,7 +233,10 @@ export async function scheduleFeaturedEvent(
 	return scheduleFeaturedEvents([eventKey], requestedStartAt, durationHours);
 }
 
-export async function cancelFeaturedSchedule(entryId: string): Promise<{
+export async function cancelFeaturedSchedule(
+	entryId: string,
+	reason?: string,
+): Promise<{
 	success: boolean;
 	message: string;
 	error?: string;
@@ -255,6 +258,7 @@ export async function cancelFeaturedSchedule(entryId: string): Promise<{
 			targetId: entryId,
 			targetLabel: entryId,
 			summary: "Spotlight placement cancelled",
+			metadata: { reason: reason?.trim() ?? "" },
 			severity: "warning",
 			href: featuredManagerHref(entryId),
 		});
@@ -276,6 +280,7 @@ export async function rescheduleFeaturedEvent(
 	entryId: string,
 	requestedStartAt: string,
 	durationHours?: number,
+	reason?: string,
 ): Promise<{
 	success: boolean;
 	message: string;
@@ -302,7 +307,11 @@ export async function rescheduleFeaturedEvent(
 			targetId: entryId,
 			targetLabel: entryId,
 			summary: "Spotlight placement rescheduled",
-			metadata: { requestedStartAt, durationHours },
+			metadata: {
+				requestedStartAt,
+				durationHours,
+				reason: reason?.trim() ?? "",
+			},
 			href: featuredManagerHref(entryId),
 		});
 
@@ -320,7 +329,7 @@ export async function rescheduleFeaturedEvent(
 	}
 }
 
-export async function clearFeaturedQueueHistory(): Promise<{
+export async function clearFeaturedQueueHistory(reason?: string): Promise<{
 	success: boolean;
 	message: string;
 	error?: string;
@@ -335,7 +344,7 @@ export async function clearFeaturedQueueHistory(): Promise<{
 			targetType: "spotlight_queue",
 			targetLabel: "Spotlight queue and history",
 			summary: `Cleared ${clearedCount} Spotlight queue/history entr${clearedCount === 1 ? "y" : "ies"}`,
-			metadata: { clearedCount },
+			metadata: { clearedCount, reason: reason?.trim() ?? "" },
 			severity: "destructive",
 			href: featuredManagerHref(),
 		});
@@ -353,7 +362,7 @@ export async function clearFeaturedQueueHistory(): Promise<{
 	}
 }
 
-export async function clearFeaturedQueue(): Promise<{
+export async function clearFeaturedQueue(reason?: string): Promise<{
 	success: boolean;
 	message: string;
 	error?: string;
@@ -368,7 +377,7 @@ export async function clearFeaturedQueue(): Promise<{
 			targetType: "spotlight_queue",
 			targetLabel: "Spotlight scheduled queue",
 			summary: `Cleared ${clearedCount} scheduled Spotlight entr${clearedCount === 1 ? "y" : "ies"}`,
-			metadata: { clearedCount },
+			metadata: { clearedCount, reason: reason?.trim() ?? "" },
 			severity: "destructive",
 			href: featuredManagerHref(),
 		});
@@ -386,7 +395,7 @@ export async function clearFeaturedQueue(): Promise<{
 	}
 }
 
-export async function clearFeaturedHistory(): Promise<{
+export async function clearFeaturedHistory(reason?: string): Promise<{
 	success: boolean;
 	message: string;
 	error?: string;
@@ -401,7 +410,7 @@ export async function clearFeaturedHistory(): Promise<{
 			targetType: "spotlight_history",
 			targetLabel: "Spotlight history",
 			summary: `Cleared ${clearedCount} Spotlight history entr${clearedCount === 1 ? "y" : "ies"}`,
-			metadata: { clearedCount },
+			metadata: { clearedCount, reason: reason?.trim() ?? "" },
 			severity: "destructive",
 			href: featuredManagerHref(),
 		});

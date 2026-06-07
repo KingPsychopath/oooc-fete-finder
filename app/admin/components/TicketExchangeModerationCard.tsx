@@ -374,6 +374,7 @@ const ListingRow = ({
 	listing,
 	onMutate,
 	isMutating,
+	hasActionReason,
 	compact = false,
 }: {
 	listing: TicketExchangeAdminListing;
@@ -385,6 +386,7 @@ const ListingRow = ({
 		>,
 	) => void;
 	isMutating: boolean;
+	hasActionReason: boolean;
 	compact?: boolean;
 }) => {
 	const expiresAt = new Date(listing.expiresAt).getTime();
@@ -417,21 +419,26 @@ const ListingRow = ({
 		email: listing.ownerEmail,
 	});
 	const ownerLabel = listing.ownerEmail || listing.ownerUserId || "Unknown";
-	const pauseTitle =
-		listing.effectiveStatus === "active"
+	const pauseTitle = !hasActionReason
+		? "Enter a moderation note before changing listing state"
+		: listing.effectiveStatus === "active"
 			? "Pause this live listing"
 			: "Only active listings can be paused";
-	const restoreTitle = isExpired
-		? "Expired listings cannot be restored without a new expiry"
-		: canRestore
-			? "Restore this paused or removed listing"
-			: "Only paused or removed, unexpired listings can be restored";
-	const resolveTitle =
-		listing.status === "resolved"
+	const restoreTitle = !hasActionReason
+		? "Enter a moderation note before changing listing state"
+		: isExpired
+			? "Expired listings cannot be restored without a new expiry"
+			: canRestore
+				? "Restore this paused or removed listing"
+				: "Only paused or removed, unexpired listings can be restored";
+	const resolveTitle = !hasActionReason
+		? "Enter a moderation note before changing listing state"
+		: listing.status === "resolved"
 			? "This listing is already resolved"
 			: "Mark this listing resolved";
-	const removeTitle =
-		listing.status === "removed"
+	const removeTitle = !hasActionReason
+		? "Enter a moderation note before changing listing state"
+		: listing.status === "removed"
 			? "This listing is already removed"
 			: "Remove this listing from the exchange";
 
@@ -510,7 +517,11 @@ const ListingRow = ({
 							variant="outline"
 							size="sm"
 							className="justify-start"
-							disabled={isMutating || listing.effectiveStatus !== "active"}
+							disabled={
+								isMutating ||
+								!hasActionReason ||
+								listing.effectiveStatus !== "active"
+							}
 							title={pauseTitle}
 							onClick={() => onMutate(listing.id, "paused")}
 						>
@@ -522,7 +533,7 @@ const ListingRow = ({
 							variant="outline"
 							size="sm"
 							className="justify-start"
-							disabled={isMutating || !canRestore}
+							disabled={isMutating || !hasActionReason || !canRestore}
 							title={restoreTitle}
 							onClick={() => onMutate(listing.id, "active")}
 						>
@@ -534,7 +545,9 @@ const ListingRow = ({
 							variant="outline"
 							size="sm"
 							className="justify-start"
-							disabled={isMutating || listing.status === "resolved"}
+							disabled={
+								isMutating || !hasActionReason || listing.status === "resolved"
+							}
 							title={resolveTitle}
 							onClick={() => onMutate(listing.id, "resolved")}
 						>
@@ -546,7 +559,9 @@ const ListingRow = ({
 							variant="destructive"
 							size="sm"
 							className="justify-start"
-							disabled={isMutating || listing.status === "removed"}
+							disabled={
+								isMutating || !hasActionReason || listing.status === "removed"
+							}
 							title={removeTitle}
 							onClick={() => onMutate(listing.id, "removed")}
 						>
@@ -565,17 +580,22 @@ const ReportRow = ({
 	onReview,
 	onRemoveListing,
 	isMutating,
+	hasActionReason,
 }: {
 	report: TicketExchangeAdminReport;
 	onReview: (reportId: string) => void;
 	onRemoveListing: (listingId: string) => void;
 	isMutating: boolean;
+	hasActionReason: boolean;
 }) => {
 	const markReviewedTitle = report.reviewedAt
 		? "This report is already reviewed"
-		: "Mark this report reviewed and remove it from the moderation queue";
-	const removeListingTitle =
-		report.listing.status === "removed"
+		: hasActionReason
+			? "Mark this report reviewed and remove it from the moderation queue"
+			: "Enter a moderation note before reviewing this report";
+	const removeListingTitle = !hasActionReason
+		? "Enter a moderation note before removing this listing"
+		: report.listing.status === "removed"
 			? "The reported listing is already removed"
 			: "Remove the reported listing from the exchange";
 
@@ -655,7 +675,9 @@ const ReportRow = ({
 						type="button"
 						variant="outline"
 						size="sm"
-						disabled={isMutating || Boolean(report.reviewedAt)}
+						disabled={
+							isMutating || !hasActionReason || Boolean(report.reviewedAt)
+						}
 						title={markReviewedTitle}
 						onClick={() => onReview(report.id)}
 					>
@@ -666,7 +688,11 @@ const ReportRow = ({
 						type="button"
 						variant="destructive"
 						size="sm"
-						disabled={isMutating || report.listing.status === "removed"}
+						disabled={
+							isMutating ||
+							!hasActionReason ||
+							report.listing.status === "removed"
+						}
 						title={removeListingTitle}
 						onClick={() => onRemoveListing(report.listingId)}
 					>
@@ -718,8 +744,10 @@ export const TicketExchangeModerationCard = ({
 		useState<ListingSortMode>("updated-desc");
 	const [reportSortMode, setReportSortMode] =
 		useState<ReportSortMode>("reported-desc");
+	const [moderationReason, setModerationReason] = useState("");
 	const [page, setPage] = useState(1);
 	const [isPending, startTransition] = useTransition();
+	const hasModerationReason = moderationReason.trim().length > 0;
 
 	const reports = useMemo(
 		() => dashboard?.recentReports.filter((report) => !report.reviewedAt) ?? [],
@@ -924,11 +952,30 @@ export const TicketExchangeModerationCard = ({
 			"active" | "paused" | "resolved" | "removed"
 		>,
 	) => {
+		const reason = moderationReason.trim();
+		if (!reason) {
+			setErrorMessage("Enter a moderation note before changing listing state.");
+			setStatusMessage("");
+			return;
+		}
+		if (
+			status === "removed" &&
+			!window.confirm(
+				"Remove this listing from the exchange? The moderation note will be recorded in the admin audit log.",
+			)
+		) {
+			return;
+		}
 		startTransition(async () => {
 			const result = await updateTicketExchangeListingStatusAsAdmin({
 				listingId,
 				status,
+				reason,
 			});
+			if (result.success) {
+				setModerationReason("");
+				router.refresh();
+			}
 			applyResult(
 				result,
 				setDashboard,
@@ -940,8 +987,17 @@ export const TicketExchangeModerationCard = ({
 	};
 
 	const reviewReport = (reportId: string) => {
+		const reviewNote = moderationReason.trim();
+		if (!reviewNote) {
+			setErrorMessage("Enter a moderation note before reviewing this report.");
+			setStatusMessage("");
+			return;
+		}
 		startTransition(async () => {
-			const result = await reviewTicketExchangeReportAsAdmin({ reportId });
+			const result = await reviewTicketExchangeReportAsAdmin({
+				reportId,
+				reviewNote,
+			});
 			if (
 				result.success &&
 				result.dashboard &&
@@ -950,6 +1006,7 @@ export const TicketExchangeModerationCard = ({
 				selectTab("active");
 			}
 			if (result.success) {
+				setModerationReason("");
 				router.refresh();
 			}
 			applyResult(
@@ -1228,6 +1285,20 @@ export const TicketExchangeModerationCard = ({
 									</Button>
 								</div>
 							</div>
+							<label className="mt-3 block text-xs font-medium text-muted-foreground">
+								Moderation note
+								<textarea
+									value={moderationReason}
+									onChange={(event) => setModerationReason(event.target.value)}
+									placeholder={
+										activeTab === "review"
+											? "Decision note required before reviewing reports or removing a reported listing"
+											: "Reason required before pausing, restoring, resolving, or removing listings"
+									}
+									rows={2}
+									className="mt-1 min-h-16 w-full resize-y rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/40"
+								/>
+							</label>
 							<div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
 								<Badge variant="secondary">
 									View: {tabs.find((tab) => tab.key === activeTab)?.label}
@@ -1288,6 +1359,7 @@ export const TicketExchangeModerationCard = ({
 												mutateListing(listingId, "removed")
 											}
 											isMutating={isPending}
+											hasActionReason={hasModerationReason}
 										/>
 									))
 								) : (
@@ -1307,6 +1379,7 @@ export const TicketExchangeModerationCard = ({
 											listing={listing}
 											onMutate={mutateListing}
 											isMutating={isPending}
+											hasActionReason={hasModerationReason}
 										/>
 									))
 								) : (
@@ -1326,6 +1399,7 @@ export const TicketExchangeModerationCard = ({
 											listing={listing}
 											onMutate={mutateListing}
 											isMutating={isPending}
+											hasActionReason={hasModerationReason}
 											compact
 										/>
 									))

@@ -128,6 +128,7 @@ import {
 import type { CSSProperties, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { withAdminBasePath } from "../config";
 import { EventSheetOcrDraftModal } from "./EventSheetOcrDraftModal";
 import { ADMIN_EVENT_SHEET_REFRESH_EVENT } from "./admin-content-events";
 
@@ -6028,7 +6029,9 @@ export const EventSheetEditorCard = ({
 							</div>
 							{pendingEventReview && (
 								<a
-									href={`#submission-${pendingEventReview.submissionId}`}
+									href={withAdminBasePath(
+										`/admin/content#submission-${pendingEventReview.submissionId}`,
+									)}
 									className="mb-2 block rounded-md border border-red-200 bg-red-50 px-2 py-1.5 font-medium text-red-700 underline-offset-2 hover:underline dark:border-red-400/30 dark:bg-red-950/30 dark:text-red-200"
 									onClick={() => setQualityPopover(null)}
 								>

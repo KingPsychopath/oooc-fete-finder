@@ -72,18 +72,21 @@ export async function updateTicketExchangeListingStatusAsAdmin(input: {
 		TicketExchangeListingStatus,
 		"active" | "paused" | "resolved" | "removed"
 	>;
+	reason: string;
 }): Promise<{
 	success: boolean;
 	dashboard?: TicketExchangeAdminDashboard;
 	error?: string;
 }> {
 	try {
-		const repository = await assertTicketExchangeAdmin();
-		const listingId = normalizeTicketExchangeText(input.listingId, 100);
-		const status = adminListingStatusSchema.parse(input.status);
-		const updateResult = await repository.updateListingStatusAsAdmin({
-			listingId,
-			status,
+			const repository = await assertTicketExchangeAdmin();
+			const listingId = normalizeTicketExchangeText(input.listingId, 100);
+			const status = adminListingStatusSchema.parse(input.status);
+			const reason = normalizeTicketExchangeText(input.reason, 500);
+			if (!reason) throw new Error("Listing status reason is required.");
+			const updateResult = await repository.updateListingStatusAsAdmin({
+				listingId,
+				status,
 		});
 		if (!updateResult.updated) {
 			throw new Error("Ticket Exchange listing was not found.");
@@ -91,13 +94,13 @@ export async function updateTicketExchangeListingStatusAsAdmin(input: {
 		await recordAdminActivity({
 			action: "ticket_exchange.listing_status_updated",
 			category: "content",
-			targetType: "ticket_exchange_listing",
-			targetId: listingId,
-			summary: `Ticket Exchange listing marked ${status}`,
-			metadata: { status },
-			severity: status === "removed" ? "destructive" : "info",
-			href: ticketListingAdminHref(listingId),
-		});
+				targetType: "ticket_exchange_listing",
+				targetId: listingId,
+				summary: `Ticket Exchange listing marked ${status}`,
+				metadata: { status, reason },
+				severity: status === "removed" ? "destructive" : "info",
+				href: ticketListingAdminHref(listingId),
+			});
 		revalidateAdminAndTickets(updateResult.eventKey);
 		return {
 			success: true,

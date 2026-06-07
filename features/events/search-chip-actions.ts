@@ -167,7 +167,7 @@ export async function updateAdminSearchChipSettings(
 			category: "settings",
 			targetType: "search_chips",
 			targetLabel: "Search chips",
-			summary: `Dynamic search chips ${settings.dynamicChipsEnabled ? "enabled" : "disabled"}`,
+			summary: `Dynamic search chips ${settings.dynamicChipsEnabled ? "enabled" : "disabled"} with cap ${settings.maxDynamicChips}`,
 			metadata: {
 				dynamicChipsEnabled: settings.dynamicChipsEnabled,
 				maxDynamicChips: settings.maxDynamicChips,
@@ -183,7 +183,7 @@ export async function updateAdminSearchChipSettings(
 				? await getSearchChipDebugMatches(settings.maxDynamicChips)
 				: [],
 			message: settings.dynamicChipsEnabled
-				? "Dynamic search chips enabled"
+				? `Dynamic search chips enabled with cap ${settings.maxDynamicChips}`
 				: "Dynamic search chips disabled",
 		};
 	} catch (error) {

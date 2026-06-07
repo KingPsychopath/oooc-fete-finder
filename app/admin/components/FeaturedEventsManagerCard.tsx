@@ -164,6 +164,7 @@ export const FeaturedEventsManagerCard = ({
 	const [timelineVisibleLimit, setTimelineVisibleLimit] = useState<number>(
 		TIMELINE_LIMIT_OPTIONS[1],
 	);
+	const [timelineActionNote, setTimelineActionNote] = useState("");
 	const [selectedEventKey, setSelectedEventKey] = useState("");
 	const [scheduleAt, setScheduleAt] = useState(
 		getDateTimeInputForTimezone("Europe/Paris"),
@@ -353,6 +354,7 @@ export const FeaturedEventsManagerCard = ({
 		timelineSearchTerm.trim().length > 0,
 		timelineStateFilter !== "all",
 	].filter(Boolean).length;
+	const hasTimelineActionNote = timelineActionNote.trim().length > 0;
 	const clearTimelineFilters = () => {
 		setTimelineSearchTerm("");
 		setTimelineStateFilter("all");
@@ -413,10 +415,12 @@ export const FeaturedEventsManagerCard = ({
 				if (onScheduleUpdated) {
 					await onScheduleUpdated();
 				}
+				return true;
 			} catch (error) {
 				setErrorMessage(
 					error instanceof Error ? error.message : "Unknown mutation error",
 				);
+				return false;
 			} finally {
 				setIsMutating(false);
 			}
@@ -508,6 +512,12 @@ export const FeaturedEventsManagerCard = ({
 	]);
 
 	const handleClearQueue = useCallback(async () => {
+		const reason = timelineActionNote.trim();
+		if (!reason) {
+			setErrorMessage("Add a timeline action note before clearing the queue.");
+			setStatusMessage("");
+			return;
+		}
 		if (hasActiveSlots) {
 			const firstConfirm = window.confirm(
 				`This will remove currently active ${MODE_LABEL[placementMode].toLowerCase()} slots. Continue?`,
@@ -524,23 +534,37 @@ export const FeaturedEventsManagerCard = ({
 			if (!confirmed) return;
 		}
 		if (placementMode === "spotlight") {
-			await withMutation(() => clearFeaturedQueue());
+			if (await withMutation(() => clearFeaturedQueue(reason))) {
+				setTimelineActionNote("");
+			}
 			return;
 		}
-		await withMutation(() => clearPromotedQueue());
-	}, [hasActiveSlots, placementMode, withMutation]);
+		if (await withMutation(() => clearPromotedQueue(reason))) {
+			setTimelineActionNote("");
+		}
+	}, [hasActiveSlots, placementMode, timelineActionNote, withMutation]);
 
 	const handleClearHistory = useCallback(async () => {
+		const reason = timelineActionNote.trim();
+		if (!reason) {
+			setErrorMessage("Add a timeline action note before clearing history.");
+			setStatusMessage("");
+			return;
+		}
 		const confirmed = window.confirm(
 			`Clear ${MODE_LABEL[placementMode].toLowerCase()} history entries (completed/cancelled)? This cannot be undone.`,
 		);
 		if (!confirmed) return;
 		if (placementMode === "spotlight") {
-			await withMutation(() => clearFeaturedHistory());
+			if (await withMutation(() => clearFeaturedHistory(reason))) {
+				setTimelineActionNote("");
+			}
 			return;
 		}
-		await withMutation(() => clearPromotedHistory());
-	}, [placementMode, withMutation]);
+		if (await withMutation(() => clearPromotedHistory(reason))) {
+			setTimelineActionNote("");
+		}
+	}, [placementMode, timelineActionNote, withMutation]);
 
 	const handleCreatePartnerReport = useCallback(
 		async (row: QueueRow) => {
@@ -886,8 +910,17 @@ export const FeaturedEventsManagerCard = ({
 								size="sm"
 								variant="destructive"
 								onClick={() => void handleClearQueue()}
-								disabled={isMutating || isLoading || scheduledCount === 0}
-								title={clearQueueTitle}
+								disabled={
+									isMutating ||
+									isLoading ||
+									scheduledCount === 0 ||
+									!hasTimelineActionNote
+								}
+								title={
+									hasTimelineActionNote
+										? clearQueueTitle
+										: "Add a timeline action note before clearing scheduled entries"
+								}
 							>
 								Clear Scheduled Queue
 							</Button>
@@ -896,8 +929,17 @@ export const FeaturedEventsManagerCard = ({
 								size="sm"
 								variant="destructive"
 								onClick={() => void handleClearHistory()}
-								disabled={isMutating || isLoading || historyCount === 0}
-								title={clearHistoryTitle}
+								disabled={
+									isMutating ||
+									isLoading ||
+									historyCount === 0 ||
+									!hasTimelineActionNote
+								}
+								title={
+									hasTimelineActionNote
+										? clearHistoryTitle
+										: "Add a timeline action note before clearing history"
+								}
 							>
 								Clear History
 							</Button>
@@ -1009,6 +1051,16 @@ export const FeaturedEventsManagerCard = ({
 							</span>
 						)}
 					</div>
+					<label className="block text-xs font-medium text-muted-foreground">
+						Timeline action note
+						<textarea
+							value={timelineActionNote}
+							onChange={(event) => setTimelineActionNote(event.target.value)}
+							placeholder="Required before rescheduling, cancelling, clearing scheduled entries, or clearing history"
+							rows={2}
+							className="mt-1 min-h-16 w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/40"
+						/>
+					</label>
 					<div className="max-h-[42rem] max-w-full overflow-auto rounded-md border">
 						<table className="min-w-[980px] w-full text-xs">
 							<thead className="bg-muted/40">
@@ -1042,14 +1094,16 @@ export const FeaturedEventsManagerCard = ({
 											row.status === "scheduled" &&
 											Number.isFinite(new Date(nextStart).getTime()) &&
 											nextStart !== row.requestedStartAtParisInput;
-										const rescheduleTitle =
-											row.status !== "scheduled"
+										const rescheduleTitle = !hasTimelineActionNote
+											? "Add a timeline action note before rescheduling"
+											: row.status !== "scheduled"
 												? "Only scheduled entries can be rescheduled"
 												: canReschedule
 													? "Apply the changed start time"
 													: "Choose a different valid start time";
-										const cancelTitle =
-											row.status === "scheduled"
+										const cancelTitle = !hasTimelineActionNote
+											? "Add a timeline action note before cancelling"
+											: row.status === "scheduled"
 												? "Cancel this scheduled entry"
 												: "Only scheduled entries can be cancelled";
 										return (
@@ -1109,22 +1163,31 @@ export const FeaturedEventsManagerCard = ({
 																size="sm"
 																variant="outline"
 																className="h-8 px-2.5"
-																disabled={isMutating || !canReschedule}
+																disabled={
+																	isMutating ||
+																	!hasTimelineActionNote ||
+																	!canReschedule
+																}
 																title={rescheduleTitle}
 																onClick={() =>
-																	void withMutation(() => {
-																		return placementMode === "spotlight"
-																			? rescheduleFeaturedEvent(
-																					row.id,
-																					nextStart,
-																					row.durationHours,
-																				)
-																			: reschedulePromotedEvent(
-																					row.id,
-																					nextStart,
-																					row.durationHours,
-																				);
-																	})
+																	void (async () => {
+																		const succeeded = await withMutation(() => {
+																			return placementMode === "spotlight"
+																				? rescheduleFeaturedEvent(
+																						row.id,
+																						nextStart,
+																						row.durationHours,
+																						timelineActionNote.trim(),
+																					)
+																				: reschedulePromotedEvent(
+																						row.id,
+																						nextStart,
+																						row.durationHours,
+																						timelineActionNote.trim(),
+																					);
+																		});
+																		if (succeeded) setTimelineActionNote("");
+																	})()
 																}
 															>
 																Reschedule
@@ -1135,15 +1198,26 @@ export const FeaturedEventsManagerCard = ({
 																variant="destructive"
 																className="h-8 px-2.5"
 																disabled={
-																	row.status !== "scheduled" || isMutating
+																	row.status !== "scheduled" ||
+																	isMutating ||
+																	!hasTimelineActionNote
 																}
 																title={cancelTitle}
 																onClick={() =>
-																	void withMutation(() =>
-																		placementMode === "spotlight"
-																			? cancelFeaturedSchedule(row.id)
-																			: cancelPromotedSchedule(row.id),
-																	)
+																	void (async () => {
+																		const succeeded = await withMutation(() =>
+																			placementMode === "spotlight"
+																				? cancelFeaturedSchedule(
+																						row.id,
+																						timelineActionNote.trim(),
+																					)
+																				: cancelPromotedSchedule(
+																						row.id,
+																						timelineActionNote.trim(),
+																					),
+																		);
+																		if (succeeded) setTimelineActionNote("");
+																	})()
 																}
 															>
 																Cancel

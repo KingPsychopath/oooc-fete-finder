@@ -199,6 +199,7 @@ export const PartnerActivationQueueCard = ({
 	const [activationVisibleLimit, setActivationVisibleLimit] = useState<number>(
 		LIST_LIMIT_OPTIONS[1],
 	);
+	const [queueActionNote, setQueueActionNote] = useState("");
 	const [fulfillmentInputs, setFulfillmentInputs] = useState<
 		Record<string, FulfillmentInput>
 	>({});
@@ -291,16 +292,27 @@ export const PartnerActivationQueueCard = ({
 
 	const withMutation = useCallback(
 		async (id: string, status: PartnerActivationStatus) => {
+			const note = queueActionNote.trim();
+			if (!note) {
+				setErrorMessage("Add an operator note before changing queue status.");
+				setStatusMessage("");
+				return;
+			}
 			setIsMutating(true);
 			setBusyId(id);
 			setStatusMessage("");
 			setErrorMessage("");
 			try {
-				const result = await updatePartnerActivationStatus({ id, status });
+				const result = await updatePartnerActivationStatus({
+					id,
+					status,
+					notes: note,
+				});
 				if (!result.success) {
 					setErrorMessage(result.error || result.message);
 					return;
 				}
+				setQueueActionNote("");
 				setStatusMessage(result.message);
 				await loadDashboard();
 			} finally {
@@ -308,7 +320,7 @@ export const PartnerActivationQueueCard = ({
 				setBusyId(null);
 			}
 		},
-		[loadDashboard],
+		[loadDashboard, queueActionNote],
 	);
 
 	const handleDismiss = useCallback(
@@ -377,6 +389,12 @@ export const PartnerActivationQueueCard = ({
 
 	const handleRevokeStatsLink = useCallback(
 		async (id: string) => {
+			const note = queueActionNote.trim();
+			if (!note) {
+				setErrorMessage("Add a queue action note before revoking this link.");
+				setStatusMessage("");
+				return;
+			}
 			const confirmed = window.confirm(
 				"Revoke this partner stats link? Existing URLs for this report will stop working until a new link is generated.",
 			);
@@ -386,11 +404,15 @@ export const PartnerActivationQueueCard = ({
 			setStatusMessage("");
 			setErrorMessage("");
 			try {
-				const result = await revokePartnerStatsLink({ activationId: id });
+				const result = await revokePartnerStatsLink({
+					activationId: id,
+					notes: note,
+				});
 				if (!result.success) {
 					setErrorMessage(result.error || result.message);
 					return;
 				}
+				setQueueActionNote("");
 				setStatusMessage(result.message);
 				await loadDashboard();
 			} finally {
@@ -398,11 +420,17 @@ export const PartnerActivationQueueCard = ({
 				setBusyId(null);
 			}
 		},
-		[loadDashboard],
+		[loadDashboard, queueActionNote],
 	);
 
 	const handleRegenerateStatsLink = useCallback(
 		async (id: string) => {
+			const note = queueActionNote.trim();
+			if (!note) {
+				setErrorMessage("Add a queue action note before regenerating this link.");
+				setStatusMessage("");
+				return;
+			}
 			const confirmed = window.confirm(
 				"Generate a new partner stats link? Any previously revoked URL remains unusable, and the new URL can be copied from this row.",
 			);
@@ -412,11 +440,15 @@ export const PartnerActivationQueueCard = ({
 			setStatusMessage("");
 			setErrorMessage("");
 			try {
-				const result = await regeneratePartnerStatsLink({ activationId: id });
+				const result = await regeneratePartnerStatsLink({
+					activationId: id,
+					notes: note,
+				});
 				if (!result.success) {
 					setErrorMessage(result.error || result.message);
 					return;
 				}
+				setQueueActionNote("");
 				setStatusMessage(result.message);
 				await loadDashboard();
 			} finally {
@@ -424,7 +456,7 @@ export const PartnerActivationQueueCard = ({
 				setBusyId(null);
 			}
 		},
-		[loadDashboard],
+		[loadDashboard, queueActionNote],
 	);
 
 	const updateTestLinkInput = useCallback((nextInput: TestLinkInput) => {
@@ -570,6 +602,7 @@ export const PartnerActivationQueueCard = ({
 		activationSearchTerm.trim().length > 0,
 		activeStatus === "activated" && fulfilledReportFilter !== "all",
 	].filter(Boolean).length;
+	const hasQueueActionNote = queueActionNote.trim().length > 0;
 	const clearQueueFilters = () => {
 		setActivationSearchTerm("");
 		setFulfilledReportFilter("all");
@@ -631,24 +664,6 @@ export const PartnerActivationQueueCard = ({
 								Show queue evidence
 							</p>
 						</button>
-					))}
-				</div>
-
-				<div className="flex flex-wrap gap-2">
-					{statusMetricItems.map((item) => (
-						<Button
-							key={item.status}
-							type="button"
-							size="sm"
-							variant={activeStatus === item.status ? "default" : "outline"}
-							disabled={isLoading || isMutating}
-							onClick={() => {
-								setActiveStatus(item.status);
-								setActivationVisibleLimit(LIST_LIMIT_OPTIONS[1]);
-							}}
-						>
-							{STATUS_LABEL[item.status]} ({item.count})
-						</Button>
 					))}
 				</div>
 
@@ -994,6 +1009,16 @@ export const PartnerActivationQueueCard = ({
 						<span>No search or type filters applied.</span>
 					)}
 				</div>
+				<label className="block text-xs font-medium text-muted-foreground">
+					Queue action note
+					<textarea
+						value={queueActionNote}
+						onChange={(event) => setQueueActionNote(event.target.value)}
+						placeholder="Required before dismissing, reopening, restoring, marking in progress, or changing partner report links"
+						rows={2}
+						className="mt-1 min-h-16 w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-foreground/40"
+					/>
+				</label>
 				{filteredItems.length === 0 ? (
 					<div className="rounded-md border bg-background/60 px-3 py-8 text-center text-sm text-muted-foreground">
 						{emptyItemsMessage}
@@ -1207,7 +1232,15 @@ export const PartnerActivationQueueCard = ({
 											<Button
 												size="sm"
 												variant="outline"
-												disabled={isMutating && busyId === item.id}
+												disabled={
+													(isMutating && busyId === item.id) ||
+													!hasQueueActionNote
+												}
+												title={
+													hasQueueActionNote
+														? "Mark this paid order in progress"
+														: "Add a queue action note before changing status"
+												}
 												onClick={() => void withMutation(item.id, "processing")}
 											>
 												Mark in progress
@@ -1217,7 +1250,15 @@ export const PartnerActivationQueueCard = ({
 											<Button
 												size="sm"
 												variant="outline"
-												disabled={isMutating && busyId === item.id}
+												disabled={
+													(isMutating && busyId === item.id) ||
+													!hasQueueActionNote
+												}
+												title={
+													hasQueueActionNote
+														? "Dismiss this queue item"
+														: "Add a queue action note before dismissing"
+												}
 												onClick={() => void handleDismiss(item)}
 											>
 												Dismiss
@@ -1227,7 +1268,15 @@ export const PartnerActivationQueueCard = ({
 											<Button
 												size="sm"
 												variant="outline"
-												disabled={isMutating && busyId === item.id}
+												disabled={
+													(isMutating && busyId === item.id) ||
+													!hasQueueActionNote
+												}
+												title={
+													hasQueueActionNote
+														? "Reopen this fulfilled item as in progress"
+														: "Add a queue action note before reopening"
+												}
 												onClick={() => void withMutation(item.id, "processing")}
 											>
 												Reopen as in progress
@@ -1237,7 +1286,15 @@ export const PartnerActivationQueueCard = ({
 											<Button
 												size="sm"
 												variant="outline"
-												disabled={isMutating && busyId === item.id}
+												disabled={
+													(isMutating && busyId === item.id) ||
+													!hasQueueActionNote
+												}
+												title={
+													hasQueueActionNote
+														? "Restore this dismissed item to the fulfillment queue"
+														: "Add a queue action note before restoring"
+												}
 												onClick={() => void withMutation(item.id, "pending")}
 											>
 												Restore to needs fulfillment
@@ -1269,7 +1326,15 @@ export const PartnerActivationQueueCard = ({
 												<Button
 													size="sm"
 													variant="outline"
-													disabled={isMutating && busyId === item.id}
+													disabled={
+														(isMutating && busyId === item.id) ||
+														!hasQueueActionNote
+													}
+													title={
+														hasQueueActionNote
+															? "Revoke this partner report link"
+															: "Add a queue action note before revoking this link"
+													}
 													onClick={() => void handleRevokeStatsLink(item.id)}
 												>
 													Revoke link
@@ -1280,7 +1345,15 @@ export const PartnerActivationQueueCard = ({
 											<Button
 												size="sm"
 												variant="outline"
-												disabled={isMutating && busyId === item.id}
+												disabled={
+													(isMutating && busyId === item.id) ||
+													!hasQueueActionNote
+												}
+												title={
+													hasQueueActionNote
+														? "Generate a new partner report link"
+														: "Add a queue action note before regenerating this link"
+												}
 												onClick={() => void handleRegenerateStatsLink(item.id)}
 											>
 												Regenerate partner link

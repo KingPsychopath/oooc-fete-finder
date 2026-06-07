@@ -807,7 +807,10 @@ export const EventEngagementStatsCard = ({
 	const [isTrafficExporting, setIsTrafficExporting] = useState(false);
 	const [errorMessage, setErrorMessage] = useState("");
 	const [segmentMessage, setSegmentMessage] = useState("");
-	const [eventSearchTerm, setEventSearchTerm] = useState("");
+	const [eventSearchTerm, setEventSearchTerm] = useState(() => {
+		if (typeof window === "undefined") return "";
+		return new URLSearchParams(window.location.search).get("eventSearch") ?? "";
+	});
 	const [tableRowLimit, setTableRowLimit] = useState<number>(25);
 	const [isPerformanceTableExpanded, setIsPerformanceTableExpanded] =
 		useState(false);

@@ -31,6 +31,9 @@ type CollectedUserProfileLookup = {
 
 const COLLECTED_EMAILS_CACHE_TTL_MS = 5 * 60 * 1000;
 
+const adminSessionHref = (jti?: string): string =>
+	`/admin/operations#${jti ? `admin-session-${encodeURIComponent(jti)}` : "admin-session"}`;
+
 declare global {
 	var __ooocFeteFinderCollectedEmailsCache:
 		| {
@@ -276,7 +279,7 @@ export async function createAdminSession(adminKey: string): Promise<{
 		targetId: session.jti,
 		targetLabel: "Admin login",
 		summary: "Admin session created",
-		href: "/admin/operations#admin-session",
+		href: adminSessionHref(session.jti),
 	});
 	return {
 		success: true,
@@ -405,12 +408,17 @@ export async function getAdminTokenSessions(keyOrToken?: string): Promise<{
 export async function revokeAdminTokenSessionByJti(
 	jti: string,
 	keyOrToken?: string,
+	reason?: string,
 ): Promise<{
 	success: boolean;
 	error?: string;
 }> {
 	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized" };
+	}
+	const normalizedReason = reason?.trim() ?? "";
+	if (!normalizedReason) {
+		return { success: false, error: "Add a reason before revoking this session." };
 	}
 
 	const ok = await revokeAdminSessionByJti(jti);
@@ -425,8 +433,9 @@ export async function revokeAdminTokenSessionByJti(
 		targetId: jti,
 		targetLabel: `Session ${jti.slice(0, 8)}...${jti.slice(-4)}`,
 		summary: "Admin session revoked",
+		metadata: { reason: normalizedReason },
 		severity: "warning",
-		href: "/admin/operations#admin-session",
+		href: adminSessionHref(jti),
 	});
 
 	return { success: true };
@@ -437,6 +446,7 @@ export async function revokeAdminTokenSessionByJti(
  */
 export async function revokeAllAdminTokenSessionsAction(
 	keyOrToken?: string,
+	reason?: string,
 ): Promise<{
 	success: boolean;
 	error?: string;
@@ -444,6 +454,13 @@ export async function revokeAllAdminTokenSessionsAction(
 }> {
 	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized" };
+	}
+	const normalizedReason = reason?.trim() ?? "";
+	if (!normalizedReason) {
+		return {
+			success: false,
+			error: "Add a reason before revoking all admin sessions.",
+		};
 	}
 
 	const nextTokenVersion = await revokeAllAdminSessions();
@@ -453,9 +470,9 @@ export async function revokeAllAdminTokenSessionsAction(
 		targetType: "admin_sessions",
 		targetLabel: "All admin sessions",
 		summary: `All admin sessions revoked; token version is now ${nextTokenVersion}`,
-		metadata: { nextTokenVersion },
+		metadata: { nextTokenVersion, reason: normalizedReason },
 		severity: "destructive",
-		href: "/admin/operations#admin-session",
+		href: adminSessionHref(),
 	});
 	return {
 		success: true,
@@ -594,7 +611,7 @@ export async function importCollectedEmails(
 		category: "insights",
 		targetType: "collected_users",
 		targetLabel: "Collected users",
-		summary: `Imported ${importedCount} and updated ${updatedCount} collected user record${importedCount + updatedCount === 1 ? "" : "s"}`,
+		summary: `Imported ${importedCount} and updated ${updatedCount} audience store row${importedCount + updatedCount === 1 ? "" : "s"}`,
 		metadata: {
 			importedCount,
 			updatedCount,
@@ -614,11 +631,12 @@ export async function importCollectedEmails(
 }
 
 /**
- * Delete selected collected users by email.
+ * Clear selected audience store rows by email.
  */
 export async function deleteCollectedEmails(
 	emails: string[],
 	keyOrToken?: string,
+	reason?: string,
 ): Promise<{
 	success: boolean;
 	error?: string;
@@ -628,6 +646,13 @@ export async function deleteCollectedEmails(
 	if (!(await validateAdminAccess(keyOrToken))) {
 		return { success: false, error: "Unauthorized" };
 	}
+	const normalizedReason = reason?.trim() ?? "";
+	if (!normalizedReason) {
+		return {
+			success: false,
+			error: "Add a reason before clearing audience store rows.",
+		};
+	}
 
 	const deletedCount = await UserCollectionStore.deleteByEmails(emails);
 	const status = await UserCollectionStore.getStatus();
@@ -636,14 +661,15 @@ export async function deleteCollectedEmails(
 		category: "insights",
 		targetType: "collected_users",
 		targetLabel: "Collected users",
-		summary: `Removed ${deletedCount} collected user record${deletedCount === 1 ? "" : "s"}`,
+		summary: `Cleared ${deletedCount} audience store row${deletedCount === 1 ? "" : "s"}`,
 		metadata: {
 			requestedCount: emails.length,
 			deletedCount,
 			totalCount: status.totalUsers,
+			reason: normalizedReason,
 		},
 		severity: "destructive",
-		href: "/admin/insights#collected-users",
+		href: "/admin/users#user-search",
 	});
 	clearCollectedEmailsCache();
 	return {

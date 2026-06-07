@@ -3,6 +3,9 @@ import { EventStoreBackupService } from "@/features/data-management/event-store-
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { NextRequest, NextResponse } from "next/server";
 
+const eventStoreBackupAdminHref = (backupId?: string | null): string =>
+	`/admin/operations#${backupId ? `event-store-backup-${encodeURIComponent(backupId)}` : "data-store-controls"}`;
+
 /**
  * Cron endpoint: create periodic operational backups.
  * Secure with CRON_SECRET via Authorization: Bearer <CRON_SECRET>.
@@ -54,7 +57,7 @@ export async function GET(request: NextRequest) {
 				userCollectionCount: result.backup?.userCollectionCount ?? null,
 				prunedCount: result.prunedCount ?? 0,
 			},
-			href: "/admin/operations#data-store-controls",
+			href: eventStoreBackupAdminHref(result.backup?.id),
 		});
 
 		return NextResponse.json(
