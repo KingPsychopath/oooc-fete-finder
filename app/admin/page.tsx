@@ -73,7 +73,10 @@ export default async function AdminPage() {
 				</CardHeader>
 
 				<CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-					<div className="rounded-md border bg-background/60 p-3">
+					<Link
+						href={withAdminBasePath("/admin/operations#events-data-status")}
+						className="block rounded-md border bg-background/60 p-3 transition-colors hover:border-foreground/30 hover:bg-muted/35"
+					>
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Runtime Source
 						</p>
@@ -82,23 +85,29 @@ export default async function AdminPage() {
 								runtimeDataStatus?.dataSource ?? "unknown",
 							)}
 						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 p-3">
+					</Link>
+					<Link
+						href={withAdminBasePath("/admin/operations#live-site-snapshot")}
+						className="block rounded-md border bg-background/60 p-3 transition-colors hover:border-foreground/30 hover:bg-muted/35"
+					>
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							This Year&apos;s Events
 						</p>
 						<p className="mt-1 text-sm font-medium">
 							{runtimeDataStatus?.currentYearEventCount ?? 0}
 						</p>
-					</div>
-					<div className="rounded-md border bg-background/60 p-3">
+					</Link>
+					<Link
+						href={withAdminBasePath("/admin/operations#data-store-controls")}
+						className="block rounded-md border bg-background/60 p-3 transition-colors hover:border-foreground/30 hover:bg-muted/35"
+					>
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Store Rows
 						</p>
 						<p className="mt-1 text-sm font-medium">
 							{runtimeDataStatus?.storeRowCount ?? 0}
 						</p>
-					</div>
+					</Link>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Admin Areas

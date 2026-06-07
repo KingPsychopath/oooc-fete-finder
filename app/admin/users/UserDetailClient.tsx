@@ -1238,7 +1238,7 @@ export function UserDetailClient({
 													>
 														<Button type="button" variant="outline" size="sm">
 															<ExternalLink />
-															Open moderation
+															Open submission
 														</Button>
 													</Link>
 													{submission.acceptedEventKey ? (

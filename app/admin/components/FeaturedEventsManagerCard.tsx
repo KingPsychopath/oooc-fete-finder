@@ -899,11 +899,20 @@ export const FeaturedEventsManagerCard = ({
 										</td>
 									</tr>
 								) : (
-									visibleTimelineRows.map((row) => (
-										<tr
-											key={row.id}
-											className={`border-t align-top ${stateRowClassName(row.state)}`}
-										>
+									visibleTimelineRows.map((row) => {
+										const nextStart =
+											rescheduleInputs[row.id] ??
+											row.requestedStartAtParisInput;
+										const canReschedule =
+											row.status === "scheduled" &&
+											Number.isFinite(new Date(nextStart).getTime()) &&
+											nextStart !== row.requestedStartAtParisInput;
+										return (
+											<tr
+												key={row.id}
+												id={`placement-${row.id}`}
+												className={`scroll-mt-44 border-t align-top ${stateRowClassName(row.state)}`}
+											>
 											<td className="px-2.5 py-2.5">
 												<div className="font-medium">{row.eventName}</div>
 												<div className="font-mono text-[11px] text-muted-foreground">
@@ -953,14 +962,9 @@ export const FeaturedEventsManagerCard = ({
 															size="sm"
 															variant="outline"
 															className="h-8 px-2.5"
-															disabled={
-																row.status !== "scheduled" || isMutating
-															}
+															disabled={isMutating || !canReschedule}
 															onClick={() =>
 																void withMutation(() => {
-																	const nextStart =
-																		rescheduleInputs[row.id] ??
-																		row.requestedStartAtParisInput;
 																	return placementMode === "spotlight"
 																		? rescheduleFeaturedEvent(
 																				row.id,
@@ -1031,8 +1035,9 @@ export const FeaturedEventsManagerCard = ({
 													</div>
 												</div>
 											</td>
-										</tr>
-									))
+											</tr>
+										);
+									})
 								)}
 							</tbody>
 						</table>

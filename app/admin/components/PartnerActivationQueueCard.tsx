@@ -108,6 +108,21 @@ const getWindowEnd = (input: TestLinkInput): Date | null => {
 	return new Date(startDate.getTime() + durationHours * 60 * 60 * 1000);
 };
 
+const isReportWindowInputReady = (input: {
+	eventKey: string;
+	scheduleAt: string;
+	durationHours: string;
+}): boolean => {
+	const durationHours = Number.parseInt(input.durationHours, 10);
+	return (
+		input.eventKey.trim().length > 0 &&
+		Number.isFinite(new Date(input.scheduleAt).getTime()) &&
+		Number.isFinite(durationHours) &&
+		durationHours >= 1 &&
+		durationHours <= 168
+	);
+};
+
 const formatReportDateTime = (value: Date | string): string =>
 	formatAdminDateTime(value);
 
@@ -669,7 +684,9 @@ export const PartnerActivationQueueCard = ({
 						<div className="flex flex-wrap items-end gap-2 md:col-span-2">
 							<Button
 								size="sm"
-								disabled={isMutating}
+								disabled={
+									isMutating || !isReportWindowInputReady(testLinkInput)
+								}
 								variant="outline"
 								onClick={() => void handlePreviewReport()}
 							>
@@ -677,7 +694,9 @@ export const PartnerActivationQueueCard = ({
 							</Button>
 							<Button
 								size="sm"
-								disabled={isMutating}
+								disabled={
+									isMutating || !isReportWindowInputReady(testLinkInput)
+								}
 								onClick={() => void handleGenerateTestLink()}
 							>
 								Create private report
@@ -902,6 +921,8 @@ export const PartnerActivationQueueCard = ({
 								item.packageKey?.startsWith("manual-test-") === true;
 							const canFulfill =
 								item.status === "pending" || item.status === "processing";
+							const canSubmitFulfillment =
+								canFulfill && isReportWindowInputReady(input);
 							const canMarkInProgress = item.status === "pending";
 							const canReopen = item.status === "activated";
 							const canDismiss = item.status !== "dismissed";
@@ -1067,7 +1088,10 @@ export const PartnerActivationQueueCard = ({
 										{canFulfill ? (
 											<Button
 												size="sm"
-												disabled={isMutating && busyId === item.id}
+												disabled={
+													(isMutating && busyId === item.id) ||
+													!canSubmitFulfillment
+												}
 												onClick={() => void handleFulfill(item.id)}
 											>
 												Fulfill as selected tier

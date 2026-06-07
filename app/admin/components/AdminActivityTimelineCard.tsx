@@ -180,11 +180,15 @@ export function AdminActivityTimelineCard({
 					<div className="flex flex-wrap gap-2">
 						<Badge variant="outline">{totalCount} loaded</Badge>
 						{warningCount > 0 && (
-							<Badge variant="secondary">{warningCount} warnings</Badge>
+							<Badge variant="secondary">
+								{warningCount} warning action
+								{warningCount === 1 ? "" : "s"}
+							</Badge>
 						)}
 						{destructiveCount > 0 && (
-							<Badge variant="destructive">
-								{destructiveCount} destructive
+							<Badge variant="outline">
+								{destructiveCount} destructive action
+								{destructiveCount === 1 ? "" : "s"} in history
 							</Badge>
 						)}
 					</div>
@@ -313,8 +317,8 @@ export function AdminActivityTimelineCard({
 						{visibleEvents.length === 0 ? (
 							<div className="px-3 py-8 text-center text-sm text-muted-foreground">
 								{events.length === 0
-									? "No admin activity has been recorded yet."
-									: "No activity matches this view."}
+									? "No admin activity has been recorded yet. Future mutations will appear here with actor, target, reason, and time."
+									: "No activity matches this view. Clear filters to return to the full audit history."}
 							</div>
 						) : (
 							<ol className="divide-y">

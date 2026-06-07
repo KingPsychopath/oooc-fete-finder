@@ -321,6 +321,12 @@ const ListingRow = ({
 	isMutating: boolean;
 	compact?: boolean;
 }) => {
+	const expiresAt = new Date(listing.expiresAt).getTime();
+	const isExpired = Number.isFinite(expiresAt) && expiresAt <= Date.now();
+	const canRestore =
+		!isExpired &&
+		listing.effectiveStatus !== "active" &&
+		(listing.status === "paused" || listing.status === "removed");
 	const listingFacts = [
 		{
 			label: listing.listingType === "selling" ? "Available" : "Needed",
@@ -342,7 +348,10 @@ const ListingRow = ({
 	];
 
 	return (
-		<div className="rounded-lg border bg-background/70 p-3 transition-colors hover:bg-background">
+		<div
+			id={`ticket-listing-${listing.id}`}
+			className="scroll-mt-44 rounded-lg border bg-background/70 p-3 transition-colors hover:bg-background"
+		>
 			<div className="grid gap-3 lg:grid-cols-[1fr_auto]">
 				<div className="min-w-0 space-y-3">
 					<div className="flex flex-wrap items-center gap-2">
@@ -401,7 +410,7 @@ const ListingRow = ({
 							variant="outline"
 							size="sm"
 							className="justify-start"
-							disabled={isMutating || listing.status === "paused"}
+							disabled={isMutating || listing.effectiveStatus !== "active"}
 							onClick={() => onMutate(listing.id, "paused")}
 						>
 							<Pause />
@@ -412,7 +421,7 @@ const ListingRow = ({
 							variant="outline"
 							size="sm"
 							className="justify-start"
-							disabled={isMutating || listing.status === "active"}
+							disabled={isMutating || !canRestore}
 							onClick={() => onMutate(listing.id, "active")}
 						>
 							<RefreshCw />
@@ -672,6 +681,50 @@ export const TicketExchangeModerationCard = ({
 			});
 		}, 0);
 	}, [activeTab, filteredReports, page]);
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		const anchorId = window.location.hash.replace(/^#/, "").trim();
+		if (!anchorId.startsWith("ticket-listing-")) return;
+		const listingId = anchorId.replace(/^ticket-listing-/, "");
+		const listings = dashboard?.recentListings ?? [];
+		const listingIndex = listings.findIndex((listing) => listing.id === listingId);
+		if (listingIndex < 0) return;
+		if (activeTab !== "recent") {
+			setActiveTab("recent");
+			return;
+		}
+		if (query) {
+			setQuery("");
+			return;
+		}
+		if (listingTypeFilter !== "all") {
+			setListingTypeFilter("all");
+			return;
+		}
+		if (listingStatusFilter !== "all") {
+			setListingStatusFilter("all");
+			return;
+		}
+		const targetPage = Math.floor(listingIndex / PAGE_SIZE) + 1;
+		if (targetPage !== page) {
+			setPage(targetPage);
+			return;
+		}
+		window.setTimeout(() => {
+			document.getElementById(anchorId)?.scrollIntoView({
+				behavior: "smooth",
+				block: "start",
+			});
+		}, 0);
+	}, [
+		activeTab,
+		dashboard?.recentListings,
+		listingStatusFilter,
+		listingTypeFilter,
+		page,
+		query,
+	]);
 
 	const selectTab = (tab: ModerationTab) => {
 		setActiveTab(tab);
