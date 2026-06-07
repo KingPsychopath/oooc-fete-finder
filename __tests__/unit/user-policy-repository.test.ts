@@ -6,11 +6,22 @@ type SqlCall = {
 	values: unknown[];
 };
 
-const createSqlMock = () => {
+const createSqlMock = (options?: { existingTables?: boolean }) => {
 	const calls: SqlCall[] = [];
 	const sql = ((strings: TemplateStringsArray, ...values: unknown[]) => {
 		const text = strings.raw.join("?");
 		calls.push({ text, values });
+		if (options?.existingTables && text.includes("to_regclass")) {
+			return Promise.resolve([
+				{
+					ticket_listings_table: "ticket_exchange_listings",
+					ticket_reports_table: "ticket_exchange_reports",
+					submissions_table: null,
+					plans_table: null,
+					relationships_table: null,
+				},
+			]);
+		}
 		if (text.includes("INSERT INTO app_user_notices")) {
 			return Promise.resolve([
 				{
@@ -189,6 +200,33 @@ describe("UserPolicyRepository", () => {
 		);
 		expect(noticesForUserCall?.text).toContain(
 			"recipient_receipt.acknowledged_at IS NULL",
+		);
+	});
+
+	it("separates ticket reports made from reports against owned listings", async () => {
+		vi.resetModules();
+		vi.doMock("server-only", () => ({}));
+		vi.doMock("@/lib/platform/postgres/postgres-client", () => ({
+			getPostgresClient: () => null,
+		}));
+		const { UserPolicyRepository } = await import(
+			"@/features/users/policy-repository"
+		);
+		const { calls, sql } = createSqlMock({ existingTables: true });
+		const repository = new UserPolicyRepository(sql);
+
+		await repository.listAdminUsersPage({
+			activity: "has_ticket_reports",
+			sortKey: "ticket_reports",
+		});
+
+		const combinedSql = calls.map((call) => call.text).join("\n");
+		expect(combinedSql).toContain("AS ticket_reports_made_count");
+		expect(combinedSql).toContain("AS ticket_reports_against_listing_count");
+		expect(combinedSql).toContain("reports.reporter_user_id = users.id");
+		expect(combinedSql).toContain("report_listings.owner_user_id = users.id");
+		expect(combinedSql).toContain(
+			"LOWER(report_listings.owner_email) = users.email_normalized",
 		);
 	});
 });

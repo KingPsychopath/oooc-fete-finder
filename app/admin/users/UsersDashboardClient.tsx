@@ -135,6 +135,25 @@ const noticeSeverityLabel = (severity: UserNoticeSeverity): string => {
 	}
 };
 
+const noticeTargetLabel = (
+	targetType: UserNoticeTargetType,
+	segmentKey?: string | null,
+): string => {
+	switch (targetType) {
+		case "global":
+			return "Everyone";
+		case "authenticated_users":
+			return "Signed-in users";
+		case "segment":
+			return segmentKey ? `Segment: ${segmentKey}` : "Segment";
+		case "user":
+			return "Direct user";
+		case "email":
+		default:
+			return "Email target";
+	}
+};
+
 const noticeStatus = (notice: {
 	startsAt: string;
 	expiresAt: string | null;
@@ -158,9 +177,55 @@ const noticeStatus = (notice: {
 		: { label: "Inactive", variant: "outline" };
 };
 
+const noticeLifecycleLabel = (
+	status: ReturnType<typeof noticeStatus>,
+): string => status.label.toLowerCase();
+
+const canRevokeNoticeStatus = (
+	status: ReturnType<typeof noticeStatus>,
+): boolean => status.label === "Live" || status.label === "Scheduled";
+
 const userDisplayName = (user: AdminUserSummary): string => {
 	const name = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
 	return name || user.email;
+};
+
+const userSectionHref = (
+	user: Pick<AdminUserSummary, "userId">,
+	sectionId: "ticket-exchange" | "submissions-plans" | "identity",
+): string =>
+	withAdminBasePath(
+		`/admin/users/${encodeURIComponent(user.userId)}#${sectionId}`,
+	);
+
+const userStatLinkClass =
+	"underline-offset-2 transition-colors hover:text-foreground hover:underline";
+
+const pluralCount = (
+	count: number,
+	singular: string,
+	plural = `${singular}s`,
+) => `${count} ${count === 1 ? singular : plural}`;
+
+const UserStat = ({
+	count,
+	singular,
+	plural,
+	href,
+}: {
+	count: number;
+	singular: string;
+	plural?: string;
+	href: string;
+}) => {
+	const label = pluralCount(count, singular, plural);
+	return count > 0 ? (
+		<Link href={href} className={userStatLinkClass}>
+			{label}
+		</Link>
+	) : (
+		<span>{label}</span>
+	);
 };
 
 const STATUS_OPTIONS: Array<{
@@ -261,6 +326,9 @@ const RESTRICTION_OPTIONS: Array<{
 	{ value: "user_preferences.write", label: "Preference writes" },
 	{ value: "app_settings.sync", label: "App settings sync" },
 ];
+
+const restrictionScopeLabel = (scope: UserRestrictionScope): string =>
+	RESTRICTION_OPTIONS.find((option) => option.value === scope)?.label ?? scope;
 
 export function UsersDashboardClient({
 	initialDashboard,
@@ -568,8 +636,30 @@ export function UsersDashboardClient({
 	}
 	const activeFilterCount = activeFilterChips.length;
 	const sortSummary = `${getOptionLabel(SORT_OPTIONS, appliedSortKey)} · ${SORT_DIRECTION_LABELS[appliedSortDirection]}`;
-	const reportHistoryLabel = (count: number): string =>
-		`${count} report${count === 1 ? "" : "s"} in history`;
+	const ticketReportHistoryLabel = (
+		user: Pick<
+			AdminUserSummary,
+			| "ticketReportCount"
+			| "ticketReportsMadeCount"
+			| "ticketReportsAgainstListingCount"
+		>,
+	): string => {
+		const madeCount = user.ticketReportsMadeCount ?? 0;
+		const againstListingCount = user.ticketReportsAgainstListingCount ?? 0;
+		const parts: string[] = [];
+		if (againstListingCount > 0) {
+			parts.push(
+				`${againstListingCount} against listing${againstListingCount === 1 ? "" : "s"}`,
+			);
+		}
+		if (madeCount > 0) {
+			parts.push(`${madeCount} submitted`);
+		}
+		if (parts.length > 0) return parts.join(" · ");
+		return user.ticketReportCount > 0
+			? `${user.ticketReportCount} connected report${user.ticketReportCount === 1 ? "" : "s"}`
+			: "";
+	};
 	const pendingReportAgainstListingsLabel = (count: number): string =>
 		`${count} pending report${count === 1 ? "" : "s"} against listing${count === 1 ? "" : "s"}`;
 
@@ -889,6 +979,7 @@ export function UsersDashboardClient({
 							{dashboard.users.length > 0 ? (
 								dashboard.users.map((user) => {
 									const attentionReasons = getAdminUserAttentionReasons(user);
+									const ticketReportHistory = ticketReportHistoryLabel(user);
 									return (
 										<div
 											key={user.userId}
@@ -922,11 +1013,6 @@ export function UsersDashboardClient({
 																user.openTicketReportCount,
 															)}
 														</Badge>
-													) : user.ticketReportCount > 0 ? (
-														<Badge variant="outline">
-															<AlertTriangle />
-															{reportHistoryLabel(user.ticketReportCount)}
-														</Badge>
 													) : null}
 												</div>
 												<div>
@@ -949,20 +1035,44 @@ export function UsersDashboardClient({
 													<span>
 														Last seen {formatDateTime(user.lastSeenAt)}
 													</span>
-													<span>{user.ticketListingCount} listings</span>
+													<UserStat
+														count={user.ticketListingCount}
+														singular="listing"
+														href={userSectionHref(user, "ticket-exchange")}
+													/>
 													{user.openTicketReportCount > 0 ? (
-														<span>
+														<Link
+															href={userSectionHref(user, "ticket-exchange")}
+															className={userStatLinkClass}
+														>
 															{pendingReportAgainstListingsLabel(
 																user.openTicketReportCount,
 															)}
-														</span>
+														</Link>
 													) : null}
-													<span>
-														{reportHistoryLabel(user.ticketReportCount)}
-													</span>
-													<span>{user.eventSubmissionCount} submissions</span>
-													<span>{user.planCount} routes</span>
-													<span>{user.savedEventCount} saved events</span>
+													{ticketReportHistory ? (
+														<Link
+															href={userSectionHref(user, "ticket-exchange")}
+															className={userStatLinkClass}
+														>
+															Ticket reports: {ticketReportHistory}
+														</Link>
+													) : null}
+													<UserStat
+														count={user.eventSubmissionCount}
+														singular="submission"
+														href={userSectionHref(user, "submissions-plans")}
+													/>
+													<UserStat
+														count={user.planCount}
+														singular="route"
+														href={userSectionHref(user, "submissions-plans")}
+													/>
+													<UserStat
+														count={user.savedEventCount}
+														singular="saved event"
+														href={userSectionHref(user, "submissions-plans")}
+													/>
 												</div>
 											</div>
 											<div className="flex flex-wrap gap-2 lg:justify-end">
@@ -1118,7 +1228,7 @@ export function UsersDashboardClient({
 									<div className="flex flex-wrap items-center gap-2">
 										<Badge variant="destructive">
 											<AlertTriangle />
-											{restriction.scope}
+											{restrictionScopeLabel(restriction.scope)}
 										</Badge>
 										<Badge variant="outline">
 											{restriction.expiresAt
@@ -1371,6 +1481,7 @@ export function UsersDashboardClient({
 							{dashboard.globalNotices.length > 0 ? (
 								dashboard.globalNotices.map((notice) => {
 									const status = noticeStatus(notice);
+									const canRevokeNotice = canRevokeNoticeStatus(status);
 									return (
 										<div
 											key={notice.id}
@@ -1389,7 +1500,11 @@ export function UsersDashboardClient({
 													</p>
 												</div>
 												<p className="text-xs font-medium text-muted-foreground">
-													{status.label} · {notice.targetType}
+													{noticeTargetLabel(
+														notice.targetType,
+														notice.segmentKey,
+													)}{" "}
+													· {noticeLifecycleLabel(status)}
 												</p>
 											</div>
 											<p className="mt-2 line-clamp-2 text-sm text-foreground/75">
@@ -1437,7 +1552,7 @@ export function UsersDashboardClient({
 													<Copy />
 													Duplicate
 												</Button>
-												{notice.revokedAt ? null : (
+												{canRevokeNotice ? (
 													<Button
 														type="button"
 														variant="outline"
@@ -1448,7 +1563,7 @@ export function UsersDashboardClient({
 													>
 														Revoke
 													</Button>
-												)}
+												) : null}
 											</div>
 										</div>
 									);

@@ -60,6 +60,7 @@ import {
 	normalizeOptionalEmail,
 	normalizeWhatsAppNumber,
 	normalizeXHandle,
+	sanitizeTicketExchangeQuantityInput,
 	validateTicketExchangeDisplayName,
 	validateTicketExchangeNote,
 	validateTicketExchangePriceLabel,
@@ -1549,15 +1550,21 @@ export function TicketExchangeClient({
 			if (!ensureContactDetailsReady(savedProfile, "listing_form", "create"))
 				return;
 			setPendingMessage("Posting listing...");
+			const canonicalListingForm = {
+				...listingForm,
+				quantityLabel: validateTicketExchangeQuantityLabel(
+					listingForm.quantityLabel,
+				),
+			};
 			const result = await withTicketExchangeTimeout(
-				createTicketExchangeListing(listingForm),
+				createTicketExchangeListing(canonicalListingForm),
 			);
 			applyResult(result, "Listing posted.");
 			if (result.success) {
 				trackTicketExchangeAnalytics({
 					actionType: "listing_create",
-					eventKey: listingForm.eventKey,
-					listingType: listingForm.listingType,
+					eventKey: canonicalListingForm.eventKey,
+					listingType: canonicalListingForm.listingType,
 					surface: "listing_form",
 					immediate: true,
 				});
@@ -1778,12 +1785,21 @@ export function TicketExchangeClient({
 		event.preventDefault();
 		if (isReposting) return;
 		if (!repostListingId) return;
-		const languageError = getTicketExchangeLanguageError([
-			{ fieldLabel: "the quantity", value: repostQuantity },
-		]);
-		if (languageError) {
-			setErrorMessage(languageError);
-			trackExchangeValidationError("repost_quantity", "listing_card");
+		let canonicalRepostQuantity = "";
+		try {
+			canonicalRepostQuantity =
+				validateTicketExchangeQuantityLabel(repostQuantity);
+		} catch (error) {
+			setErrorMessage(
+				error instanceof Error
+					? error.message
+					: "Enter the number of tickets, like 1 or 2.",
+			);
+			trackExchangeValidationError(
+				"repost_quantity",
+				"listing_card",
+				"invalid",
+			);
 			return;
 		}
 		const repostedListing = data.listings.find(
@@ -1794,7 +1810,7 @@ export function TicketExchangeClient({
 			const result = await withTicketExchangeTimeout(
 				repostTicketExchangeListing({
 					listingId: repostListingId,
-					quantityLabel: repostQuantity,
+					quantityLabel: canonicalRepostQuantity,
 					expiryHours: TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS,
 					selectedEventKey,
 				}),
@@ -1841,7 +1857,7 @@ export function TicketExchangeClient({
 							</Badge>
 						</div>
 						<div>
-							<h1 className="text-xl font-semibold tracking-normal text-foreground sm:text-3xl">
+							<h1 className="text-balance text-[clamp(2rem,5vw,3.5rem)] [font-family:var(--ooo-font-display)] font-light leading-[0.96] tracking-normal text-foreground">
 								Find people trading tickets
 							</h1>
 							<p className="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground sm:mt-2 sm:leading-6">
@@ -2232,19 +2248,22 @@ export function TicketExchangeClient({
 						>
 							<Input
 								id="ticket-exchange-quantity-label"
+								type="number"
+								inputMode="numeric"
+								min={1}
+								max={999}
+								step={1}
 								value={listingForm.quantityLabel}
 								onChange={(event) => {
 									if (listingQuantityError) setListingQuantityError(null);
 									setListingForm((current) => ({
 										...current,
-										quantityLabel: event.target.value,
+										quantityLabel: sanitizeTicketExchangeQuantityInput(
+											event.target.value,
+										),
 									}));
 								}}
-								placeholder={
-									listingForm.listingType === "selling"
-										? "2 tickets"
-										: "Looking for 1 ticket"
-								}
+								placeholder={listingForm.listingType === "selling" ? "2" : "1"}
 								required
 								aria-invalid={Boolean(listingQuantityError)}
 								aria-describedby={
@@ -2761,7 +2780,9 @@ export function TicketExchangeClient({
 									onEventOpen={openListingEvent}
 									onRepost={(item) => {
 										setRepostListingId(item.id);
-										setRepostQuantity(item.quantityLabel);
+										setRepostQuantity(
+											sanitizeTicketExchangeQuantityInput(item.quantityLabel),
+										);
 									}}
 									busyInterestId={interestListingId}
 									busyStatusId={statusListingId}
@@ -2899,8 +2920,17 @@ export function TicketExchangeClient({
 					<form onSubmit={handleRepost} className="space-y-3">
 						<Field label="New quantity">
 							<Input
+								type="number"
+								inputMode="numeric"
+								min={1}
+								max={999}
+								step={1}
 								value={repostQuantity}
-								onChange={(event) => setRepostQuantity(event.target.value)}
+								onChange={(event) =>
+									setRepostQuantity(
+										sanitizeTicketExchangeQuantityInput(event.target.value),
+									)
+								}
 								required
 							/>
 						</Field>

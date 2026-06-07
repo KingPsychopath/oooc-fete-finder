@@ -106,6 +106,9 @@ type AdminReportRow = {
 	id: string;
 	listing_id: string;
 	reporter_user_id: string;
+	reporter_email: string | null;
+	reporter_first_name: string | null;
+	reporter_last_name: string | null;
 	reason: TicketExchangeReportReason;
 	details: string;
 	created_at: string;
@@ -125,6 +128,9 @@ type AdminReportRow = {
 	status: TicketExchangeListingStatus;
 	owner_user_id: string;
 	owner_email: string;
+	owner_profile_email: string | null;
+	owner_first_name: string | null;
+	owner_last_name: string | null;
 	expires_at: string;
 };
 
@@ -1662,6 +1668,9 @@ export class TicketExchangeRepository {
 				reports.id,
 				reports.listing_id,
 				reports.reporter_user_id,
+				reporter_users.email_normalized AS reporter_email,
+				reporter_users.first_name AS reporter_first_name,
+				reporter_users.last_name AS reporter_last_name,
 				reports.reason::text AS reason,
 				reports.details,
 				reports.created_at,
@@ -1677,10 +1686,17 @@ export class TicketExchangeRepository {
 				COALESCE(listings.status::text, 'removed') AS status,
 				COALESCE(listings.owner_user_id, '') AS owner_user_id,
 				COALESCE(listings.owner_email, '') AS owner_email,
+				owner_users.email_normalized AS owner_profile_email,
+				owner_users.first_name AS owner_first_name,
+				owner_users.last_name AS owner_last_name,
 				COALESCE(listings.expires_at, reports.created_at) AS expires_at
 			FROM ticket_exchange_reports reports
 			LEFT JOIN ticket_exchange_listings listings
 				ON listings.id = reports.listing_id
+			LEFT JOIN app_users reporter_users
+				ON reporter_users.id = reports.reporter_user_id
+			LEFT JOIN app_users owner_users
+				ON owner_users.id = listings.owner_user_id
 			ORDER BY
 				CASE WHEN reports.reviewed_at IS NULL THEN 0 ELSE 1 END,
 				reports.created_at DESC
@@ -1690,6 +1706,12 @@ export class TicketExchangeRepository {
 			id: row.id,
 			listingId: row.listing_id,
 			reporterUserId: row.reporter_user_id,
+			reporter: {
+				userId: row.reporter_user_id,
+				email: row.reporter_email,
+				firstName: row.reporter_first_name,
+				lastName: row.reporter_last_name,
+			},
 			reason: row.reason,
 			details: row.details,
 			createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
@@ -1711,6 +1733,12 @@ export class TicketExchangeRepository {
 				}),
 				ownerUserId: row.owner_user_id,
 				ownerEmail: row.owner_email,
+				owner: {
+					userId: row.owner_user_id,
+					email: row.owner_profile_email ?? row.owner_email,
+					firstName: row.owner_first_name,
+					lastName: row.owner_last_name,
+				},
 			},
 		}));
 	}
@@ -1809,6 +1837,9 @@ export class TicketExchangeRepository {
 				reports.id,
 				reports.listing_id,
 				reports.reporter_user_id,
+				reporter_users.email_normalized AS reporter_email,
+				reporter_users.first_name AS reporter_first_name,
+				reporter_users.last_name AS reporter_last_name,
 				reports.reason::text AS reason,
 				reports.details,
 				reports.created_at,
@@ -1828,10 +1859,17 @@ export class TicketExchangeRepository {
 				COALESCE(listings.status::text, 'removed') AS status,
 				COALESCE(listings.owner_user_id, '') AS owner_user_id,
 				COALESCE(listings.owner_email, '') AS owner_email,
+				owner_users.email_normalized AS owner_profile_email,
+				owner_users.first_name AS owner_first_name,
+				owner_users.last_name AS owner_last_name,
 				COALESCE(listings.expires_at, reports.created_at) AS expires_at
 			FROM ticket_exchange_reports reports
 			LEFT JOIN ticket_exchange_listings listings
 				ON listings.id = reports.listing_id
+			LEFT JOIN app_users reporter_users
+				ON reporter_users.id = reports.reporter_user_id
+			LEFT JOIN app_users owner_users
+				ON owner_users.id = listings.owner_user_id
 			WHERE
 				(${userId}::text IS NOT NULL AND reports.reporter_user_id = ${userId})
 				OR (${userId}::text IS NOT NULL AND listings.owner_user_id = ${userId})
@@ -1843,6 +1881,12 @@ export class TicketExchangeRepository {
 			id: row.id,
 			listingId: row.listing_id,
 			reporterUserId: row.reporter_user_id,
+			reporter: {
+				userId: row.reporter_user_id,
+				email: row.reporter_email,
+				firstName: row.reporter_first_name,
+				lastName: row.reporter_last_name,
+			},
 			reason: row.reason,
 			details: row.details,
 			createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
@@ -1864,6 +1908,12 @@ export class TicketExchangeRepository {
 				}),
 				ownerUserId: row.owner_user_id,
 				ownerEmail: row.owner_email,
+				owner: {
+					userId: row.owner_user_id,
+					email: row.owner_profile_email ?? row.owner_email,
+					firstName: row.owner_first_name,
+					lastName: row.owner_last_name,
+				},
 			},
 		}));
 	}

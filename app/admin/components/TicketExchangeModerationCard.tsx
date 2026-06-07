@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { withAdminBasePath } from "../config";
 
 type AdminPayload = Awaited<ReturnType<typeof getTicketExchangeAdminDashboard>>;
@@ -172,7 +172,25 @@ const reportSearchText = (report: TicketExchangeAdminReport): string =>
 		report.reason,
 		report.details,
 		report.reporterUserId,
+		report.reporter.email,
+		report.reporter.firstName,
+		report.reporter.lastName,
 	].join(" ");
+
+const reportPersonLabel = (person: {
+	userId?: string | null;
+	email?: string | null;
+	firstName?: string | null;
+	lastName?: string | null;
+}): string => {
+	const name = [person.firstName, person.lastName]
+		.filter(Boolean)
+		.join(" ")
+		.trim();
+	const email = person.email?.trim() ?? "";
+	if (name && email) return `${name} · ${email}`;
+	return name || email || person.userId || "Unknown";
+};
 
 const filterListings = (
 	listings: TicketExchangeAdminListing[],
@@ -440,7 +458,10 @@ const ReportRow = ({
 	onRemoveListing: (listingId: string) => void;
 	isMutating: boolean;
 }) => (
-	<div className="rounded-lg border border-amber-200/80 bg-amber-50/35 p-3 dark:border-amber-900/50 dark:bg-amber-950/20">
+	<div
+		id={`ticket-report-${report.id}`}
+		className="scroll-mt-44 rounded-lg border border-amber-200/80 bg-amber-50/35 p-3 dark:border-amber-900/50 dark:bg-amber-950/20"
+	>
 		<div className="grid gap-3 lg:grid-cols-[1fr_auto]">
 			<div className="min-w-0 space-y-2">
 				<div className="flex flex-wrap items-center gap-2">
@@ -458,8 +479,9 @@ const ReportRow = ({
 					{report.listing.priceLabel ? ` · ${report.listing.priceLabel}` : ""}
 				</p>
 				<p className="mt-1 text-xs text-muted-foreground">
-					Owner {report.listing.ownerEmail || "unknown"} · reporter{" "}
-					{report.reporterUserId} · reported {formatDateTime(report.createdAt)}
+					Owner {reportPersonLabel(report.listing.owner)} · reporter{" "}
+					{reportPersonLabel(report.reporter)} · reported{" "}
+					{formatDateTime(report.createdAt)}
 				</p>
 				<div className="mt-2 rounded-md border border-amber-300/60 bg-background/65 px-3 py-2">
 					<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-900/80 dark:text-amber-100/80">
@@ -627,6 +649,29 @@ export const TicketExchangeModerationCard = ({
 			count: dashboard?.recentListings.length ?? 0,
 		},
 	];
+
+	useEffect(() => {
+		if (typeof window === "undefined") return;
+		if (activeTab !== "review") return;
+		const anchorId = window.location.hash.replace(/^#/, "").trim();
+		if (!anchorId.startsWith("ticket-report-")) return;
+		const reportId = anchorId.replace(/^ticket-report-/, "");
+		const reportIndex = filteredReports.findIndex(
+			(report) => report.id === reportId,
+		);
+		if (reportIndex < 0) return;
+		const targetPage = Math.floor(reportIndex / PAGE_SIZE) + 1;
+		if (targetPage !== page) {
+			setPage(targetPage);
+			return;
+		}
+		window.setTimeout(() => {
+			document.getElementById(anchorId)?.scrollIntoView({
+				behavior: "smooth",
+				block: "start",
+			});
+		}, 0);
+	}, [activeTab, filteredReports, page]);
 
 	const selectTab = (tab: ModerationTab) => {
 		setActiveTab(tab);

@@ -124,6 +124,12 @@ export interface TicketExchangeAdminReport {
 	id: string;
 	listingId: string;
 	reporterUserId: string;
+	reporter: {
+		userId: string;
+		email: string | null;
+		firstName: string | null;
+		lastName: string | null;
+	};
 	reason: TicketExchangeReportReason;
 	details: string;
 	createdAt: string;
@@ -143,7 +149,14 @@ export interface TicketExchangeAdminReport {
 		| "effectiveStatus"
 		| "ownerUserId"
 		| "ownerEmail"
-	>;
+	> & {
+		owner: {
+			userId: string;
+			email: string | null;
+			firstName: string | null;
+			lastName: string | null;
+		};
+	};
 }
 
 export interface TicketExchangeAdminUnlockWatch {

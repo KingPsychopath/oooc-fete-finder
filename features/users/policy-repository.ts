@@ -124,6 +124,8 @@ type UserSummaryRow = {
 	active_ticket_listing_count: number;
 	open_ticket_report_count: number;
 	ticket_report_count: number;
+	ticket_reports_made_count: number;
+	ticket_reports_against_listing_count: number;
 	event_submission_count: number;
 	plan_count: number;
 	saved_event_count: number;
@@ -279,6 +281,8 @@ const toUserSummary = (row: UserSummaryRow): AdminUserSummary => ({
 	activeTicketListingCount: row.active_ticket_listing_count,
 	openTicketReportCount: row.open_ticket_report_count,
 	ticketReportCount: row.ticket_report_count,
+	ticketReportsMadeCount: row.ticket_reports_made_count,
+	ticketReportsAgainstListingCount: row.ticket_reports_against_listing_count,
 	eventSubmissionCount: row.event_submission_count,
 	planCount: row.plan_count,
 	savedEventCount: row.saved_event_count,
@@ -897,9 +901,9 @@ export class UserPolicyRepository {
 				case "ticket_reports":
 					return byDirection(
 						this
-							.sql`open_ticket_report_count DESC, ticket_report_count DESC, last_seen_at DESC`,
+							.sql`open_ticket_report_count DESC, ticket_reports_against_listing_count DESC, ticket_reports_made_count DESC, ticket_report_count DESC, last_seen_at DESC`,
 						this
-							.sql`open_ticket_report_count ASC, ticket_report_count ASC, last_seen_at DESC`,
+							.sql`open_ticket_report_count ASC, ticket_reports_against_listing_count ASC, ticket_reports_made_count ASC, ticket_report_count ASC, last_seen_at DESC`,
 					);
 				case "event_submissions":
 					return byDirection(
@@ -1066,6 +1070,31 @@ export class UserPolicyRepository {
 								`
 								: this.sql`0::int`
 						} AS ticket_report_count,
+						${
+							tables?.ticket_reports_table
+								? this.sql`
+									(
+										SELECT COUNT(*)::int
+										FROM ticket_exchange_reports reports
+										WHERE reports.reporter_user_id = users.id
+									)
+								`
+								: this.sql`0::int`
+						} AS ticket_reports_made_count,
+						${
+							tables?.ticket_reports_table && tables.ticket_listings_table
+								? this.sql`
+									(
+										SELECT COUNT(*)::int
+										FROM ticket_exchange_reports reports
+										LEFT JOIN ticket_exchange_listings report_listings
+											ON report_listings.id = reports.listing_id
+										WHERE report_listings.owner_user_id = users.id
+											OR LOWER(report_listings.owner_email) = users.email_normalized
+									)
+								`
+								: this.sql`0::int`
+						} AS ticket_reports_against_listing_count,
 						${
 							tables?.submissions_table
 								? this.sql`

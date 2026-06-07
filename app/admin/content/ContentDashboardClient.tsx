@@ -95,6 +95,15 @@ const HASH_TO_TAB = new Map<string, ContentTab>(
 );
 HASH_TO_TAB.set("search-chips", "site");
 
+const getTabForAnchor = (anchorId: string): ContentTab | null => {
+	const directTab = HASH_TO_TAB.get(anchorId);
+	if (directTab) return directTab;
+	if (anchorId.startsWith("submission-")) return "submissions";
+	if (anchorId.startsWith("ticket-report-")) return "tickets";
+	if (anchorId.startsWith("ticket-listing-")) return "tickets";
+	return null;
+};
+
 const getAnchorIdFromHash = (): string | null => {
 	if (typeof window === "undefined") return null;
 	const anchorId = window.location.hash.replace(/^#/, "").trim();
@@ -189,7 +198,7 @@ export function ContentDashboardClient({
 		const syncHashToTab = () => {
 			const anchorId = getAnchorIdFromHash();
 			if (!anchorId) return;
-			const hashTab = HASH_TO_TAB.get(anchorId) ?? null;
+			const hashTab = getTabForAnchor(anchorId);
 			if (!hashTab) return;
 			openTab(hashTab, false);
 			scrollToContentAnchor(anchorId);
@@ -203,7 +212,7 @@ export function ContentDashboardClient({
 	useEffect(() => {
 		const anchorId = getAnchorIdFromHash();
 		if (!anchorId) return;
-		if (HASH_TO_TAB.get(anchorId) !== activeTab) return;
+		if (getTabForAnchor(anchorId) !== activeTab) return;
 		scrollToContentAnchor(anchorId);
 	}, [activeTab]);
 

@@ -32,6 +32,8 @@ const createRepositoryMock = (): RepositoryMock => ({
 					activeTicketListingCount: 1,
 					openTicketReportCount: 0,
 					ticketReportCount: 3,
+					ticketReportsMadeCount: 1,
+					ticketReportsAgainstListingCount: 2,
 					eventSubmissionCount: 1,
 					planCount: 1,
 					savedEventCount: 4,

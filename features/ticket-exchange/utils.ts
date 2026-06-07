@@ -143,7 +143,8 @@ const NOTE_PHONE_PATTERN =
 	/(?:^|[^\d])(?:\+|00)?\d[\d\s().-]{7,}\d(?:$|[^\d])/u;
 const NOTE_SOCIAL_PLATFORM_PATTERN =
 	/\b(?:instagram|insta|ig|i\.g\.|twitter|tiktok|tik\s*tok|snapchat|snap|telegram|facebook|fb|threads|linktree|beacons|hoo\.be|lnk\.bio|wa\.me|whatsapp)\b/iu;
-const NOTE_SOCIAL_X_PATTERN = /\b(?:x|twitter)\s*(?:handle|@|\.com|dot\s+com)\b/iu;
+const NOTE_SOCIAL_X_PATTERN =
+	/\b(?:x|twitter)\s*(?:handle|@|\.com|dot\s+com)\b/iu;
 const NOTE_DM_PATTERN = /\b(?:dm|direct\s+message)\s+(?:me|us|my|on)\b/iu;
 
 export const hasOffensiveTicketExchangeLanguage = (value: string): boolean => {
@@ -202,7 +203,10 @@ export const validateTicketExchangeDisplayName = (value: unknown): string => {
 	return displayName;
 };
 
-const TICKET_QUANTITY_PATTERN = /\b\d{1,3}\b/u;
+export const sanitizeTicketExchangeQuantityInput = (value: string): string =>
+	value.replace(/\D/gu, "").slice(0, 3);
+
+const TICKET_QUANTITY_PATTERN = /^\d{1,3}$/u;
 
 export const validateTicketExchangeQuantityLabel = (value: unknown): string => {
 	const quantityLabel = validateTicketExchangeUserText(
@@ -218,12 +222,13 @@ export const validateTicketExchangeQuantityLabel = (value: unknown): string => {
 			createTicketExchangeContactHintError("the quantity or ticket need"),
 		);
 	}
-	if (!TICKET_QUANTITY_PATTERN.test(quantityLabel)) {
-		throw new Error(
-			"Use a number for the ticket quantity, like 1 or 2 tickets.",
-		);
+	const quantityCount = TICKET_QUANTITY_PATTERN.test(quantityLabel)
+		? Number.parseInt(quantityLabel, 10)
+		: Number.NaN;
+	if (!Number.isFinite(quantityCount) || quantityCount < 1) {
+		throw new Error("Enter the number of tickets, like 1 or 2.");
 	}
-	return quantityLabel;
+	return String(quantityCount);
 };
 
 export const validateTicketExchangePriceLabel = (value: unknown): string => {

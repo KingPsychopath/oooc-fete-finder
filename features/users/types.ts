@@ -204,6 +204,8 @@ export interface AdminUserSummary {
 	activeTicketListingCount: number;
 	openTicketReportCount: number;
 	ticketReportCount: number;
+	ticketReportsMadeCount: number;
+	ticketReportsAgainstListingCount: number;
 	eventSubmissionCount: number;
 	planCount: number;
 	savedEventCount: number;

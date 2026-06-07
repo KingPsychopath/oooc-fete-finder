@@ -3,12 +3,13 @@ import {
 	TICKET_EXCHANGE_NOTE_LANGUAGE_ERROR,
 	createTicketExchangeContactHintError,
 	createTicketExchangeLanguageError,
-	hasTicketExchangeNoteContactHint,
 	hasOffensiveTicketExchangeNoteLanguage,
+	hasTicketExchangeNoteContactHint,
 	normalizeInstagramHandle,
 	normalizeOptionalEmail,
 	normalizeWhatsAppNumber,
 	normalizeXHandle,
+	sanitizeTicketExchangeQuantityInput,
 	validateTicketExchangeDisplayName,
 	validateTicketExchangeNote,
 	validateTicketExchangePriceLabel,
@@ -84,40 +85,42 @@ describe("ticket exchange contact validation", () => {
 		);
 		expect(hasTicketExchangeNoteContactHint("message @ 7kzaib")).toBe(true);
 		expect(hasTicketExchangeNoteContactHint("IG is sevenkzaib")).toBe(true);
-		expect(hasTicketExchangeNoteContactHint("instagram.com/7kzaib")).toBe(
-			true,
-		);
+		expect(hasTicketExchangeNoteContactHint("instagram.com/7kzaib")).toBe(true);
 		expect(hasTicketExchangeNoteContactHint("linktree.com/7kzaib")).toBe(true);
 		expect(hasTicketExchangeNoteContactHint("email me at a@example.com")).toBe(
 			true,
 		);
-		expect(hasTicketExchangeNoteContactHint("WhatsApp me +44 7123 456789")).toBe(
-			true,
-		);
+		expect(
+			hasTicketExchangeNoteContactHint("WhatsApp me +44 7123 456789"),
+		).toBe(true);
 		expect(() => validateTicketExchangeNote("dm @7kzaib")).toThrow(
 			TICKET_EXCHANGE_NOTE_CONTACT_ERROR,
 		);
 		expect(() => validateTicketExchangeNote("my insta is sevenkzaib")).toThrow(
 			TICKET_EXCHANGE_NOTE_CONTACT_ERROR,
 		);
-		expect(() => validateTicketExchangeNote("go to https://x.com/7kzaib")).toThrow(
-			TICKET_EXCHANGE_NOTE_CONTACT_ERROR,
-		);
+		expect(() =>
+			validateTicketExchangeNote("go to https://x.com/7kzaib"),
+		).toThrow(TICKET_EXCHANGE_NOTE_CONTACT_ERROR);
 	});
 
 	it("rejects contact hints in visible listing quantity and price fields", () => {
-		expect(() => validateTicketExchangeQuantityLabel("2 tickets @7kzaib")).toThrow(
+		expect(() =>
+			validateTicketExchangeQuantityLabel("2 tickets @7kzaib"),
+		).toThrow(
 			createTicketExchangeContactHintError("the quantity or ticket need"),
 		);
-		expect(() => validateTicketExchangeQuantityLabel("1 ticket, dm me")).toThrow(
+		expect(() =>
+			validateTicketExchangeQuantityLabel("1 ticket, dm me"),
+		).toThrow(
 			createTicketExchangeContactHintError("the quantity or ticket need"),
 		);
 		expect(() => validateTicketExchangePriceLabel("£40 instagram")).toThrow(
 			createTicketExchangeContactHintError("the price or budget"),
 		);
-		expect(() => validateTicketExchangePriceLabel("FV linktree.com/7kzaib")).toThrow(
-			createTicketExchangeContactHintError("the price or budget"),
-		);
+		expect(() =>
+			validateTicketExchangePriceLabel("FV linktree.com/7kzaib"),
+		).toThrow(createTicketExchangeContactHintError("the price or budget"));
 	});
 
 	it("rejects contact hints in Ticket Exchange display names", () => {
@@ -127,9 +130,9 @@ describe("ticket exchange contact validation", () => {
 		expect(() => validateTicketExchangeDisplayName("@7kzaib")).toThrow(
 			createTicketExchangeContactHintError("the display name"),
 		);
-		expect(() => validateTicketExchangeDisplayName("instagram.com/7kzaib")).toThrow(
-			createTicketExchangeContactHintError("the display name"),
-		);
+		expect(() =>
+			validateTicketExchangeDisplayName("instagram.com/7kzaib"),
+		).toThrow(createTicketExchangeContactHintError("the display name"));
 	});
 
 	it("rejects offensive language in visible free-text fields", () => {
@@ -161,19 +164,30 @@ describe("ticket exchange contact validation", () => {
 		);
 	});
 
-	it("requires a number in the ticket quantity or need", () => {
-		expect(validateTicketExchangeQuantityLabel("  2 tickets available  ")).toBe(
-			"2 tickets available",
+	it("sanitizes ticket quantity input for numeric controls", () => {
+		expect(sanitizeTicketExchangeQuantityInput("  2 tickets available  ")).toBe(
+			"2",
 		);
-		expect(validateTicketExchangeQuantityLabel("Looking for 1 ticket")).toBe(
-			"Looking for 1 ticket",
-		);
+		expect(
+			sanitizeTicketExchangeQuantityInput("Looking for 1234 tickets"),
+		).toBe("123");
+	});
+
+	it("requires a positive numeric ticket quantity", () => {
+		expect(validateTicketExchangeQuantityLabel("  2  ")).toBe("2");
+		expect(validateTicketExchangeQuantityLabel("001")).toBe("1");
 
 		expect(() => validateTicketExchangeQuantityLabel("")).toThrow(
 			"Add the quantity or ticket need.",
 		);
+		expect(() => validateTicketExchangeQuantityLabel("0")).toThrow(
+			"Enter the number of tickets, like 1 or 2.",
+		);
+		expect(() => validateTicketExchangeQuantityLabel("2 tickets")).toThrow(
+			"Enter the number of tickets, like 1 or 2.",
+		);
 		expect(() => validateTicketExchangeQuantityLabel("ffds")).toThrow(
-			"Use a number for the ticket quantity, like 1 or 2 tickets.",
+			"Enter the number of tickets, like 1 or 2.",
 		);
 	});
 

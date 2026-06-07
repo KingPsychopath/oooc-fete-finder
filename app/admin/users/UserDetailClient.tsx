@@ -43,6 +43,7 @@ import type {
 	UserAdminNoteCategory,
 	UserNotice,
 	UserNoticeSeverity,
+	UserNoticeTargetType,
 	UserRestrictionScope,
 } from "@/features/users/types";
 import {
@@ -100,6 +101,14 @@ const RESTRICTION_LABELS: Record<UserRestrictionScope, string> = {
 	"app_settings.sync": "App settings sync",
 };
 
+const ADMIN_NOTE_LABELS: Record<UserAdminNoteCategory, string> = {
+	general: "General",
+	policy: "Policy",
+	support: "Support",
+	fraud: "Fraud",
+	privacy: "Privacy",
+};
+
 const formatDateTime = (value: string | null): string => {
 	if (!value) return "Not yet";
 	try {
@@ -133,6 +142,41 @@ const noticeVariant = (severity: UserNoticeSeverity) =>
 		? ("destructive" as const)
 		: ("outline" as const);
 
+const noticeSeverityLabel = (severity: UserNoticeSeverity): string => {
+	switch (severity) {
+		case "critical":
+			return "Critical";
+		case "action_required":
+			return "Action required";
+		case "warning":
+			return "Warning";
+		case "success":
+			return "Success";
+		case "info":
+		default:
+			return "Info";
+	}
+};
+
+const noticeTargetLabel = (
+	targetType: UserNoticeTargetType,
+	segmentKey?: string | null,
+): string => {
+	switch (targetType) {
+		case "user":
+			return "Direct user notice";
+		case "email":
+			return "Email-targeted notice";
+		case "authenticated_users":
+			return "All signed-in users";
+		case "segment":
+			return segmentKey ? `Segment: ${segmentKey}` : "Segment notice";
+		case "global":
+		default:
+			return "Global notice";
+	}
+};
+
 const noticeStatus = (notice: {
 	startsAt: string;
 	expiresAt: string | null;
@@ -156,17 +200,26 @@ const noticeStatus = (notice: {
 		: { label: "Inactive", variant: "outline" };
 };
 
+const shouldShowNoticeLifecycleBadge = (
+	status: ReturnType<typeof noticeStatus>,
+): boolean => status.label !== "Live";
+
+const canRevokeNoticeStatus = (
+	status: ReturnType<typeof noticeStatus>,
+): boolean => status.label === "Live" || status.label === "Scheduled";
+
 const noticeRecipientStatus = (
 	notice: UserNotice,
-): { label: string; variant: "default" | "outline" | "destructive" } => {
-	if (!notice.isActive) return { label: "No user action", variant: "outline" };
-	if (notice.requiresAck) {
-		return notice.recipientAcknowledgedAt
-			? { label: "Acknowledged by user", variant: "outline" }
-			: { label: "Needs acknowledgement", variant: "destructive" };
+): { label: string; variant: "default" | "outline" | "destructive" } | null => {
+	if (notice.recipientAcknowledgedAt) {
+		return { label: "Acknowledged by user", variant: "outline" };
 	}
 	if (notice.recipientDismissedAt) {
 		return { label: "Dismissed by user", variant: "outline" };
+	}
+	if (!notice.isActive) return null;
+	if (notice.requiresAck) {
+		return { label: "Needs acknowledgement", variant: "destructive" };
 	}
 	if (!notice.dismissible) {
 		return { label: "Visible until expiry", variant: "outline" };
@@ -185,19 +238,64 @@ const isNoticePendingForRecipient = (notice: UserNotice): boolean => {
 const Fact = ({
 	label,
 	value,
+	href,
 }: {
 	label: string;
 	value: string | number | null | undefined;
-}) => (
-	<div className="rounded-md border bg-muted/20 px-3 py-2">
-		<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-			{label}
-		</p>
-		<p className="mt-1 break-words text-sm font-medium">
-			{value ?? "Not available"}
-		</p>
-	</div>
-);
+	href?: string;
+}) => {
+	const body = (
+		<>
+			<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+				{label}
+			</p>
+			<p className="mt-1 break-words text-sm font-medium">
+				{value ?? "Not available"}
+			</p>
+		</>
+	);
+	const className = cn(
+		"rounded-md border bg-muted/20 px-3 py-2",
+		href && "block transition hover:border-foreground/30 hover:bg-muted/35",
+	);
+	if (href) {
+		return (
+			<Link href={href} className={className}>
+				{body}
+			</Link>
+		);
+	}
+	return <div className={className}>{body}</div>;
+};
+
+const listingTimingLabel = (listing: {
+	effectiveStatus: string;
+	expiresAt: string;
+	updatedAt: string;
+}): string => {
+	const expiry = formatDateTime(listing.expiresAt);
+	const updated = formatDateTime(listing.updatedAt);
+	if (listing.effectiveStatus === "expired") {
+		return `expired ${expiry} · updated ${updated}`;
+	}
+	if (listing.effectiveStatus === "active") {
+		return `expires ${expiry} · updated ${updated}`;
+	}
+	return `updated ${updated} · expires ${expiry}`;
+};
+
+const canReactivateListing = (listing: {
+	status: string;
+	effectiveStatus: string;
+	expiresAt: string;
+}): boolean => {
+	const expiresAt = new Date(listing.expiresAt).getTime();
+	if (Number.isFinite(expiresAt) && expiresAt <= Date.now()) return false;
+	return (
+		listing.effectiveStatus !== "active" &&
+		(listing.status === "paused" || listing.status === "removed")
+	);
+};
 
 const normalizeExpiryForAction = (value: string): string | null => {
 	if (!value) return null;
@@ -226,6 +324,38 @@ const userAdminHref = (userId: string | null, email: string | null): string =>
 	withAdminBasePath(
 		`/admin/users/${encodeURIComponent(userId || email || "unknown")}`,
 	);
+
+const reportPersonLabel = (person: {
+	userId?: string | null;
+	email?: string | null;
+	firstName?: string | null;
+	lastName?: string | null;
+}): string => {
+	const name = [person.firstName, person.lastName]
+		.filter(Boolean)
+		.join(" ")
+		.trim();
+	const email = person.email?.trim() ?? "";
+	if (name && email) return `${name} · ${email}`;
+	return name || email || person.userId || "Unknown";
+};
+
+const consentLabel = (value: boolean | null | undefined): string =>
+	value ? "Opted in" : "Not opted in";
+
+const consentSummaryLabel = (input: {
+	marketing: boolean | null | undefined;
+	eventUpdates: boolean | null | undefined;
+}): string => {
+	const marketing = Boolean(input.marketing);
+	const eventUpdates = Boolean(input.eventUpdates);
+	if (marketing && eventUpdates) return "Marketing + event updates";
+	if (!marketing && !eventUpdates) return "No optional email";
+	return [
+		`Marketing ${consentLabel(marketing).toLowerCase()}`,
+		`event updates ${consentLabel(eventUpdates).toLowerCase()}`,
+	].join(" · ");
+};
 
 export function UserDetailClient({
 	lookup,
@@ -276,6 +406,12 @@ export function UserDetailClient({
 		user?.email ??
 		collectedUser?.email ??
 		(lookup.includes("@") ? lookup : null);
+	const marketingConsent = Boolean(
+		user?.marketingConsent || collectedUser?.marketingConsent,
+	);
+	const eventUpdateConsent = Boolean(
+		user?.eventUpdateConsent || collectedUser?.eventUpdateConsent,
+	);
 	const displayName = useMemo(() => {
 		const firstName = user?.firstName ?? collectedUser?.firstName ?? "";
 		const lastName = user?.lastName ?? collectedUser?.lastName ?? "";
@@ -283,6 +419,11 @@ export function UserDetailClient({
 			[firstName, lastName].filter(Boolean).join(" ").trim() || email || lookup
 		);
 	}, [collectedUser, email, lookup, user]);
+
+	useEffect(() => {
+		if (user?.status) setNextStatus(user.status);
+	}, [user?.status]);
+
 	const activeRestrictions =
 		detail?.restrictions.filter((restriction) => restriction.isActive) ?? [];
 	const pendingNotices =
@@ -297,6 +438,14 @@ export function UserDetailClient({
 		detail?.ticketListings.filter(
 			(listing) => listing.effectiveStatus === "active",
 		) ?? [];
+	const hasListingActionReason = bulkListingReason.trim().length > 0;
+	const hasStatusReason = statusReason.trim().length > 0;
+	const hasRestrictionReason = restrictionReason.trim().length > 0;
+	const hasAdminNote = adminNote.trim().length > 0;
+	const canSendNotice =
+		Boolean(userId || email) &&
+		noticeTitle.trim().length > 0 &&
+		noticeBody.trim().length > 0;
 	const ticketReportStats = useMemo(() => {
 		const reports = detail?.ticketReports ?? [];
 		return reports.reduce(
@@ -504,9 +653,21 @@ export function UserDetailClient({
 							user?.lastSeenAt ?? collectedUser?.lastSeenAt ?? null,
 						)}
 					/>
-					<Fact label="Listings" value={detail.ticketListings.length} />
-					<Fact label="Submissions" value={detail.eventSubmissions.length} />
-					<Fact label="Routes" value={detail.plans.length} />
+					<Fact
+						label="Listings"
+						value={detail.ticketListings.length}
+						href="#ticket-exchange"
+					/>
+					<Fact
+						label="Submissions"
+						value={detail.eventSubmissions.length}
+						href="#submissions-plans"
+					/>
+					<Fact
+						label="Routes"
+						value={detail.plans.length}
+						href="#submissions-plans"
+					/>
 				</CardContent>
 			</Card>
 
@@ -545,21 +706,11 @@ export function UserDetailClient({
 									)}
 								/>
 								<Fact
-									label="Marketing"
-									value={
-										user?.marketingConsent || collectedUser?.marketingConsent
-											? "Allowed"
-											: "Not allowed"
-									}
-								/>
-								<Fact
-									label="Event Updates"
-									value={
-										user?.eventUpdateConsent ||
-										collectedUser?.eventUpdateConsent
-											? "Allowed"
-											: "Not allowed"
-									}
+									label="Email Consent"
+									value={consentSummaryLabel({
+										marketing: marketingConsent,
+										eventUpdates: eventUpdateConsent,
+									})}
 								/>
 								<Fact
 									label="Saved Events"
@@ -592,7 +743,8 @@ export function UserDetailClient({
 											{activeListings.length === 1 ? "" : "s"}
 										</p>
 										<p className="text-xs text-muted-foreground">
-											Bulk actions affect active listings only.
+											Enter a reason to unlock listing actions. Bulk actions
+											affect active listings only.
 										</p>
 									</div>
 									<Input
@@ -607,7 +759,11 @@ export function UserDetailClient({
 										type="button"
 										variant="outline"
 										size="sm"
-										disabled={isPending || activeListings.length === 0}
+										disabled={
+											isPending ||
+											activeListings.length === 0 ||
+											!hasListingActionReason
+										}
 										onClick={() =>
 											runMutation(
 												() =>
@@ -629,7 +785,11 @@ export function UserDetailClient({
 										type="button"
 										variant="destructive"
 										size="sm"
-										disabled={isPending || activeListings.length === 0}
+										disabled={
+											isPending ||
+											activeListings.length === 0 ||
+											!hasListingActionReason
+										}
 										onClick={() =>
 											runMutation(
 												() =>
@@ -650,11 +810,13 @@ export function UserDetailClient({
 								</div>
 
 								{detail.ticketListings.length > 0 ? (
-									detail.ticketListings.map((listing) => (
-										<div
-											key={listing.id}
-											className="rounded-lg border bg-background/70 p-3"
-										>
+									detail.ticketListings.map((listing) => {
+										const canReactivate = canReactivateListing(listing);
+										return (
+											<div
+												key={listing.id}
+												className="rounded-lg border bg-background/70 p-3"
+											>
 											<div className="flex flex-wrap items-center gap-2">
 												<Badge variant="outline">{listing.listingType}</Badge>
 												<Badge
@@ -680,8 +842,8 @@ export function UserDetailClient({
 											<p className="mt-2 font-medium">{listing.eventName}</p>
 											<p className="mt-1 text-sm text-muted-foreground">
 												{listing.quantityLabel || "Quantity missing"} ·{" "}
-												{listing.priceLabel || "No price"} · updated{" "}
-												{formatDateTime(listing.updatedAt)}
+												{listing.priceLabel || "No price"} ·{" "}
+												{listingTimingLabel(listing)}
 											</p>
 											<div className="mt-3 flex flex-wrap gap-2">
 												<Link
@@ -715,12 +877,12 @@ export function UserDetailClient({
 													<Copy />
 													Copy ID
 												</Button>
-												{listing.effectiveStatus !== "active" ? (
+												{canReactivate ? (
 													<Button
 														type="button"
 														variant="outline"
 														size="sm"
-														disabled={isPending}
+														disabled={isPending || !hasListingActionReason}
 														onClick={() =>
 															runMutation(
 																() =>
@@ -738,12 +900,13 @@ export function UserDetailClient({
 														Reactivate
 													</Button>
 												) : (
-													<>
+													listing.effectiveStatus === "active" && (
+														<>
 														<Button
 															type="button"
 															variant="outline"
 															size="sm"
-															disabled={isPending}
+															disabled={isPending || !hasListingActionReason}
 															onClick={() =>
 																runMutation(
 																	() =>
@@ -764,7 +927,7 @@ export function UserDetailClient({
 															type="button"
 															variant="outline"
 															size="sm"
-															disabled={isPending}
+															disabled={isPending || !hasListingActionReason}
 															onClick={() =>
 																runMutation(
 																	() =>
@@ -785,7 +948,7 @@ export function UserDetailClient({
 															type="button"
 															variant="destructive"
 															size="sm"
-															disabled={isPending}
+															disabled={isPending || !hasListingActionReason}
 															onClick={() =>
 																runMutation(
 																	() =>
@@ -802,11 +965,13 @@ export function UserDetailClient({
 														>
 															Remove
 														</Button>
-													</>
+														</>
+													)
 												)}
 											</div>
 										</div>
-									))
+										);
+									})
 								) : (
 									<div className="rounded-lg border bg-muted/25 p-4 text-sm text-muted-foreground">
 										No ticket listings.
@@ -835,6 +1000,8 @@ export function UserDetailClient({
 											const reporterHref = report.reporterUserId
 												? userAdminHref(report.reporterUserId, null)
 												: null;
+											const reporterLabel = reportPersonLabel(report.reporter);
+											const ownerLabel = reportPersonLabel(report.listing.owner);
 											const ownerHref =
 												report.listing.ownerUserId || report.listing.ownerEmail
 													? userAdminHref(
@@ -898,8 +1065,28 @@ export function UserDetailClient({
 															: ""}
 													</p>
 													<p className="mt-1 text-xs text-muted-foreground">
-														Reporter {report.reporterUserId || "unknown"} ·
-														owner {report.listing.ownerEmail || "unknown"}
+														Reporter{" "}
+														{reporterHref ? (
+															<Link
+																href={reporterHref}
+																className="font-medium text-foreground underline-offset-2 hover:underline"
+															>
+																{reporterLabel}
+															</Link>
+														) : (
+															reporterLabel
+														)}{" "}
+														· owner{" "}
+														{ownerHref ? (
+															<Link
+																href={ownerHref}
+															className="font-medium text-foreground underline-offset-2 hover:underline"
+														>
+																{ownerLabel}
+															</Link>
+														) : (
+															ownerLabel
+														)}
 													</p>
 													<div className="mt-3 rounded-md border border-amber-300/50 bg-background/70 px-3 py-2">
 														<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-900/80 dark:text-amber-100/80">
@@ -911,16 +1098,22 @@ export function UserDetailClient({
 														</p>
 													</div>
 													<div className="mt-3 flex flex-wrap gap-2">
-														<Link
-															href={withAdminBasePath(
-																"/admin/content#ticket-exchange-moderation",
-															)}
-														>
-															<Button type="button" variant="outline" size="sm">
-																<ExternalLink />
-																Open moderation
-															</Button>
-														</Link>
+														{!report.reviewedAt ? (
+															<Link
+																href={withAdminBasePath(
+																	`/admin/content#ticket-report-${encodeURIComponent(report.id)}`,
+																)}
+															>
+																<Button
+																	type="button"
+																	variant="outline"
+																	size="sm"
+																>
+																	<ExternalLink />
+																	Open report
+																</Button>
+															</Link>
+														) : null}
 														{eventHref ? (
 															<Link href={eventHref}>
 																<Button
@@ -1040,7 +1233,7 @@ export function UserDetailClient({
 												<div className="mt-3 flex flex-wrap gap-2">
 													<Link
 														href={withAdminBasePath(
-															"/admin/content#event-submissions",
+															`/admin/content#submission-${encodeURIComponent(submission.id)}`,
 														)}
 													>
 														<Button type="button" variant="outline" size="sm">
@@ -1240,7 +1433,7 @@ export function UserDetailClient({
 									type="button"
 									variant="outline"
 									size="sm"
-									disabled={isPending || !userId}
+									disabled={isPending || !userId || !hasStatusReason}
 									onClick={() =>
 										runMutation(
 											() =>
@@ -1303,7 +1496,7 @@ export function UserDetailClient({
 									type="button"
 									variant="outline"
 									size="sm"
-									disabled={isPending}
+									disabled={isPending || !hasRestrictionReason}
 									onClick={() =>
 										runMutation(
 											() =>
@@ -1341,7 +1534,7 @@ export function UserDetailClient({
 								>
 									{USER_NOTICE_SEVERITIES.map((severity) => (
 										<option key={severity} value={severity}>
-											{severity}
+											{noticeSeverityLabel(severity)}
 										</option>
 									))}
 								</select>
@@ -1427,7 +1620,7 @@ export function UserDetailClient({
 									type="button"
 									variant="outline"
 									size="sm"
-									disabled={isPending || (!userId && !email)}
+									disabled={isPending || !canSendNotice}
 									onClick={submitUserNotice}
 								>
 									<Bell />
@@ -1448,7 +1641,7 @@ export function UserDetailClient({
 								>
 									{USER_ADMIN_NOTE_CATEGORIES.map((category) => (
 										<option key={category} value={category}>
-											{category}
+											{ADMIN_NOTE_LABELS[category]}
 										</option>
 									))}
 								</select>
@@ -1462,7 +1655,7 @@ export function UserDetailClient({
 									type="button"
 									variant="outline"
 									size="sm"
-									disabled={isPending}
+									disabled={isPending || !hasAdminNote}
 									onClick={() =>
 										runMutation(
 											() =>
@@ -1486,9 +1679,9 @@ export function UserDetailClient({
 
 					<Card className="ooo-admin-card-soft min-w-0 overflow-hidden">
 						<CardHeader className="border-b">
-							<CardTitle>Restrictions & Notices</CardTitle>
+							<CardTitle>Policy Records</CardTitle>
 							<CardDescription>
-								Revoke active policy records from this user.
+								Active records can be revoked. Historical records are read-only.
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4 pt-4">
@@ -1506,7 +1699,7 @@ export function UserDetailClient({
 														restriction.isActive ? "destructive" : "outline"
 													}
 												>
-													{restriction.scope}
+													{RESTRICTION_LABELS[restriction.scope]}
 												</Badge>
 											</div>
 											<p className="mt-2 text-sm text-muted-foreground">
@@ -1550,20 +1743,28 @@ export function UserDetailClient({
 									detail.notices.map((notice) => {
 										const status = noticeStatus(notice);
 										const recipientStatus = noticeRecipientStatus(notice);
+										const showLifecycleBadge =
+											shouldShowNoticeLifecycleBadge(status);
+										const canRevokeNotice = canRevokeNoticeStatus(status);
 										return (
 											<div
 												key={notice.id}
 												className="rounded-lg border bg-background/70 p-3"
 											>
 												<div className="flex flex-wrap gap-2">
+													{recipientStatus ? (
+														<Badge variant={recipientStatus.variant}>
+															{recipientStatus.label}
+														</Badge>
+													) : null}
+													{showLifecycleBadge ? (
+														<Badge variant={status.variant}>
+															{status.label}
+														</Badge>
+													) : null}
 													<Badge variant={noticeVariant(notice.severity)}>
-														{notice.severity}
+														{noticeSeverityLabel(notice.severity)}
 													</Badge>
-													<Badge variant={status.variant}>{status.label}</Badge>
-													<Badge variant={recipientStatus.variant}>
-														{recipientStatus.label}
-													</Badge>
-													<Badge variant="outline">{notice.targetType}</Badge>
 												</div>
 												<p className="mt-2 text-sm font-medium">
 													{notice.title}
@@ -1572,7 +1773,12 @@ export function UserDetailClient({
 													{notice.body}
 												</p>
 												<p className="mt-2 text-xs text-muted-foreground">
-													Starts {formatDateTime(notice.startsAt)}
+													{noticeTargetLabel(
+														notice.targetType,
+														notice.segmentKey,
+													)}{" "}
+													· {status.label.toLowerCase()} · starts{" "}
+													{formatDateTime(notice.startsAt)}
 													{notice.expiresAt
 														? ` · expires ${formatDateTime(notice.expiresAt)}`
 														: ""}
@@ -1597,7 +1803,7 @@ export function UserDetailClient({
 																	: "not seen"}
 													</p>
 												) : null}
-												{notice.revokedAt ? null : (
+												{canRevokeNotice ? (
 													<Button
 														type="button"
 														variant="outline"
@@ -1619,7 +1825,7 @@ export function UserDetailClient({
 														<Check />
 														Revoke
 													</Button>
-												)}
+												) : null}
 											</div>
 										);
 									})
@@ -1640,7 +1846,9 @@ export function UserDetailClient({
 							{detail.adminNotes.length > 0 ? (
 								detail.adminNotes.map((note) => (
 									<div key={note.id} className="rounded-lg border p-3">
-										<Badge variant="outline">{note.category}</Badge>
+										<Badge variant="outline">
+											{ADMIN_NOTE_LABELS[note.category]}
+										</Badge>
 										<p className="mt-2 text-sm">{note.note}</p>
 										<p className="mt-1 text-xs text-muted-foreground">
 											{note.createdBy} · {formatDateTime(note.createdAt)}
