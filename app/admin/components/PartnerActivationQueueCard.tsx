@@ -56,6 +56,13 @@ const STATUS_SUMMARY_LABEL: Record<PartnerActivationStatus, string> = {
 	dismissed: "Dismissed",
 };
 
+const STATUS_CARD_HINT: Record<PartnerActivationStatus, string> = {
+	pending: "Open orders waiting for setup",
+	processing: "Open orders being handled",
+	activated: "Open reports and fulfilled orders",
+	dismissed: "Open dismissed history",
+};
+
 const WINDOW_PRESETS = [
 	{ key: "last-48h", label: "Last 48h", hours: 48 },
 	{ key: "last-7d", label: "Last 7d", hours: 168 },
@@ -661,7 +668,7 @@ export const PartnerActivationQueueCard = ({
 							</p>
 							<p className="mt-1 text-sm font-medium">{item.count}</p>
 							<p className="mt-0.5 text-[11px] text-muted-foreground">
-								Show queue evidence
+								{STATUS_CARD_HINT[item.status]}
 							</p>
 						</button>
 					))}
@@ -972,7 +979,9 @@ export const PartnerActivationQueueCard = ({
 					{STATUS_LABEL[activeStatus].toLowerCase()}.
 				</p>
 				<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-					<Badge variant="secondary">View: {STATUS_LABEL[activeStatus]}</Badge>
+					<span className="font-medium text-foreground">
+						Current view: {STATUS_LABEL[activeStatus]}
+					</span>
 					{activeFilterCount > 0 ? (
 						<>
 							<Badge variant="outline">

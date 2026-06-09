@@ -13,6 +13,7 @@ import {
 	exportCollectedEmailsCsv,
 	getCollectedEmails,
 } from "@/features/auth/actions";
+import { getAdminAudienceOverview } from "@/features/users/admin-actions";
 import { Download, ExternalLink, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -87,8 +88,6 @@ type AudienceSignal =
 	| "has-context"
 	| "missing-context";
 
-const RETURNED_AFTER_ACTION_THRESHOLD_MS = 30 * 60 * 1000;
-
 const AUDIENCE_SEGMENTS: Array<{
 	label: string;
 	value: AudienceSignal;
@@ -146,69 +145,6 @@ const AUDIENCE_SEGMENTS: Array<{
 	},
 ];
 
-const getTime = (value: string | null | undefined): number => {
-	if (!value) return 0;
-	const parsed = new Date(value).getTime();
-	return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const getUserLastSeenAt = (user: EmailRecord): string =>
-	user.lastSeenAt ??
-	user.lastAuthenticatedAt ??
-	user.lastVerifiedAt ??
-	user.timestamp;
-
-const getActivityCount = (user: EmailRecord): number =>
-	user.linkedSignalCount ?? 0;
-
-const hasUsefulContext = (user: EmailRecord): boolean =>
-	Boolean(
-		user.deviceClass ||
-			user.platform ||
-			user.browserFamily ||
-			user.timezone ||
-			user.locale,
-	);
-
-const hasReturnedWithoutNewActivity = (user: EmailRecord): boolean => {
-	const capturedAt = getTime(getUserLastSeenAt(user));
-	const lastActiveAt = getTime(user.lastSignalAt);
-	return (
-		capturedAt > 0 &&
-		lastActiveAt > 0 &&
-		capturedAt - lastActiveAt >= RETURNED_AFTER_ACTION_THRESHOLD_MS
-	);
-};
-
-const matchesAudienceSignal = (
-	user: EmailRecord,
-	signal: AudienceSignal,
-): boolean => {
-	const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-	switch (signal) {
-		case "has-activity":
-			return getActivityCount(user) > 0;
-		case "recently-active":
-			return getTime(user.lastSignalAt) >= sevenDaysAgo;
-		case "searches":
-			return (user.searchSignalCount ?? 0) > 0;
-		case "filters":
-			return (user.filterSignalCount ?? 0) > 0;
-		case "plan-actions":
-			return (user.planActionSignalCount ?? 0) > 0;
-		case "event-actions":
-			return (user.eventActionSignalCount ?? 0) > 0;
-		case "genre-prefs":
-			return (user.genrePreferenceSignalCount ?? 0) > 0;
-		case "returned-no-activity":
-			return hasReturnedWithoutNewActivity(user);
-		case "has-context":
-			return hasUsefulContext(user);
-		case "missing-context":
-			return !hasUsefulContext(user);
-	}
-};
-
 const userSegmentHref = (signal: AudienceSignal): string =>
 	withAdminBasePath(
 		`/admin/users?audienceSignal=${encodeURIComponent(signal)}#user-search`,
@@ -253,24 +189,38 @@ const getInsightsScrollTarget = (tab: InsightsTab): string =>
 const audienceStatLinkClass =
 	"block rounded-md border bg-background/60 px-3 py-2 transition-colors hover:border-foreground/30 hover:bg-muted/35";
 
+type AudienceOverviewPayload = NonNullable<
+	AdminInsightsInitialData["audienceOverview"]
+>;
+
+const formatAudienceCount = (value: number | null): string =>
+	value === null ? "Unavailable" : value.toLocaleString();
+
 const AudienceOverviewCard = ({
 	emails,
 	analytics,
+	audienceOverview,
 	onExportCSV,
 }: {
 	emails: EmailRecord[];
 	analytics: UserCollectionAnalytics | null;
+	audienceOverview: AudienceOverviewPayload | null;
 	onExportCSV: () => void;
 }) => {
-	const segmentCounts = new Map(
-		AUDIENCE_SEGMENTS.map((segment) => [
-			segment.value,
-			emails.filter((user) => matchesAudienceSignal(user, segment.value))
-				.length,
-		]),
-	);
-	const totalUsers = analytics?.totalUsers ?? emails.length;
-	const linkedBehaviorUsers = analytics?.linkedBehaviorUsers ?? 0;
+	const canonicalCountsAvailable = audienceOverview?.supported === true;
+	const segmentCounts = audienceOverview?.segmentCounts ?? {};
+	const totalUsers = canonicalCountsAvailable
+		? audienceOverview.totalUsers
+		: null;
+	const linkedBehaviorUsers = canonicalCountsAvailable
+		? (segmentCounts["has-activity"] ?? 0)
+		: null;
+	const contextAvailableUsers = canonicalCountsAvailable
+		? (segmentCounts["has-context"] ?? 0)
+		: null;
+	const missingContextUsers = canonicalCountsAvailable
+		? (segmentCounts["missing-context"] ?? 0)
+		: null;
 	const submissionsLast24Hours = analytics?.submissionsLast24Hours ?? 0;
 	const submissionsLast7Days = analytics?.submissionsLast7Days ?? 0;
 
@@ -318,7 +268,9 @@ const AudienceOverviewCard = ({
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Unique Users
 						</p>
-						<p className="mt-1 text-sm font-medium">{totalUsers}</p>
+						<p className="mt-1 text-sm font-medium">
+							{formatAudienceCount(totalUsers)}
+						</p>
 						<p className="mt-0.5 text-[11px] text-muted-foreground">
 							Open user list
 						</p>
@@ -331,7 +283,9 @@ const AudienceOverviewCard = ({
 							Linked Activity
 						</p>
 						<p className="mt-1 text-sm font-medium">
-							{linkedBehaviorUsers}/{totalUsers}
+							{canonicalCountsAvailable
+								? `${formatAudienceCount(linkedBehaviorUsers)}/${formatAudienceCount(totalUsers)}`
+								: "Unavailable"}
 						</p>
 						<p className="mt-0.5 text-[11px] text-muted-foreground">
 							Open users with activity
@@ -354,18 +308,18 @@ const AudienceOverviewCard = ({
 					</Link>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Top Device
+							Context Available
 						</p>
-						<p className="mt-1 truncate text-sm font-medium">
-							{analytics?.topDeviceClasses?.[0]?.label ?? "Unknown"}
+						<p className="mt-1 text-sm font-medium">
+							{formatAudienceCount(contextAvailableUsers)}
 						</p>
 					</div>
 					<div className="rounded-md border bg-background/60 px-3 py-2">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-							Top Timezone
+							Context Missing
 						</p>
-						<p className="mt-1 truncate text-sm font-medium">
-							{analytics?.topTimezones?.[0]?.label ?? "Unknown"}
+						<p className="mt-1 text-sm font-medium">
+							{formatAudienceCount(missingContextUsers)}
 						</p>
 					</div>
 				</div>
@@ -402,7 +356,9 @@ const AudienceOverviewCard = ({
 										</span>
 									</span>
 									<Badge variant="outline">
-										{segmentCounts.get(segment.value) ?? 0}
+										{canonicalCountsAvailable
+											? (segmentCounts[segment.value] ?? 0).toLocaleString()
+											: "N/A"}
 									</Badge>
 								</span>
 							</Link>
@@ -422,6 +378,7 @@ export function InsightsDashboardClient({
 	initialData,
 }: InsightsDashboardClientProps) {
 	const initialEmailsResult = initialData.emailsResult;
+	const initialAudienceOverview = initialData.audienceOverview;
 	const [emails, setEmails] = useState<EmailRecord[]>(
 		initialEmailsResult?.success ? (initialEmailsResult.emails ?? []) : [],
 	);
@@ -431,22 +388,28 @@ export function InsightsDashboardClient({
 				? (initialEmailsResult.analytics ?? null)
 				: null,
 		);
+	const [audienceOverview, setAudienceOverview] =
+		useState<AudienceOverviewPayload | null>(initialAudienceOverview ?? null);
 	const [activeTab, setActiveTab] = useState<InsightsTab>("audience");
 
-	const loadEmails = useCallback(async () => {
-		const result = await getCollectedEmails();
-		if (result.success) {
-			setEmails(result.emails ?? []);
-			setEmailAnalytics(result.analytics ?? null);
+	const loadAudienceData = useCallback(async () => {
+		const [emailsResult, overviewResult] = await Promise.all([
+			getCollectedEmails(),
+			getAdminAudienceOverview(),
+		]);
+		if (emailsResult.success) {
+			setEmails(emailsResult.emails ?? []);
+			setEmailAnalytics(emailsResult.analytics ?? null);
 		}
+		setAudienceOverview(overviewResult);
 	}, []);
 
 	useEffect(() => {
-		if (initialEmailsResult?.success) {
+		if (initialEmailsResult?.success && initialAudienceOverview) {
 			return;
 		}
-		void loadEmails();
-	}, [initialEmailsResult?.success, loadEmails]);
+		void loadAudienceData();
+	}, [initialAudienceOverview, initialEmailsResult?.success, loadAudienceData]);
 
 	const exportAsCSV = useCallback(async () => {
 		const result = await exportCollectedEmailsCsv();
@@ -503,6 +466,7 @@ export function InsightsDashboardClient({
 				<AudienceOverviewCard
 					emails={emails}
 					analytics={emailAnalytics}
+					audienceOverview={audienceOverview}
 					onExportCSV={() => void exportAsCSV()}
 				/>
 			</section>

@@ -18,6 +18,7 @@ import type { listPromotedQueue } from "@/features/events/promoted/actions";
 import type { getEventSubmissionsDashboard } from "@/features/events/submissions/actions";
 import type { getPartnerActivationDashboard } from "@/features/partners/activation-actions";
 import type { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
+import type { getAdminAudienceOverview } from "@/features/users/admin-actions";
 
 export type {
 	CollectedUserProfile,
@@ -60,4 +61,5 @@ export type AdminInsightsInitialData = {
 		ReturnType<typeof getEventEngagementDashboard>
 	>;
 	emailsResult?: CollectedEmailsResponse;
+	audienceOverview?: Awaited<ReturnType<typeof getAdminAudienceOverview>>;
 };

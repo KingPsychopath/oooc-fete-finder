@@ -19,6 +19,7 @@ import { z } from "zod";
 import { getNoticeCtaHrefError, normalizeNoticeCtaHref } from "./notice-form";
 import { getUserPolicyRepository } from "./policy-repository";
 import type {
+	AdminAudienceOverview,
 	AdminEventReference,
 	AdminPlanDetail,
 	AdminSavedEventDetail,
@@ -149,6 +150,23 @@ const assertAdmin = async () => {
 
 const userTargetLabel = (lookup: UserLookup): string =>
 	normalizeEmail(lookup.email) || normalizeUserId(lookup.userId) || "User";
+
+export async function getAdminAudienceOverview(): Promise<AdminAudienceOverview> {
+	try {
+		const repository = await assertAdmin();
+		return repository.getAdminAudienceOverview();
+	} catch (error) {
+		return {
+			supported: false,
+			totalUsers: 0,
+			segmentCounts: {},
+			error:
+				error instanceof Error
+					? error.message
+					: "Unable to load audience overview.",
+		};
+	}
+}
 
 export async function getAdminUsersDashboard(input?: {
 	query?: string;

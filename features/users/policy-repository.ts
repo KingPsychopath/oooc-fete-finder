@@ -10,6 +10,7 @@ import {
 	normalizeNoticeCtaHref,
 } from "./notice-form";
 import type {
+	AdminAudienceOverview,
 	AdminUserSummary,
 	AdminUsersActivityFilter,
 	AdminUsersAudienceSignalFilter,
@@ -147,6 +148,20 @@ type AdminUsersPageResult = {
 	page: number;
 	pageSize: number;
 	totalPages: number;
+};
+
+type AdminAudienceOverviewRow = {
+	total_users: number;
+	has_activity_users: number;
+	recently_active_users: number;
+	search_users: number;
+	filter_users: number;
+	plan_action_users: number;
+	event_action_users: number;
+	genre_preference_users: number;
+	returned_no_activity_users: number;
+	has_context_users: number;
+	missing_context_users: number;
 };
 
 const toIso = (value: Date | string | null): string | null => {
@@ -816,6 +831,165 @@ export class UserPolicyRepository {
 				created_at
 		`;
 		return toAdminNote(rows[0]);
+	}
+
+	async getAdminAudienceOverview(): Promise<AdminAudienceOverview> {
+		await this.ready();
+		const tableRows = await this.sql<
+			Array<{
+				event_engagement_table: string | null;
+				discovery_table: string | null;
+				genre_preferences_table: string | null;
+			}>
+		>`
+			SELECT
+				to_regclass('app_event_engagement_stats')::text AS event_engagement_table,
+				to_regclass('app_discovery_analytics_stats')::text AS discovery_table,
+				to_regclass('app_user_genre_preferences')::text AS genre_preferences_table
+		`;
+		const tables = tableRows[0];
+		const emptyEventActions = this.sql`
+			SELECT
+				NULL::text AS email,
+				0::int AS event_count,
+				NULL::timestamptz AS last_signal_at
+			WHERE FALSE
+		`;
+		const emptyDiscoveryActions = this.sql`
+			SELECT
+				NULL::text AS email,
+				0::int AS search_count,
+				0::int AS filter_count,
+				0::int AS plan_count,
+				NULL::timestamptz AS last_signal_at
+			WHERE FALSE
+		`;
+		const emptyGenreActions = this.sql`
+			SELECT
+				NULL::text AS email,
+				0::int AS genre_count,
+				NULL::timestamptz AS last_signal_at
+			WHERE FALSE
+		`;
+
+		const rows = await this.sql<AdminAudienceOverviewRow[]>`
+			WITH event_actions AS (
+				${
+					tables?.event_engagement_table
+						? this.sql`
+							SELECT
+								COALESCE(app_users.email_normalized, LOWER(stats.user_email)) AS email,
+								COUNT(*)::int AS event_count,
+								MAX(stats.recorded_at) AS last_signal_at
+							FROM app_event_engagement_stats stats
+							LEFT JOIN app_users ON app_users.id = stats.user_id
+							WHERE COALESCE(app_users.email_normalized, LOWER(stats.user_email)) IS NOT NULL
+							GROUP BY COALESCE(app_users.email_normalized, LOWER(stats.user_email))
+						`
+						: emptyEventActions
+				}
+			),
+			discovery_actions AS (
+				${
+					tables?.discovery_table
+						? this.sql`
+							SELECT
+								COALESCE(app_users.email_normalized, LOWER(stats.user_email)) AS email,
+								COUNT(*) FILTER (WHERE stats.action_type = 'search')::int AS search_count,
+								COUNT(*) FILTER (WHERE stats.action_type = 'filter_apply')::int AS filter_count,
+								COUNT(*) FILTER (WHERE stats.action_type = 'plan_action')::int AS plan_count,
+								MAX(stats.recorded_at) AS last_signal_at
+							FROM app_discovery_analytics_stats stats
+							LEFT JOIN app_users ON app_users.id = stats.user_id
+							WHERE COALESCE(app_users.email_normalized, LOWER(stats.user_email)) IS NOT NULL
+							GROUP BY COALESCE(app_users.email_normalized, LOWER(stats.user_email))
+						`
+						: emptyDiscoveryActions
+				}
+			),
+			genre_actions AS (
+				${
+					tables?.genre_preferences_table
+						? this.sql`
+							SELECT
+								COALESCE(app_users.email_normalized, LOWER(preferences.email)) AS email,
+								COUNT(*)::int AS genre_count,
+								MAX(preferences.last_seen_at) AS last_signal_at
+							FROM app_user_genre_preferences preferences
+							LEFT JOIN app_users ON app_users.id = preferences.user_id
+							WHERE COALESCE(app_users.email_normalized, LOWER(preferences.email)) IS NOT NULL
+							GROUP BY COALESCE(app_users.email_normalized, LOWER(preferences.email))
+						`
+						: emptyGenreActions
+				}
+			),
+			user_signals AS (
+				SELECT
+					users.id,
+					users.email_normalized,
+					users.last_seen_at,
+					COALESCE(event_actions.event_count, 0) AS event_count,
+					COALESCE(discovery_actions.search_count, 0) AS search_count,
+					COALESCE(discovery_actions.filter_count, 0) AS filter_count,
+					COALESCE(discovery_actions.plan_count, 0) AS plan_count,
+					COALESCE(genre_actions.genre_count, 0) AS genre_count,
+					GREATEST(
+						COALESCE(event_actions.last_signal_at, '-infinity'::timestamptz),
+						COALESCE(discovery_actions.last_signal_at, '-infinity'::timestamptz),
+						COALESCE(genre_actions.last_signal_at, '-infinity'::timestamptz)
+					) AS last_signal_at,
+					(
+						NULLIF(users.last_device_class, '') IS NOT NULL
+						OR NULLIF(users.last_platform, '') IS NOT NULL
+						OR NULLIF(users.last_browser_family, '') IS NOT NULL
+						OR NULLIF(users.last_timezone, '') IS NOT NULL
+						OR NULLIF(users.last_locale, '') IS NOT NULL
+					) AS has_context
+				FROM app_users users
+				LEFT JOIN event_actions ON event_actions.email = users.email_normalized
+				LEFT JOIN discovery_actions ON discovery_actions.email = users.email_normalized
+				LEFT JOIN genre_actions ON genre_actions.email = users.email_normalized
+			),
+			enriched AS (
+				SELECT
+					*,
+					(event_count + search_count + filter_count + plan_count + genre_count) AS signal_count
+				FROM user_signals
+			)
+			SELECT
+				COUNT(*)::int AS total_users,
+				COUNT(*) FILTER (WHERE signal_count > 0)::int AS has_activity_users,
+				COUNT(*) FILTER (WHERE last_signal_at >= NOW() - INTERVAL '7 days')::int AS recently_active_users,
+				COUNT(*) FILTER (WHERE search_count > 0)::int AS search_users,
+				COUNT(*) FILTER (WHERE filter_count > 0)::int AS filter_users,
+				COUNT(*) FILTER (WHERE plan_count > 0)::int AS plan_action_users,
+				COUNT(*) FILTER (WHERE event_count > 0)::int AS event_action_users,
+				COUNT(*) FILTER (WHERE genre_count > 0)::int AS genre_preference_users,
+				COUNT(*) FILTER (
+					WHERE signal_count > 0
+						AND last_seen_at >= last_signal_at + INTERVAL '30 minutes'
+				)::int AS returned_no_activity_users,
+				COUNT(*) FILTER (WHERE has_context = TRUE)::int AS has_context_users,
+				COUNT(*) FILTER (WHERE has_context = FALSE)::int AS missing_context_users
+			FROM enriched
+		`;
+		const row = rows[0];
+		return {
+			supported: true,
+			totalUsers: row?.total_users ?? 0,
+			segmentCounts: {
+				"has-activity": row?.has_activity_users ?? 0,
+				"recently-active": row?.recently_active_users ?? 0,
+				searches: row?.search_users ?? 0,
+				filters: row?.filter_users ?? 0,
+				"plan-actions": row?.plan_action_users ?? 0,
+				"event-actions": row?.event_action_users ?? 0,
+				"genre-prefs": row?.genre_preference_users ?? 0,
+				"returned-no-activity": row?.returned_no_activity_users ?? 0,
+				"has-context": row?.has_context_users ?? 0,
+				"missing-context": row?.missing_context_users ?? 0,
+			},
+		};
 	}
 
 	async listAdminUsersPage(

@@ -127,6 +127,13 @@ export interface AdminUsersQuery {
 	pageSize?: number;
 }
 
+export interface AdminAudienceOverview {
+	supported: boolean;
+	totalUsers: number;
+	segmentCounts: Partial<Record<AdminUsersAudienceSignalFilter, number>>;
+	error?: string;
+}
+
 export interface UserRestriction {
 	id: string;
 	userId: string | null;

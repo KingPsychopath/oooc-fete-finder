@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type RepositoryMock = {
+	getAdminAudienceOverview: ReturnType<typeof vi.fn>;
 	listAdminUsersPage: ReturnType<typeof vi.fn>;
 	listActiveRestrictions: ReturnType<typeof vi.fn>;
 	listGlobalNotices: ReturnType<typeof vi.fn>;
@@ -10,6 +11,14 @@ type RepositoryMock = {
 };
 
 const createRepositoryMock = (): RepositoryMock => ({
+	getAdminAudienceOverview: vi.fn().mockResolvedValue({
+		supported: true,
+		totalUsers: 1539,
+		segmentCounts: {
+			"has-activity": 1135,
+			"missing-context": 346,
+		},
+	}),
 	listAdminUsersPage: vi
 		.fn()
 		.mockResolvedValueOnce({
@@ -176,6 +185,24 @@ describe("admin user actions", () => {
 			page: 1,
 			pageSize: 1,
 		});
+	});
+
+	it("returns the canonical audience overview without loading dashboard pages", async () => {
+		const repository = createRepositoryMock();
+		const { actions } = await loadActions(repository);
+
+		const overview = await actions.getAdminAudienceOverview();
+
+		expect(overview).toEqual({
+			supported: true,
+			totalUsers: 1539,
+			segmentCounts: {
+				"has-activity": 1135,
+				"missing-context": 346,
+			},
+		});
+		expect(repository.getAdminAudienceOverview).toHaveBeenCalledTimes(1);
+		expect(repository.listAdminUsersPage).not.toHaveBeenCalled();
 	});
 
 	it("creates scheduled notices with the start time in storage and audit metadata", async () => {
