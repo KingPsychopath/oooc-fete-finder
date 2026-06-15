@@ -326,6 +326,10 @@ export function MobileBottomNav() {
 	const [toiletFinderUrl, setToiletFinderUrl] = useState(toiletFinderIosUrl);
 	const activeSectionLockUntilRef = useRef(0);
 	const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
+	const navHoverPrefetchTimeoutRef = useRef<ReturnType<
+		typeof setTimeout
+	> | null>(null);
+	const navPrefetchedHrefsRef = useRef<Set<string>>(new Set());
 	const pendingDiscoveryQueryRef = useRef<string | null>(null);
 	const pendingHomeSectionScrollRef = useRef<string | null>(null);
 	const previousPathnameRef = useRef(pathname);
@@ -597,6 +601,15 @@ export function MobileBottomNav() {
 		};
 	}, [dockOverlayState, shouldRender, shouldShowDock]);
 
+	useEffect(
+		() => () => {
+			if (!navHoverPrefetchTimeoutRef.current) return;
+			clearTimeout(navHoverPrefetchTimeoutRef.current);
+			navHoverPrefetchTimeoutRef.current = null;
+		},
+		[],
+	);
+
 	if (!shouldRender) {
 		return null;
 	}
@@ -663,11 +676,17 @@ export function MobileBottomNav() {
 		normalizedPathname === "/submit-event" ||
 		normalizedPathname.startsWith("/submit-event/");
 	const activeIndex = navItems.findIndex((item) => item.isActive);
+	const stagedActiveIndex =
+		activeSection === null
+			? -1
+			: navItems.findIndex((item) => item.key === activeSection);
 	const resolvedActiveIndex = isMoreActive
 		? navItems.length
-		: activeIndex >= 0
-			? activeIndex
-			: -1;
+		: stagedActiveIndex >= 0
+			? stagedActiveIndex
+			: activeIndex >= 0
+				? activeIndex
+				: -1;
 
 	const handlePinToggle = () => {
 		haptics.selection();
@@ -888,6 +907,35 @@ export function MobileBottomNav() {
 			scrollToHomeSectionWhenReady(sectionId, "smooth");
 		});
 	};
+
+	const prefetchNavHref = (href: string) => {
+		if (navPrefetchedHrefsRef.current.has(href)) return;
+		navPrefetchedHrefsRef.current.add(href);
+		router.prefetch(href);
+	};
+
+	const cancelNavHoverPrefetch = () => {
+		if (!navHoverPrefetchTimeoutRef.current) return;
+		clearTimeout(navHoverPrefetchTimeoutRef.current);
+		navHoverPrefetchTimeoutRef.current = null;
+	};
+
+	const scheduleNavHoverPrefetch = (href: string) => {
+		cancelNavHoverPrefetch();
+		navHoverPrefetchTimeoutRef.current = setTimeout(() => {
+			prefetchNavHref(href);
+			navHoverPrefetchTimeoutRef.current = null;
+		}, 140);
+	};
+
+	const handleNavItemPressStart = (key: NavKey, href: string) => {
+		if (key === "more") return;
+		activeSectionLockUntilRef.current = Date.now() + ACTIVE_SECTION_LOCK_MS;
+		setActiveSection(key === "home" ? "home" : key);
+		setIsMoreOpen(false);
+		prefetchNavHref(href);
+	};
+
 	const moreItemClassName =
 		"rounded-xl px-2.5 py-2 text-sm text-foreground/86 transition-colors hover:bg-accent hover:text-foreground";
 	const moreInternalItemClassName = cn(
@@ -1190,7 +1238,7 @@ export function MobileBottomNav() {
 					>
 						{resolvedActiveIndex >= 0 && (
 							<span
-								className="ooo-liquid-dock-active pointer-events-none absolute bottom-1 left-1 top-1 bg-primary transition-transform duration-300 ease-out"
+								className="ooo-liquid-dock-active pointer-events-none absolute bottom-1 left-1 top-1 bg-primary"
 								style={{
 									width: "calc((100% - 0.5rem) / 4)",
 									transform: `translateX(calc(${resolvedActiveIndex} * 100%))`,
@@ -1199,17 +1247,34 @@ export function MobileBottomNav() {
 							/>
 						)}
 						<div className="ooo-liquid-dock-items relative grid grid-cols-4">
-							{navItems.map((item) => {
+							{navItems.map((item, index) => {
 								const Icon = item.icon;
-								const isItemVisuallyActive = item.isActive && !isMoreActive;
+								const isItemVisuallyActive =
+									resolvedActiveIndex === index && !isMoreActive;
 								return (
 									<Link
 										key={item.label}
 										href={item.href}
+										prefetch={false}
+										data-nav-item=""
+										data-nav-index={index}
 										scroll={item.sectionId ? false : undefined}
+										onPointerDownCapture={() =>
+											handleNavItemPressStart(item.key, item.href)
+										}
+										onTouchStartCapture={() =>
+											handleNavItemPressStart(item.key, item.href)
+										}
+										onMouseDownCapture={() =>
+											handleNavItemPressStart(item.key, item.href)
+										}
+										onMouseEnter={() => scheduleNavHoverPrefetch(item.href)}
+										onMouseLeave={cancelNavHoverPrefetch}
+										onFocus={() => prefetchNavHref(item.href)}
+										onBlur={cancelNavHoverPrefetch}
 										onClick={() => handleNavItemClick(item.key, item.sectionId)}
 										className={cn(
-											"flex min-h-14 flex-col items-center justify-center rounded-xl px-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+											"flex min-h-14 flex-col items-center justify-center rounded-xl px-1 text-[11px] font-medium text-muted-foreground transition-colors duration-200 ease-out hover:text-foreground",
 											isDiscoveryDockExpanded
 												? "gap-0"
 												: "gap-1 max-[360px]:gap-0",
@@ -1235,7 +1300,7 @@ export function MobileBottomNav() {
 								type="button"
 								onClick={handleMoreToggle}
 								className={cn(
-									"flex min-h-14 flex-col items-center justify-center rounded-xl px-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+									"flex min-h-14 flex-col items-center justify-center rounded-xl px-1 text-[11px] font-medium text-muted-foreground transition-colors duration-200 ease-out hover:text-foreground",
 									isDiscoveryDockExpanded ? "gap-0" : "gap-1 max-[360px]:gap-0",
 									isMoreActive &&
 										"text-primary-foreground hover:text-primary-foreground",

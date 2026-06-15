@@ -451,11 +451,48 @@
 .ooo-liquid-dock-active {
 	z-index: 1;
 	border-radius: 1.02rem;
+	transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+	will-change: transform;
 }
 
 .ooo-liquid-dock-items {
 	position: relative;
 	z-index: 2;
+}
+
+.ooo-liquid-dock-panel:has([data-nav-item]:active) [data-nav-item] {
+	color: var(--muted-foreground);
+}
+
+.ooo-liquid-dock-panel:has([data-nav-index="0"]:active)
+	.ooo-liquid-dock-active {
+	transform: translateX(0) !important;
+}
+
+.ooo-liquid-dock-panel:has([data-nav-index="1"]:active)
+	.ooo-liquid-dock-active {
+	transform: translateX(100%) !important;
+}
+
+.ooo-liquid-dock-panel:has([data-nav-index="2"]:active)
+	.ooo-liquid-dock-active {
+	transform: translateX(200%) !important;
+}
+
+.ooo-liquid-dock-panel:has([data-nav-index="3"]:active)
+	.ooo-liquid-dock-active {
+	transform: translateX(300%) !important;
+}
+
+.ooo-liquid-dock-panel:has([data-nav-index="0"]:active)
+	[data-nav-index="0"],
+.ooo-liquid-dock-panel:has([data-nav-index="1"]:active)
+	[data-nav-index="1"],
+.ooo-liquid-dock-panel:has([data-nav-index="2"]:active)
+	[data-nav-index="2"],
+.ooo-liquid-dock-panel:has([data-nav-index="3"]:active)
+	[data-nav-index="3"] {
+	color: var(--primary-foreground);
 }
 
 .ooo-liquid-dock-panel[data-expanded="true"] {
@@ -533,6 +570,7 @@ body[data-ticket-exchange-modal-open="true"] .ooo-mobile-bottom-nav-shell {
 @media (prefers-reduced-motion: reduce) {
 	.ooo-liquid-dock-panel,
 	.ooo-liquid-dock-panel::before,
+	.ooo-liquid-dock-active,
 	.ooo-liquid-dock-control {
 		transition: none;
 	}
