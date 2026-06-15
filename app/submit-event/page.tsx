@@ -19,7 +19,8 @@ export const metadata: Metadata = generateOGMetadata({
 	url: buildSiteUrl("/submit-event"),
 });
 
-export const revalidate = false;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default function SubmitEventPage() {
 	return (
