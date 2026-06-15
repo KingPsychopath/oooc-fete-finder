@@ -220,7 +220,10 @@ const cacheNavigationUrl = async (value) => {
 		if (isSensitivePath(pathname)) return;
 
 		const request = createRequest(url.href);
-		const response = await fetch(request, { cache: "reload" });
+		const cachedResponse = await getCoherentCachedNavigation(request);
+		if (cachedResponse) return;
+
+		const response = await fetch(request);
 		await cacheNavigationSnapshot(request, response);
 	} catch {
 		// Navigation snapshots are best-effort and never used for online loads.

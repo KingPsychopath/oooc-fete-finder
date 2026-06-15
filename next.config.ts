@@ -37,6 +37,20 @@ const fontCacheHeaders = [
 	},
 ];
 
+const immutableAssetCacheHeaders = [
+	{
+		key: "Cache-Control",
+		value: "public, max-age=31536000, immutable",
+	},
+];
+
+const publicAssetCacheHeaders = [
+	{
+		key: "Cache-Control",
+		value: "public, max-age=86400, stale-while-revalidate=604800",
+	},
+];
+
 const serviceWorkerHeaders = [
 	{
 		key: "Cache-Control",
@@ -70,6 +84,78 @@ const nextConfig: NextConfig = {
 			{
 				source: "/fonts/:path*",
 				headers: fontCacheHeaders,
+			},
+			{
+				source: "/icons/:path*",
+				headers: immutableAssetCacheHeaders,
+			},
+			{
+				source: "/favicon.ico",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/favicon.png",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/favicon.svg",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/favicon-16x16.png",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/favicon-32x32.png",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/favicon-48x48.png",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/apple-touch-icon.png",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/apple-touch-icon-precomposed.png",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/apple-touch-icon-120x120.png",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/OOOCLogoDark.svg",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/OOOCLogoLight.svg",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/manifest.json",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/manifest.webmanifest",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/grain.png",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/maps/:path*",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/og/:path*",
+				headers: publicAssetCacheHeaders,
+			},
+			{
+				source: "/media-kit/:path*",
+				headers: publicAssetCacheHeaders,
 			},
 			{
 				source: "/sw.js",
