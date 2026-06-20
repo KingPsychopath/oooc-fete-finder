@@ -6,6 +6,12 @@ import { useEventsSearchFilters } from "@/features/events/components/events-sear
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
 import type { Event } from "@/features/events/types";
+import {
+	FEATURED_FETE_ROUTE,
+	getFeaturedFeteRouteHref,
+} from "@/features/plans/featured-route";
+import { cn } from "@/lib/utils";
+import { ArrowUpRight, Route } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
@@ -69,32 +75,71 @@ export function EventsDiscoverySummaryIsland({
 							<span className="whitespace-nowrap">works →</span>
 						</Link>
 					</div>
-					{ooocPicksInViewCount > 0 && (
-						<div
-							id="tour-oooc-picks"
-							className="w-full rounded-xl border border-border/55 bg-card/46 p-3 shadow-[0_14px_30px_-30px_rgba(22,16,10,0.5)] backdrop-blur lg:justify-self-end dark:border-border/30 dark:bg-card/34"
-						>
-							<div className="flex items-center justify-between gap-3">
-								<div className="min-w-0">
-									<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-										OOOC Picks
-									</p>
-									<p className="mt-1 text-xs leading-relaxed text-foreground/80">
-										Short on time? Start with the community-curated favourites.
-									</p>
+					<div className="space-y-3 lg:justify-self-end">
+						{FEATURED_FETE_ROUTE.active && (
+							<div className="w-full rounded-xl border border-foreground/12 bg-foreground p-3 text-background shadow-[0_16px_42px_-30px_rgba(22,16,10,0.7)]">
+								<div className="flex items-start gap-3">
+									<div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-background/12 text-background">
+										<Route className="h-4 w-4" />
+									</div>
+									<div className="min-w-0">
+										<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-background/70">
+											{FEATURED_FETE_ROUTE.label}
+										</p>
+										<p className="mt-1 text-sm font-medium leading-5">
+											{FEATURED_FETE_ROUTE.headline}
+										</p>
+										<p className="mt-1 text-xs leading-relaxed text-background/76">
+											{FEATURED_FETE_ROUTE.summary}
+										</p>
+										<Link
+											href={getFeaturedFeteRouteHref()}
+											onClick={() =>
+												trackNavigationClick({
+													group: "homepage_link",
+													label: "featured_fete_route",
+												})
+											}
+											className="mt-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-full bg-background px-3 text-xs font-medium text-foreground transition hover:bg-background/88"
+										>
+											{FEATURED_FETE_ROUTE.homepageCta}
+											<ArrowUpRight className="h-3.5 w-3.5" />
+										</Link>
+									</div>
 								</div>
-								<Button
-									type="button"
-									variant={selectedOOOCPicks ? "default" : "outline"}
-									size="sm"
-									onClick={handleOOOCPicksCalloutClick}
-									className="h-8 shrink-0 rounded-full px-3 text-xs"
-								>
-									{selectedOOOCPicks ? "Showing Picks" : "Show Picks"}
-								</Button>
 							</div>
-						</div>
-					)}
+						)}
+						{ooocPicksInViewCount > 0 && (
+							<div
+								id="tour-oooc-picks"
+								className={cn(
+									"w-full rounded-xl border border-border/55 bg-card/46 p-3 shadow-[0_14px_30px_-30px_rgba(22,16,10,0.5)] backdrop-blur dark:border-border/30 dark:bg-card/34",
+									FEATURED_FETE_ROUTE.active && "bg-card/70",
+								)}
+							>
+								<div className="flex items-center justify-between gap-3">
+									<div className="min-w-0">
+										<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+											OOOC Picks
+										</p>
+										<p className="mt-1 text-xs leading-relaxed text-foreground/80">
+											Short on time? Start with the community-curated
+											favourites.
+										</p>
+									</div>
+									<Button
+										type="button"
+										variant={selectedOOOCPicks ? "default" : "outline"}
+										size="sm"
+										onClick={handleOOOCPicksCalloutClick}
+										className="h-8 shrink-0 rounded-full px-3 text-xs"
+									>
+										{selectedOOOCPicks ? "Showing Picks" : "Show Picks"}
+									</Button>
+								</div>
+							</div>
+						)}
+					</div>
 				</div>
 			</section>
 

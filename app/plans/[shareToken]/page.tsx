@@ -2,6 +2,10 @@ import Header from "@/components/Header";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { toHomepageEventPayload } from "@/features/events/homepage-event-payload";
 import { SharedPlanClient } from "@/features/plans/components/SharedPlanClient";
+import {
+	FEATURED_FETE_ROUTE,
+	isFeaturedFeteRouteShareToken,
+} from "@/features/plans/featured-route";
 import { formatPublicPlanTitle } from "@/features/plans/plan-title";
 import { getPublicSlidingBannerSettingsCached } from "@/features/site-settings/queries";
 import { getUserPlanRepository } from "@/lib/platform/postgres/user-plan-repository";
@@ -34,11 +38,16 @@ export async function generateMetadata({
 		};
 	}
 
-	const title = "A Fête Route";
+	const isFeaturedFeteRoute = isFeaturedFeteRouteShareToken(plan.shareToken);
+	const title = isFeaturedFeteRoute
+		? FEATURED_FETE_ROUTE.routeTitle
+		: "A Fête Route";
 	const publicPlanTitle = formatPublicPlanTitle(plan.planDate);
-	const description = `${publicPlanTitle} with ${plan.stops.length} stop${
-		plan.stops.length === 1 ? "" : "s"
-	}. Save it to your own Fete Finder plans.`;
+	const description = isFeaturedFeteRoute
+		? FEATURED_FETE_ROUTE.routeSummary
+		: `${publicPlanTitle} with ${plan.stops.length} stop${
+				plan.stops.length === 1 ? "" : "s"
+			}. Save it to your own Fete Finder plans.`;
 	const url = buildSiteUrl(`/plans/${shareToken}`);
 	const ogImageUrl = generateSharedPlanOGImage({
 		stopCount: plan.stops.length,

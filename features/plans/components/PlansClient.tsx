@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
 	TypeaheadCombobox,
 	type TypeaheadComboboxOption,
@@ -31,6 +31,10 @@ import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
 import type { MapProvider } from "@/features/maps/types";
 import { buildPlanWithAddedEvent } from "@/features/plans/add-event-to-plan";
 import { trackPlanAnalytics } from "@/features/plans/analytics";
+import {
+	FEATURED_FETE_ROUTE,
+	getFeaturedFeteRouteHref,
+} from "@/features/plans/featured-route";
 import { mergePinnedStopsIntoRoute } from "@/features/plans/pinned-route-merge";
 import {
 	getDefaultPlanDate,
@@ -88,6 +92,7 @@ import {
 	Unlock,
 	X,
 } from "lucide-react";
+import Link from "next/link";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AddEventToRouteDialog } from "./AddEventToRouteDialog";
@@ -1314,6 +1319,43 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 					</div>
 				</div>
 			</section>
+
+			{FEATURED_FETE_ROUTE.active && (
+				<section
+					aria-label={FEATURED_FETE_ROUTE.label}
+					className="grid gap-4 rounded-2xl border border-foreground/10 bg-foreground p-4 text-background shadow-[0_18px_60px_-44px_rgba(20,20,20,0.78)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5"
+				>
+					<div className="min-w-0">
+						<div className="inline-flex items-center gap-2 rounded-full bg-background/12 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-background/72">
+							<Route className="h-3.5 w-3.5" />
+							{FEATURED_FETE_ROUTE.label}
+						</div>
+						<h2 className="mt-3 text-balance text-2xl leading-tight [font-family:var(--ooo-font-display)] font-light sm:text-3xl">
+							{FEATURED_FETE_ROUTE.headline}
+						</h2>
+						<p className="mt-2 max-w-2xl text-sm leading-6 text-background/76">
+							{FEATURED_FETE_ROUTE.summary}
+						</p>
+					</div>
+					<Link
+						href={getFeaturedFeteRouteHref()}
+						onClick={() =>
+							trackPlanAnalytics({
+								action: "open_route",
+								surface: "planner",
+								value: FEATURED_FETE_ROUTE.slug,
+							})
+						}
+						className={cn(
+							buttonVariants({ variant: "secondary" }),
+							"w-full rounded-full bg-background text-foreground hover:bg-background/88 sm:w-auto",
+						)}
+					>
+						{FEATURED_FETE_ROUTE.plansCta}
+						<ArrowUpRight className="h-4 w-4" />
+					</Link>
+				</section>
+			)}
 
 			<section className="grid gap-4 lg:grid-cols-[18.5rem_minmax(0,1.45fr)_20.5rem] xl:grid-cols-[19rem_minmax(0,1.6fr)_21rem]">
 				<aside

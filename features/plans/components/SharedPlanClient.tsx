@@ -14,6 +14,10 @@ import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
 import type { MapProvider } from "@/features/maps/types";
 import { buildPlanWithAddedEvent } from "@/features/plans/add-event-to-plan";
 import { trackPlanAnalytics } from "@/features/plans/analytics";
+import {
+	FEATURED_FETE_ROUTE,
+	isFeaturedFeteRouteShareToken,
+} from "@/features/plans/featured-route";
 import { formatPublicPlanTitle } from "@/features/plans/plan-title";
 import { PlansProvider, usePlans } from "@/features/plans/plans-provider";
 import {
@@ -113,10 +117,24 @@ function SharedPlanWorkspace({
 	const visibleStops = plan.stops.filter((stop) =>
 		eventsByKey.has(normalizeEventKey(stop.eventKey)),
 	);
-	const ownerTitle =
-		plan.shareOwnerNameVisible === false
+	const isFeaturedFeteRoute = isFeaturedFeteRouteShareToken(plan.shareToken);
+	const ownerTitle = isFeaturedFeteRoute
+		? FEATURED_FETE_ROUTE.routeTitle
+		: plan.shareOwnerNameVisible === false
 			? "Shared plan"
 			: `${plan.ownerDisplayName}'s plan`;
+	const routeBadge = isFeaturedFeteRoute
+		? FEATURED_FETE_ROUTE.routeBadge
+		: "Shared plan";
+	const routeDescription = isFeaturedFeteRoute
+		? FEATURED_FETE_ROUTE.routeSummary
+		: "Open each stop for details, copy the link, or save the route to your own Fete Finder plans.";
+	const routeSaveCta = isFeaturedFeteRoute
+		? FEATURED_FETE_ROUTE.routeSaveCta
+		: "Save to my plans";
+	const routeSavedCta = isFeaturedFeteRoute
+		? FEATURED_FETE_ROUTE.routeSavedCta
+		: "Saved to my plans";
 	const publicPlanTitle = formatPublicPlanTitle(plan.planDate);
 	const routeEvents = visibleStops
 		.slice()
@@ -394,15 +412,18 @@ function SharedPlanWorkspace({
 				<section className="grid items-end gap-8 pt-10 pb-8 sm:pt-14 lg:grid-cols-[minmax(0,0.95fr)_minmax(24rem,0.72fr)] lg:pt-18 lg:pb-12">
 					<div className="min-w-0 animate-in fade-in-0 slide-in-from-bottom-3 duration-700">
 						<div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/72 px-3 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur">
-							<Share2 className="h-3.5 w-3.5" />
-							Shared plan
+							{isFeaturedFeteRoute ? (
+								<Route className="h-3.5 w-3.5" />
+							) : (
+								<Share2 className="h-3.5 w-3.5" />
+							)}
+							{routeBadge}
 						</div>
 						<h1 className="mt-5 max-w-4xl text-balance text-[clamp(3rem,12vw,7.5rem)] leading-[0.86] [font-family:var(--ooo-font-display)] font-light">
 							{ownerTitle}
 						</h1>
 						<p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-							Open each stop for details, copy the link, or save the route to
-							your own Fete Finder plans.
+							{routeDescription}
 						</p>
 						<div className="mt-6 space-y-2">
 							<div className="flex flex-wrap items-center gap-2">
@@ -418,8 +439,8 @@ function SharedPlanWorkspace({
 										<Plus className="mr-2 h-4 w-4" />
 									)}
 									{alreadySaved || saveStatus === "saved"
-										? "Saved to my plans"
-										: "Save to my plans"}
+										? routeSavedCta
+										: routeSaveCta}
 								</Button>
 								<Button
 									type="button"
