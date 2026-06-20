@@ -10,7 +10,6 @@ import {
 	FEATURED_FETE_ROUTE,
 	getFeaturedFeteRouteHref,
 } from "@/features/plans/featured-route";
-import { cn } from "@/lib/utils";
 import { ArrowUpRight, Route } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
@@ -76,46 +75,10 @@ export function EventsDiscoverySummaryIsland({
 						</Link>
 					</div>
 					<div className="space-y-3 lg:justify-self-end">
-						{FEATURED_FETE_ROUTE.active && (
-							<div className="w-full rounded-xl border border-foreground/12 bg-foreground p-3 text-background shadow-[0_16px_42px_-30px_rgba(22,16,10,0.7)]">
-								<div className="flex items-start gap-3">
-									<div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-background/12 text-background">
-										<Route className="h-4 w-4" />
-									</div>
-									<div className="min-w-0">
-										<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-background/70">
-											{FEATURED_FETE_ROUTE.label}
-										</p>
-										<p className="mt-1 text-sm font-medium leading-5">
-											{FEATURED_FETE_ROUTE.headline}
-										</p>
-										<p className="mt-1 text-xs leading-relaxed text-background/76">
-											{FEATURED_FETE_ROUTE.summary}
-										</p>
-										<Link
-											href={getFeaturedFeteRouteHref()}
-											onClick={() =>
-												trackNavigationClick({
-													group: "homepage_link",
-													label: "featured_fete_route",
-												})
-											}
-											className="mt-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-full bg-background px-3 text-xs font-medium text-foreground transition hover:bg-background/88"
-										>
-											{FEATURED_FETE_ROUTE.homepageCta}
-											<ArrowUpRight className="h-3.5 w-3.5" />
-										</Link>
-									</div>
-								</div>
-							</div>
-						)}
 						{ooocPicksInViewCount > 0 && (
 							<div
 								id="tour-oooc-picks"
-								className={cn(
-									"w-full rounded-xl border border-border/55 bg-card/46 p-3 shadow-[0_14px_30px_-30px_rgba(22,16,10,0.5)] backdrop-blur dark:border-border/30 dark:bg-card/34",
-									FEATURED_FETE_ROUTE.active && "bg-card/70",
-								)}
+								className="w-full rounded-xl border border-border/55 bg-card/46 p-3 shadow-[0_14px_30px_-30px_rgba(22,16,10,0.5)] backdrop-blur dark:border-border/30 dark:bg-card/34"
 							>
 								<div className="flex items-center justify-between gap-3">
 									<div className="min-w-0">
@@ -141,6 +104,39 @@ export function EventsDiscoverySummaryIsland({
 						)}
 					</div>
 				</div>
+				{FEATURED_FETE_ROUTE.active && (
+					<div className="relative mt-5 overflow-hidden rounded-2xl border border-foreground/12 bg-foreground p-4 text-background shadow-[0_16px_42px_-32px_rgba(22,16,10,0.7)] sm:p-5">
+						<div className="grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+							<div className="grid h-10 w-10 place-items-center rounded-full bg-background/12 text-background">
+								<Route className="h-4 w-4" />
+							</div>
+							<div className="min-w-0">
+								<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-background/70">
+									{FEATURED_FETE_ROUTE.label}
+								</p>
+								<p className="mt-1 text-base font-medium leading-6">
+									{FEATURED_FETE_ROUTE.headline}
+								</p>
+								<p className="mt-1 max-w-3xl text-sm leading-6 text-background/76">
+									{FEATURED_FETE_ROUTE.summary}
+								</p>
+							</div>
+							<Link
+								href={getFeaturedFeteRouteHref()}
+								onClick={() =>
+									trackNavigationClick({
+										group: "homepage_link",
+										label: "featured_fete_route",
+									})
+								}
+								className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-background px-4 text-sm font-medium text-foreground transition hover:bg-background/88"
+							>
+								{FEATURED_FETE_ROUTE.homepageCta}
+								<ArrowUpRight className="h-3.5 w-3.5" />
+							</Link>
+						</div>
+					</div>
+				)}
 			</section>
 
 			<FeaturedEvents

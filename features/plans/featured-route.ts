@@ -9,9 +9,9 @@ export const FEATURED_FETE_ROUTE = {
 	homepageCta: "Follow the route",
 	plansCta: "Start with this route",
 	routeBadge: "OOOC recommended route",
-	routeTitle: "Follow the OOOC Fête route",
+	routeTitle: "OOOC Fête route",
 	routeSummary:
-		"A ready-made Fête day route you can follow, edit, save, or open in maps.",
+		"Follow a ready-made Fête day route you can edit, save, or open in maps.",
 	routeSaveCta: "Follow this route",
 	routeSavedCta: "Route saved",
 } as const;
