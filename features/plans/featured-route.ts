@@ -1,23 +1,26 @@
 export const FEATURED_FETE_ROUTE = {
 	active: true,
 	slug: "fete-day-route",
+	canonicalPath: "/route",
 	shareToken: "a8b66c2c34a6e82a27c705fe51222a12",
-	label: "OOOC Fête route",
-	headline: "Don’t know where to go?",
+	label: "Handmade Fête route",
+	headline: "Need a ready-made route for today?",
 	summary:
-		"Follow OOOC’s ready-made route through the day. Open it in maps, save a copy, or edit it.",
-	homepageCta: "Follow the route",
+		"Follow our handmade route for Fête. Open it in maps, save a copy, or edit it.",
+	homepageCta: "Follow our route",
 	plansCta: "Start with this route",
-	routeBadge: "OOOC recommended route",
+	routeBadge: "Handmade by OOOC",
 	routeTitle: "OOOC’s route for Fête",
 	routeSummary:
-		"Follow a ready-made Fête day route you can edit, save, or open in maps.",
+		"A handmade Fête day route you can edit, save, or open in maps.",
+	crossSellHeadline: "Need a ready-made route for today?",
+	crossSellSummary: "Follow our handmade route for Fête.",
 	routeSaveCta: "Follow this route",
 	routeSavedCta: "Route saved",
 } as const;
 
 export const getFeaturedFeteRouteHref = (): string =>
-	`/plans/${FEATURED_FETE_ROUTE.shareToken}`;
+	FEATURED_FETE_ROUTE.canonicalPath;
 
 export const isFeaturedFeteRouteShareToken = (
 	shareToken: string | null | undefined,

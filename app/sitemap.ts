@@ -1,3 +1,7 @@
+import {
+	FEATURED_FETE_ROUTE,
+	getFeaturedFeteRouteHref,
+} from "@/features/plans/featured-route";
 import { buildSiteUrl } from "@/lib/site-url";
 import type { MetadataRoute } from "next";
 
@@ -41,6 +45,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			changeFrequency: "weekly",
 			priority: 0.6,
 		},
+		...(FEATURED_FETE_ROUTE.active
+			? [
+					{
+						url: buildSiteUrl(getFeaturedFeteRouteHref()),
+						lastModified,
+						changeFrequency: "hourly" as const,
+						priority: 0.8,
+					},
+				]
+			: []),
 		{
 			url: buildSiteUrl("/privacy"),
 			lastModified,

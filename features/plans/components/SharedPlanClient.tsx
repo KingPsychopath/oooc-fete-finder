@@ -16,6 +16,7 @@ import { buildPlanWithAddedEvent } from "@/features/plans/add-event-to-plan";
 import { trackPlanAnalytics } from "@/features/plans/analytics";
 import {
 	FEATURED_FETE_ROUTE,
+	getFeaturedFeteRouteHref,
 	isFeaturedFeteRouteShareToken,
 } from "@/features/plans/featured-route";
 import { formatPublicPlanTitle } from "@/features/plans/plan-title";
@@ -28,6 +29,7 @@ import {
 import type { SharedPlan, UserPlan } from "@/features/plans/types";
 import { cn } from "@/lib/utils";
 import {
+	ArrowUpRight,
 	CalendarPlus,
 	Check,
 	Copy,
@@ -135,6 +137,8 @@ function SharedPlanWorkspace({
 	const routeSavedCta = isFeaturedFeteRoute
 		? FEATURED_FETE_ROUTE.routeSavedCta
 		: "Saved to my plans";
+	const showFeaturedRoutePrompt =
+		FEATURED_FETE_ROUTE.active && !isFeaturedFeteRoute;
 	const publicPlanTitle = formatPublicPlanTitle(plan.planDate);
 	const routeEvents = visibleStops
 		.slice()
@@ -558,8 +562,37 @@ function SharedPlanWorkspace({
 						/>
 					</div>
 					<aside className="rounded-2xl border border-border/70 bg-card p-4 text-sm leading-6 text-muted-foreground shadow-sm lg:sticky lg:top-5">
-						Anyone with this link can view the plan. The owner can turn the link
-						off whenever they want.
+						<p>
+							Anyone with this link can view the plan. The owner can turn the
+							link off whenever they want.
+						</p>
+						{showFeaturedRoutePrompt && (
+							<div className="mt-4 border-t border-border/70 pt-4">
+								<p className="font-medium leading-5 text-foreground">
+									{FEATURED_FETE_ROUTE.crossSellHeadline}
+								</p>
+								<p className="mt-1 leading-5">
+									{FEATURED_FETE_ROUTE.crossSellSummary}
+								</p>
+								<Link
+									href={getFeaturedFeteRouteHref()}
+									onClick={() =>
+										trackPlanAnalytics({
+											action: "open_route",
+											surface: "shared_plan",
+											planId: plan.id,
+											planDate: plan.planDate,
+											stopCount: plan.stops.length,
+											value: "featured_route_prompt",
+										})
+									}
+									className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+								>
+									Follow our route
+									<ArrowUpRight className="h-3.5 w-3.5" />
+								</Link>
+							</div>
+						)}
 					</aside>
 				</section>
 			</div>
