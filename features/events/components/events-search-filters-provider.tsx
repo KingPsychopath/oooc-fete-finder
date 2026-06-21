@@ -139,6 +139,7 @@ interface EventsSearchFiltersProviderProps {
 interface EventsSearchFiltersContextValue {
 	activeFiltersCount: number;
 	allEventsOrdered: Event[];
+	archiveDateRange: ReturnType<typeof useEventFilters>["archiveDateRange"];
 	availableArrondissements: ReturnType<
 		typeof useEventFilters
 	>["availableArrondissements"];
@@ -161,6 +162,7 @@ interface EventsSearchFiltersContextValue {
 	handleSearchFocus: () => void;
 	handleSearchIntent: (query: string, source?: SearchAnalyticsSource) => void;
 	hasAnyActiveFilters: boolean;
+	isDefaultDiscoveryEmpty: boolean;
 	isFilterDrawerForced: boolean;
 	isFilterExpanded: boolean;
 	isFilterOpen: boolean;
@@ -700,12 +702,14 @@ export function EventsSearchFiltersProvider({
 		() => ({
 			...filters,
 			allEventsOrdered,
+			archiveDateRange: filters.archiveDateRange,
 			availableGenres,
 			availableNationalities,
 			canUseParisTestLocation,
 			handleOOOCPicksCalloutClick,
 			handleSearchFocus,
 			handleSearchIntent,
+			isDefaultDiscoveryEmpty: filters.isDefaultDiscoveryEmpty,
 			isFilterExpanded,
 			isFilterDrawerForced,
 			isFilterOpen,
@@ -735,12 +739,14 @@ export function EventsSearchFiltersProvider({
 		[
 			filters,
 			allEventsOrdered,
+			filters.archiveDateRange,
 			availableGenres,
 			availableNationalities,
 			canUseParisTestLocation,
 			handleOOOCPicksCalloutClick,
 			handleSearchFocus,
 			handleSearchIntent,
+			filters.isDefaultDiscoveryEmpty,
 			isFilterExpanded,
 			isFilterDrawerForced,
 			isFilterOpen,

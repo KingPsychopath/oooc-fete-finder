@@ -4,6 +4,7 @@ import {
 } from "@/features/events/filter-state-persistence";
 import {
 	DEFAULT_EVENT_FILTER_STATE,
+	filterEvents,
 	getActiveFiltersCount,
 	getCurrentParisYearDateRange,
 	getDateRangeAfterDefaultDateRangeChange,
@@ -32,7 +33,7 @@ const makeEvent = (date: string, index: number): Event => ({
 });
 
 describe("event filter defaults", () => {
-	it("defaults to the current Paris year when matching events exist", () => {
+	it("defaults to live/upcoming dates in the current Paris year when matching events exist", () => {
 		const defaultDateRange = getDefaultDateRangeForEvents(
 			[
 				makeEvent("2025-08-18", 1),
@@ -43,7 +44,7 @@ describe("event filter defaults", () => {
 		);
 
 		expect(defaultDateRange).toEqual({
-			from: "2026-01-01",
+			from: "2026-04-24",
 			to: "2026-12-31",
 		});
 	});
@@ -103,7 +104,7 @@ describe("event filter defaults", () => {
 			to: null,
 		};
 		const nextDefaultDateRange = {
-			from: "2026-01-01",
+			from: "2026-04-24",
 			to: "2026-12-31",
 		};
 
@@ -137,7 +138,68 @@ describe("event filter defaults", () => {
 		).toEqual(explicitDateRange);
 	});
 
-	it("does not count the default year range as an active filter or URL param", () => {
+	it("hides past events in the default discovery range but keeps explicit archive ranges", () => {
+		const pastEvent = makeEvent("2026-06-20", 1);
+		const upcomingEvent = makeEvent("2026-06-22", 2);
+		const defaultDateRange = {
+			from: "2026-06-21",
+			to: "2026-12-31",
+		};
+
+		expect(
+			filterEvents(
+				[pastEvent, upcomingEvent],
+				{
+					...DEFAULT_EVENT_FILTER_STATE,
+					selectedDateRange: defaultDateRange,
+				},
+				{
+					defaultDateRange,
+					referenceDate: new Date("2026-06-21T12:00:00.000Z"),
+				},
+			).map((event) => event.eventKey),
+		).toEqual([upcomingEvent.eventKey]);
+
+		expect(
+			filterEvents(
+				[pastEvent, upcomingEvent],
+				{
+					...DEFAULT_EVENT_FILTER_STATE,
+					selectedDateRange: {
+						from: "2026-01-01",
+						to: "2026-12-31",
+					},
+				},
+				{
+					defaultDateRange,
+					referenceDate: new Date("2026-06-21T12:00:00.000Z"),
+				},
+			).map((event) => event.eventKey),
+		).toEqual([pastEvent.eventKey, upcomingEvent.eventKey]);
+	});
+
+	it("returns no default discovery events after the final current-year event has passed", () => {
+		const defaultDateRange = {
+			from: "2026-06-23",
+			to: "2026-12-31",
+		};
+
+		expect(
+			filterEvents(
+				[makeEvent("2026-06-21", 1), makeEvent("2026-06-22", 2)],
+				{
+					...DEFAULT_EVENT_FILTER_STATE,
+					selectedDateRange: defaultDateRange,
+				},
+				{
+					defaultDateRange,
+					referenceDate: new Date("2026-06-23T12:00:00.000Z"),
+				},
+			),
+		).toEqual([]);
+	});
+
+	it("does not count the default date range as an active filter or URL param", () => {
 		const defaultDateRange = {
 			from: "2026-01-01",
 			to: "2026-12-31",
@@ -159,7 +221,7 @@ describe("event filter defaults", () => {
 		expect(params.toString()).toBe("event=abc123");
 	});
 
-	it("keeps the default year range for search-only URL filters", () => {
+	it("keeps the default date range for search-only URL filters", () => {
 		const defaultDateRange = {
 			from: "2026-01-01",
 			to: "2026-12-31",
@@ -235,7 +297,7 @@ describe("event filter defaults", () => {
 		});
 	});
 
-	it("keeps explicit valid URL date filters over the default year range", () => {
+	it("keeps explicit valid URL date filters over the default date range", () => {
 		const defaultDateRange = {
 			from: "2026-01-01",
 			to: "2026-12-31",
@@ -255,7 +317,7 @@ describe("event filter defaults", () => {
 		});
 	});
 
-	it("falls back to the default year range for invalid URL date filters", () => {
+	it("falls back to the default date range for invalid URL date filters", () => {
 		const defaultDateRange = {
 			from: "2026-01-01",
 			to: "2026-12-31",

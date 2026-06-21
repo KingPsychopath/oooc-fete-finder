@@ -31,8 +31,10 @@ import {
 	getAvailableArrondissements,
 	getAvailableEventDates,
 	getAvailableEventExperienceCategories,
+	getCurrentParisYearDateRange,
 	getDateRangeAfterDefaultDateRangeChange,
 	getDefaultEventFilterState,
+	getEventCountForDateRange,
 	getTopEventDatesByCount,
 	hasActiveFilters,
 } from "../filtering";
@@ -161,6 +163,20 @@ export const useEventFilters = ({
 		setSearchQuery(state.searchQuery);
 	}, []);
 
+	const applyPublicDateRangeSnapshot = useCallback(
+		(state: EventFilterState | null): boolean => {
+			if (!state?.selectedDateRange.from && !state?.selectedDateRange.to) {
+				return false;
+			}
+			applyStateSnapshot({
+				...defaultFilterState,
+				selectedDateRange: state.selectedDateRange,
+			});
+			return true;
+		},
+		[applyStateSnapshot, defaultFilterState],
+	);
+
 	useEffect(() => {
 		return () => {
 			if (searchTrackTimeoutRef.current) {
@@ -186,7 +202,13 @@ export const useEventFilters = ({
 					);
 			}
 		}
-		if (!isFilterAccessAllowed) return;
+		if (!isFilterAccessAllowed) {
+			if (applyPublicDateRangeSnapshot(pendingInitialFilterStateRef.current)) {
+				pendingInitialFilterStateRef.current = null;
+			}
+			setIsInitialFilterStateReady(true);
+			return;
+		}
 		if (pendingInitialFilterStateRef.current) {
 			applyStateSnapshot(pendingInitialFilterStateRef.current);
 		}
@@ -194,6 +216,7 @@ export const useEventFilters = ({
 		setIsInitialFilterStateReady(true);
 	}, [
 		applyStateSnapshot,
+		applyPublicDateRangeSnapshot,
 		defaultFilterState.selectedDateRange,
 		isFilterAccessAllowed,
 	]);
@@ -324,9 +347,14 @@ export const useEventFilters = ({
 				selectedAgeRange,
 				selectedOOOCPicks,
 				searchQuery,
-			}),
+			},
+			{
+				defaultDateRange: defaultFilterState.selectedDateRange,
+			},
+		),
 		[
 			events,
+			defaultFilterState.selectedDateRange,
 			selectedDateRange,
 			selectedDayNightPeriods,
 			selectedArrondissements,
@@ -426,6 +454,16 @@ export const useEventFilters = ({
 			searchQuery,
 			defaultFilterState.selectedDateRange,
 		],
+	);
+
+	const archiveDateRange = useMemo(() => getCurrentParisYearDateRange(), []);
+	const isDefaultDiscoveryEmpty = useMemo(
+		() =>
+			archiveDateRange.from != null &&
+			!hasAnyActiveFilters &&
+			filteredEvents.length === 0 &&
+			getEventCountForDateRange(events, archiveDateRange) > 0,
+		[archiveDateRange, events, filteredEvents.length, hasAnyActiveFilters],
 	);
 
 	const onDateRangeChange = useCallback(
@@ -707,7 +745,9 @@ export const useEventFilters = ({
 		availableEventDates,
 		quickSelectEventDates,
 		availableEventCategories,
+		archiveDateRange,
 		filteredEvents,
+		isDefaultDiscoveryEmpty,
 		hasAnyActiveFilters,
 		activeFiltersCount,
 		onDateRangeChange,

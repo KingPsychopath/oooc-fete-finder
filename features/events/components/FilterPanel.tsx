@@ -535,7 +535,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 		return (
 			<div className="rounded-lg border border-border/70 bg-muted/35 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground lg:text-[10px]">
-				Showing this year&apos;s events by default. Older showcase events are
+				Showing live and upcoming events by default. Past season events are
 				still available if you widen the date range.
 			</div>
 		);

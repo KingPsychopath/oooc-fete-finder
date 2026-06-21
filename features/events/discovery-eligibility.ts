@@ -1,9 +1,11 @@
 import type { DateRangeFilter } from "@/features/events/filtering";
 import type { Event } from "@/features/events/types";
 import { isStrictISODate } from "./date-utils";
+import { isEventDiscoverableByDefault } from "./lifecycle";
 
 type DiscoveryEligibilityOptions = {
 	dateRange: DateRangeFilter;
+	referenceDate?: Date;
 };
 
 export const isEventInDiscoveryDateRange = (
@@ -22,5 +24,10 @@ export const getDiscoveryEligibleEvents = (
 	options: DiscoveryEligibilityOptions,
 ): Event[] =>
 	events.filter((event) =>
-		event ? isEventInDiscoveryDateRange(event, options.dateRange) : false,
+		event
+			? isEventDiscoverableByDefault(event, {
+					dateRange: options.dateRange,
+					referenceDate: options.referenceDate,
+				})
+			: false,
 	);

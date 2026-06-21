@@ -26,7 +26,9 @@ export function EventListIsland({
 	const {
 		activeFiltersCount,
 		allEventsOrdered,
+		archiveDateRange,
 		hasAnyActiveFilters,
+		isDefaultDiscoveryEmpty,
 		nearbyEventsError,
 		nearbyEventsStatus,
 		nearbyLocationScope,
@@ -70,6 +72,8 @@ export function EventListIsland({
 			onAuthRequired={onAuthRequired}
 			hasActiveFilters={hasAnyActiveFilters}
 			activeFiltersCount={activeFiltersCount}
+			archiveDateRange={archiveDateRange}
+			isDefaultDiscoveryEmpty={isDefaultDiscoveryEmpty}
 			isAuthenticated={isAuthenticated}
 			isAuthResolved={isAuthResolved}
 			nearbyEventsError={nearbyEventsError}

@@ -7,6 +7,7 @@ import { EventCard } from "@/features/events/components/EventCard";
 import { FilterButton } from "@/features/events/components/FilterButton";
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import { buildGenreFrequency } from "@/features/events/genre-preview";
+import type { DateRangeFilter } from "@/features/events/filtering";
 import type { SocialProofDisplayMode } from "@/features/events/social-proof";
 import type { TicketActivityDisplayMode } from "@/features/events/ticket-activity";
 import type { DayNightPeriod, Event } from "@/features/events/types";
@@ -68,6 +69,8 @@ type AllEventsProps = {
 	onAuthRequired: () => void;
 	hasActiveFilters: boolean;
 	activeFiltersCount: number;
+	archiveDateRange: DateRangeFilter;
+	isDefaultDiscoveryEmpty: boolean;
 	isAuthenticated: boolean;
 	isAuthResolved: boolean;
 	nearbyEventsError: string | null;
@@ -102,6 +105,8 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 			onAuthRequired,
 			hasActiveFilters,
 			activeFiltersCount,
+			archiveDateRange,
+			isDefaultDiscoveryEmpty,
 			isAuthenticated,
 			isAuthResolved,
 			nearbyEventsError,
@@ -192,6 +197,15 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 		) : null;
 		const isNearbyActive = sortMode === "nearby";
 		const isNearbyOutsideParis = nearbyLocationScope === "outside-paris-map";
+		const showWrappedEmptyState = isDefaultDiscoveryEmpty && !showSavedOnly;
+		const archiveYear = archiveDateRange.from?.slice(0, 4) ?? "season";
+		const archiveHref = (() => {
+			const params = new URLSearchParams();
+			if (archiveDateRange.from) params.set("df", archiveDateRange.from);
+			if (archiveDateRange.to) params.set("dt", archiveDateRange.to);
+			const query = params.toString();
+			return query ? `${basePath || "/"}?${query}` : basePath || "/";
+		})();
 		const nearbyButtonControl = (
 			<Button
 				type="button"
@@ -377,15 +391,42 @@ export const AllEvents = forwardRef<HTMLDivElement, AllEventsProps>(
 								<SearchX className="h-4 w-4" />
 							</div>
 							<h3 className="mt-4 text-lg [font-family:var(--ooo-font-display)] font-light text-foreground">
-								{showSavedOnly
+								{showWrappedEmptyState
+									? "Fête week has wrapped"
+									: showSavedOnly
 									? "No saved events in this view"
 									: "No events match this view"}
 							</h3>
 							<p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-								{showSavedOnly
+								{showWrappedEmptyState
+									? "The live guide now defaults to upcoming events. You can still browse this season's archive or submit the next thing the collective should know about."
+									: showSavedOnly
 									? "Save events from their detail modal, or clear filters if your saved events are hidden."
 									: "Try a broader search, remove an include/exclude chip, or clear filters to bring the full list back."}
 							</p>
+							{showWrappedEmptyState && (
+								<div className="mt-4 flex flex-col items-center justify-center gap-2 sm:flex-row">
+									<a
+										href={archiveHref}
+										className="inline-flex h-8 items-center justify-center rounded-full border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+									>
+										<CalendarDays className="mr-1.5 h-3.5 w-3.5" />
+										View {archiveYear} archive
+									</a>
+									<Link
+										href={`${basePath}/submit-event`}
+										onClick={() =>
+											trackNavigationClick({
+												group: "homepage_link",
+												label: "submit_event_empty_state",
+											})
+										}
+										className="inline-flex h-8 items-center justify-center rounded-full bg-foreground px-4 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+									>
+										Submit an event
+									</Link>
+								</div>
+							)}
 							{showSavedOnly && (
 								<Button
 									type="button"

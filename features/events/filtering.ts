@@ -26,6 +26,7 @@ import {
 } from "@/features/events/types";
 import { isStrictISODate } from "./date-utils";
 import { isEventInDiscoveryDateRange } from "./discovery-eligibility";
+import { isEventDiscoverableByDefault } from "./lifecycle";
 
 export type DateRangeFilter = {
 	from: string | null;
@@ -73,6 +74,12 @@ const PARIS_YEAR_FORMATTER = new Intl.DateTimeFormat("en-CA", {
 	timeZone: "Europe/Paris",
 	year: "numeric",
 });
+const PARIS_DATE_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+	timeZone: "Europe/Paris",
+	year: "numeric",
+	month: "2-digit",
+	day: "2-digit",
+});
 
 export const areDateRangesEqual = (
 	left: DateRangeFilter,
@@ -85,6 +92,16 @@ export const getCurrentParisYearDateRange = (
 	const currentYear = PARIS_YEAR_FORMATTER.format(referenceDate);
 	return {
 		from: `${currentYear}-01-01`,
+		to: `${currentYear}-12-31`,
+	};
+};
+
+export const getDefaultDiscoveryDateRange = (
+	referenceDate = new Date(),
+): DateRangeFilter => {
+	const currentYear = PARIS_YEAR_FORMATTER.format(referenceDate);
+	return {
+		from: PARIS_DATE_FORMATTER.format(referenceDate),
 		to: `${currentYear}-12-31`,
 	};
 };
@@ -115,7 +132,7 @@ export const getDefaultDateRangeForEvents = (
 	});
 
 	return hasCurrentYearEvents
-		? currentYearDateRange
+		? getDefaultDiscoveryDateRange(referenceDate)
 		: DEFAULT_EVENT_FILTER_STATE.selectedDateRange;
 };
 
@@ -258,12 +275,29 @@ const matchesIndoorPreference = (
 export const filterEvents = (
 	events: Event[],
 	filters: EventFilterState,
+	options?: {
+		defaultDateRange?: DateRangeFilter;
+		referenceDate?: Date;
+	},
 ): Event[] => {
+	const shouldUseDefaultDiscovery =
+		options?.defaultDateRange &&
+		areDateRangesEqual(filters.selectedDateRange, options.defaultDateRange);
 	return events.filter((event) => {
 		if (filters.selectedOOOCPicks && event.isOOOCPick !== true) return false;
 
-		if (!isEventInDiscoveryDateRange(event, filters.selectedDateRange))
+		if (shouldUseDefaultDiscovery) {
+			if (
+				!isEventDiscoverableByDefault(event, {
+					dateRange: filters.selectedDateRange,
+					referenceDate: options?.referenceDate,
+				})
+			) {
+				return false;
+			}
+		} else if (!isEventInDiscoveryDateRange(event, filters.selectedDateRange)) {
 			return false;
+		}
 
 		if (filters.selectedDayNightPeriods.length > 0) {
 			const hasMatchingPeriod = filters.selectedDayNightPeriods.some((period) =>

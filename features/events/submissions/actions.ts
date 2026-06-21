@@ -36,6 +36,10 @@ const assertAdmin = async (keyOrToken?: string): Promise<void> => {
 	}
 };
 
+const EVENT_SUBMISSION_ROW_SORT_REFERENCE_DATE = new Date(
+	"1900-01-01T00:00:00.000Z",
+);
+
 const buildSubmissionNotes = (
 	submission: EventSubmissionRecord,
 ): string | undefined => {
@@ -344,10 +348,10 @@ export async function acceptEventSubmission(
 		}
 
 		const acceptedRow = mapSubmissionToSheetRow(current, editorData.columns);
-		const nextRows = sortEditableSheetRowsByDefaultDate([
-			...editorData.rows.map((row) => ({ ...row })),
-			acceptedRow,
-		]);
+		const nextRows = sortEditableSheetRowsByDefaultDate(
+			[...editorData.rows.map((row) => ({ ...row })), acceptedRow],
+			{ referenceDate: EVENT_SUBMISSION_ROW_SORT_REFERENCE_DATE },
+		);
 		const saveResult = await saveEventSheetEditorRows(
 			undefined,
 			editorData.columns,
