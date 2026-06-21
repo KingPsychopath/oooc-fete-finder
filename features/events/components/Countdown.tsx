@@ -47,7 +47,7 @@ const getNextFeteDate = (referenceDate: Date): Date => {
 		: getFeteDateForYear(referenceDate.getFullYear() + 1);
 };
 
-const calculateCountdown = (referenceDate: Date): CountdownState => {
+export const calculateCountdown = (referenceDate: Date): CountdownState => {
 	if (isFeteDayInParis(referenceDate)) {
 		const currentYearEventDate = getFeteDateForYear(
 			getParisYear(referenceDate),
@@ -78,9 +78,9 @@ const calculateCountdown = (referenceDate: Date): CountdownState => {
 	};
 };
 
-const formatCountdown = (countdown: CountdownState): string => {
+export const formatCountdown = (countdown: CountdownState): string => {
 	if (countdown.isLiveToday) {
-		return "Live today in Paris";
+		return "It's Fete day in Paris";
 	}
 
 	const parts: string[] = [];
