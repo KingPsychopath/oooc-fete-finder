@@ -4,6 +4,7 @@ import {
 } from "@/features/data-management/actions";
 import { getAdminSearchChipSettings } from "@/features/events/search-chip-actions";
 import { getEventSubmissionsDashboard } from "@/features/events/submissions/actions";
+import { getAdminPublishedPlans } from "@/features/plans/published-plan-actions";
 import { getAdminSlidingBannerSettings } from "@/features/site-settings/actions";
 import { getTicketExchangeAdminDashboard } from "@/features/ticket-exchange/admin-actions";
 import { getCurrentDeploymentId } from "@/lib/deployment/build-id";
@@ -19,6 +20,7 @@ export default async function AdminContentPage() {
 		editorData,
 		eventSubmissions,
 		locationReview,
+		publishedPlans,
 		searchChipSettings,
 		slidingBannerSettings,
 		ticketExchangeModeration,
@@ -26,6 +28,7 @@ export default async function AdminContentPage() {
 		getEventSheetEditorData(),
 		getEventSubmissionsDashboard(),
 		getEventLocationReviewData(),
+		getAdminPublishedPlans(),
 		getAdminSearchChipSettings(),
 		getAdminSlidingBannerSettings(),
 		getTicketExchangeAdminDashboard(),
@@ -62,6 +65,9 @@ export default async function AdminContentPage() {
 			initialSubmissions={submissionsPayload}
 			initialLocationReview={
 				locationReview.status === "fulfilled" ? locationReview.value : undefined
+			}
+			initialPublishedPlans={
+				publishedPlans.status === "fulfilled" ? publishedPlans.value : undefined
 			}
 			initialSlidingBannerSettings={
 				slidingBannerSettings.status === "fulfilled"

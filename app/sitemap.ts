@@ -1,7 +1,8 @@
 import {
-	FEATURED_FETE_ROUTE,
-	getFeaturedFeteRouteHref,
-} from "@/features/plans/featured-route";
+	OFFICIAL_FETE_PLAN,
+	getOfficialFetePlanArchiveHref,
+	getOfficialFetePlanHref,
+} from "@/features/plans/official-plan-config";
 import { buildSiteUrl } from "@/lib/site-url";
 import type { MetadataRoute } from "next";
 
@@ -45,13 +46,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			changeFrequency: "weekly",
 			priority: 0.6,
 		},
-		...(FEATURED_FETE_ROUTE.active
+		...(OFFICIAL_FETE_PLAN.active
 			? [
 					{
-						url: buildSiteUrl(getFeaturedFeteRouteHref()),
+						url: buildSiteUrl(getOfficialFetePlanHref()),
 						lastModified,
 						changeFrequency: "hourly" as const,
 						priority: 0.8,
+					},
+					{
+						url: buildSiteUrl(getOfficialFetePlanArchiveHref()),
+						lastModified,
+						changeFrequency: "yearly" as const,
+						priority: 0.5,
 					},
 				]
 			: []),

@@ -32,9 +32,9 @@ import type { MapProvider } from "@/features/maps/types";
 import { buildPlanWithAddedEvent } from "@/features/plans/add-event-to-plan";
 import { trackPlanAnalytics } from "@/features/plans/analytics";
 import {
-	FEATURED_FETE_ROUTE,
-	getFeaturedFeteRouteHref,
-} from "@/features/plans/featured-route";
+	OFFICIAL_FETE_PLAN,
+	getOfficialFetePlanHref,
+} from "@/features/plans/official-plan-config";
 import { mergePinnedStopsIntoRoute } from "@/features/plans/pinned-route-merge";
 import {
 	getDefaultPlanDate,
@@ -1320,30 +1320,30 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 				</div>
 			</section>
 
-			{FEATURED_FETE_ROUTE.active && (
+			{OFFICIAL_FETE_PLAN.active && (
 				<section
-					aria-label={FEATURED_FETE_ROUTE.label}
+					aria-label={OFFICIAL_FETE_PLAN.label}
 					className="grid gap-4 rounded-2xl border border-foreground/10 bg-foreground p-4 text-background shadow-[0_18px_60px_-44px_rgba(20,20,20,0.78)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5"
 				>
 					<div className="min-w-0">
 						<div className="inline-flex items-center gap-2 rounded-full bg-background/12 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-background/72">
 							<Route className="h-3.5 w-3.5" />
-							{FEATURED_FETE_ROUTE.label}
+							{OFFICIAL_FETE_PLAN.label}
 						</div>
 						<h2 className="mt-3 text-balance text-2xl leading-tight [font-family:var(--ooo-font-display)] font-light sm:text-3xl">
-							{FEATURED_FETE_ROUTE.headline}
+							{OFFICIAL_FETE_PLAN.headline}
 						</h2>
 						<p className="mt-2 max-w-2xl text-sm leading-6 text-background/76">
-							{FEATURED_FETE_ROUTE.summary}
+							{OFFICIAL_FETE_PLAN.summary}
 						</p>
 					</div>
 					<Link
-						href={getFeaturedFeteRouteHref()}
+						href={getOfficialFetePlanHref()}
 						onClick={() =>
 							trackPlanAnalytics({
 								action: "open_route",
 								surface: "planner",
-								value: FEATURED_FETE_ROUTE.slug,
+								value: OFFICIAL_FETE_PLAN.slug,
 							})
 						}
 						className={cn(
@@ -1351,7 +1351,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 							"w-full rounded-full bg-background text-foreground hover:bg-background/88 sm:w-auto",
 						)}
 					>
-						{FEATURED_FETE_ROUTE.plansCta}
+						{OFFICIAL_FETE_PLAN.plansCta}
 						<ArrowUpRight className="h-4 w-4" />
 					</Link>
 				</section>

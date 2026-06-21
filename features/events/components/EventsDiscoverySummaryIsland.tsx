@@ -7,9 +7,9 @@ import { trackNavigationClick } from "@/features/events/engagement/client-tracki
 import { FeaturedEvents } from "@/features/events/featured/FeaturedEvents";
 import type { Event } from "@/features/events/types";
 import {
-	FEATURED_FETE_ROUTE,
-	getFeaturedFeteRouteHref,
-} from "@/features/plans/featured-route";
+	OFFICIAL_FETE_PLAN,
+	getOfficialFetePlanHref,
+} from "@/features/plans/official-plan-config";
 import { ArrowUpRight, Route } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
@@ -104,7 +104,7 @@ export function EventsDiscoverySummaryIsland({
 						)}
 					</div>
 				</div>
-				{FEATURED_FETE_ROUTE.active && (
+				{OFFICIAL_FETE_PLAN.active && (
 					<div className="relative mt-5 overflow-hidden rounded-2xl border border-foreground/12 bg-foreground p-4 text-background shadow-[0_16px_42px_-32px_rgba(22,16,10,0.7)] sm:p-5">
 						<div className="grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
 							<div className="grid h-10 w-10 place-items-center rounded-full bg-background/12 text-background">
@@ -112,17 +112,17 @@ export function EventsDiscoverySummaryIsland({
 							</div>
 							<div className="min-w-0">
 								<p className="text-[10px] font-medium uppercase tracking-[0.14em] text-background/70">
-									{FEATURED_FETE_ROUTE.label}
+									{OFFICIAL_FETE_PLAN.label}
 								</p>
 								<p className="mt-1 text-base font-medium leading-6">
-									{FEATURED_FETE_ROUTE.headline}
+									{OFFICIAL_FETE_PLAN.headline}
 								</p>
 								<p className="mt-1 max-w-3xl text-sm leading-6 text-background/76">
-									{FEATURED_FETE_ROUTE.summary}
+									{OFFICIAL_FETE_PLAN.summary}
 								</p>
 							</div>
 							<Link
-								href={getFeaturedFeteRouteHref()}
+								href={getOfficialFetePlanHref()}
 								onClick={() =>
 									trackNavigationClick({
 										group: "homepage_link",
@@ -131,7 +131,7 @@ export function EventsDiscoverySummaryIsland({
 								}
 								className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full bg-background px-4 text-sm font-medium text-foreground transition hover:bg-background/88"
 							>
-								{FEATURED_FETE_ROUTE.homepageCta}
+								{OFFICIAL_FETE_PLAN.homepageCta}
 								<ArrowUpRight className="h-3.5 w-3.5" />
 							</Link>
 						</div>

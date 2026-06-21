@@ -15,10 +15,9 @@ import type { MapProvider } from "@/features/maps/types";
 import { buildPlanWithAddedEvent } from "@/features/plans/add-event-to-plan";
 import { trackPlanAnalytics } from "@/features/plans/analytics";
 import {
-	FEATURED_FETE_ROUTE,
-	getFeaturedFeteRouteHref,
-	isFeaturedFeteRouteShareToken,
-} from "@/features/plans/featured-route";
+	OFFICIAL_FETE_PLAN,
+	getOfficialFetePlanHref,
+} from "@/features/plans/official-plan-config";
 import { formatPublicPlanTitle } from "@/features/plans/plan-title";
 import { PlansProvider, usePlans } from "@/features/plans/plans-provider";
 import {
@@ -42,6 +41,16 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AddEventToRouteDialog } from "./AddEventToRouteDialog";
 import { PlanRouteSummary } from "./PlanRouteSummary";
+
+export type SharedPlanPresentation = {
+	kind: "shared" | "official";
+	badge: string;
+	title: string;
+	description: string;
+	saveCta: string;
+	savedCta: string;
+	showOfficialPlanPrompt: boolean;
+};
 
 const normalizeEventKey = (value: string): string => value.trim().toLowerCase();
 const MONTH_LABELS = [
@@ -71,14 +80,20 @@ const formatShortDate = (date: string): string => {
 export function SharedPlanClient({
 	plan,
 	initialEvents,
+	presentation,
 }: {
 	plan: SharedPlan;
 	initialEvents: Event[];
+	presentation?: SharedPlanPresentation;
 }) {
 	return (
 		<SavedEventsProvider>
 			<PlansProvider>
-				<SharedPlanWorkspace plan={plan} initialEvents={initialEvents} />
+				<SharedPlanWorkspace
+					plan={plan}
+					initialEvents={initialEvents}
+					presentation={presentation}
+				/>
 			</PlansProvider>
 		</SavedEventsProvider>
 	);
@@ -87,9 +102,11 @@ export function SharedPlanClient({
 function SharedPlanWorkspace({
 	plan,
 	initialEvents,
+	presentation,
 }: {
 	plan: SharedPlan;
 	initialEvents: Event[];
+	presentation?: SharedPlanPresentation;
 }) {
 	const { isAuthenticated, isOnline } = useOptionalAuth();
 	const { mapPreference, setMapPreference } = useMapPreference();
@@ -119,26 +136,20 @@ function SharedPlanWorkspace({
 	const visibleStops = plan.stops.filter((stop) =>
 		eventsByKey.has(normalizeEventKey(stop.eventKey)),
 	);
-	const isFeaturedFeteRoute = isFeaturedFeteRouteShareToken(plan.shareToken);
-	const ownerTitle = isFeaturedFeteRoute
-		? FEATURED_FETE_ROUTE.routeTitle
+	const ownerTitle = presentation
+		? presentation.title
 		: plan.shareOwnerNameVisible === false
 			? "Shared plan"
 			: `${plan.ownerDisplayName}'s plan`;
-	const routeBadge = isFeaturedFeteRoute
-		? FEATURED_FETE_ROUTE.routeBadge
-		: "Shared plan";
-	const routeDescription = isFeaturedFeteRoute
-		? FEATURED_FETE_ROUTE.routeSummary
-		: "Open each stop for details, copy the link, or save the route to your own Fete Finder plans.";
-	const routeSaveCta = isFeaturedFeteRoute
-		? FEATURED_FETE_ROUTE.routeSaveCta
-		: "Save to my plans";
-	const routeSavedCta = isFeaturedFeteRoute
-		? FEATURED_FETE_ROUTE.routeSavedCta
-		: "Saved to my plans";
+	const routeBadge = presentation?.badge ?? "Shared plan";
+	const routeDescription =
+		presentation?.description ??
+		"Open each stop for details, copy the link, or save the route to your own Fete Finder plans.";
+	const routeSaveCta = presentation?.saveCta ?? "Save to my plans";
+	const routeSavedCta = presentation?.savedCta ?? "Saved to my plans";
 	const showFeaturedRoutePrompt =
-		FEATURED_FETE_ROUTE.active && !isFeaturedFeteRoute;
+		presentation?.showOfficialPlanPrompt ??
+		(OFFICIAL_FETE_PLAN.active && presentation?.kind !== "official");
 	const publicPlanTitle = formatPublicPlanTitle(plan.planDate);
 	const routeEvents = visibleStops
 		.slice()
@@ -416,7 +427,7 @@ function SharedPlanWorkspace({
 				<section className="grid items-end gap-8 pt-10 pb-8 sm:pt-14 lg:grid-cols-[minmax(0,0.95fr)_minmax(24rem,0.72fr)] lg:pt-18 lg:pb-12">
 					<div className="min-w-0 animate-in fade-in-0 slide-in-from-bottom-3 duration-700">
 						<div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/72 px-3 py-1 text-xs text-muted-foreground shadow-sm backdrop-blur">
-							{isFeaturedFeteRoute ? (
+							{presentation?.kind === "official" ? (
 								<Route className="h-3.5 w-3.5" />
 							) : (
 								<Share2 className="h-3.5 w-3.5" />
@@ -569,13 +580,13 @@ function SharedPlanWorkspace({
 						{showFeaturedRoutePrompt && (
 							<div className="mt-4 border-t border-border/70 pt-4">
 								<p className="font-medium leading-5 text-foreground">
-									{FEATURED_FETE_ROUTE.crossSellHeadline}
+									{OFFICIAL_FETE_PLAN.crossSellHeadline}
 								</p>
 								<p className="mt-1 leading-5">
-									{FEATURED_FETE_ROUTE.crossSellSummary}
+									{OFFICIAL_FETE_PLAN.crossSellSummary}
 								</p>
 								<Link
-									href={getFeaturedFeteRouteHref()}
+									href={getOfficialFetePlanHref()}
 									onClick={() =>
 										trackPlanAnalytics({
 											action: "open_route",

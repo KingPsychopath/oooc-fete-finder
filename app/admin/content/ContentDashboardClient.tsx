@@ -12,11 +12,18 @@ import {
 import { EventSheetEditorCard } from "../components/EventSheetEditorCard";
 import { EventSubmissionsCard } from "../components/EventSubmissionsCard";
 import { LocationReviewCard } from "../components/LocationReviewCard";
+import { PublishedPlansCard } from "../components/PublishedPlansCard";
 import { SearchChipSettingsCard } from "../components/SearchChipSettingsCard";
 import { SlidingBannerSettingsCard } from "../components/SlidingBannerSettingsCard";
 import { TicketExchangeModerationCard } from "../components/TicketExchangeModerationCard";
 
-type ContentTab = "submissions" | "sheet" | "tickets" | "locations" | "site";
+type ContentTab =
+	| "submissions"
+	| "sheet"
+	| "tickets"
+	| "locations"
+	| "plans"
+	| "site";
 
 type EventSubmissionsPayload = ComponentProps<
 	typeof EventSubmissionsCard
@@ -29,6 +36,9 @@ type PendingEventReviews = ComponentProps<
 >["pendingEventReviews"];
 type LocationReviewPayload = ComponentProps<
 	typeof LocationReviewCard
+>["initialPayload"];
+type PublishedPlansPayload = ComponentProps<
+	typeof PublishedPlansCard
 >["initialPayload"];
 type SlidingBannerSettings = ComponentProps<
 	typeof SlidingBannerSettingsCard
@@ -45,6 +55,7 @@ type ContentDashboardClientProps = {
 	initialEditorData?: EventSheetEditorData;
 	initialSubmissions?: EventSubmissionsPayload;
 	initialLocationReview?: LocationReviewPayload;
+	initialPublishedPlans?: PublishedPlansPayload;
 	initialSlidingBannerSettings?: SlidingBannerSettings;
 	initialSearchChipSettings?: SearchChipSettings;
 	initialTicketExchangeModeration?: TicketExchangePayload;
@@ -83,6 +94,12 @@ const CONTENT_TABS: Array<{
 		anchorId: "location-review",
 	},
 	{
+		key: "plans",
+		label: "Published Plans",
+		description: "Official route snapshots and aliases.",
+		anchorId: "published-plans",
+	},
+	{
 		key: "site",
 		label: "Site Content",
 		description: "Banner copy and homepage search chips.",
@@ -95,6 +112,7 @@ const HASH_TO_TAB = new Map<string, ContentTab>(
 );
 HASH_TO_TAB.set("site-content", "site");
 HASH_TO_TAB.set("search-chips", "site");
+HASH_TO_TAB.set("published-plan-aliases", "plans");
 
 const ANCHOR_SCROLL_TARGETS = new Map<string, string>([
 	["site-content", "sliding-banner"],
@@ -107,6 +125,7 @@ const getTabForAnchor = (anchorId: string): ContentTab | null => {
 	if (anchorId.startsWith("ticket-report-")) return "tickets";
 	if (anchorId.startsWith("ticket-listing-")) return "tickets";
 	if (anchorId.startsWith("location-review-")) return "locations";
+	if (anchorId.startsWith("published-plan")) return "plans";
 	return null;
 };
 
@@ -158,6 +177,7 @@ export function ContentDashboardClient({
 	initialEditorData,
 	initialSubmissions,
 	initialLocationReview,
+	initialPublishedPlans,
 	initialSlidingBannerSettings,
 	initialSearchChipSettings,
 	initialTicketExchangeModeration,
@@ -312,6 +332,15 @@ export function ContentDashboardClient({
 					className={cn("scroll-mt-44", activeTab !== "locations" && "hidden")}
 				>
 					<LocationReviewCard initialPayload={initialLocationReview} />
+				</section>
+			) : null}
+
+			{visitedTabs.has("plans") ? (
+				<section
+					id="published-plans"
+					className={cn("scroll-mt-44", activeTab !== "plans" && "hidden")}
+				>
+					<PublishedPlansCard initialPayload={initialPublishedPlans} />
 				</section>
 			) : null}
 

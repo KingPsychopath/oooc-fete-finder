@@ -58,6 +58,8 @@ const serviceWorkerHeaders = [
 	},
 ];
 
+const officialFeteSourcePlanToken = "a8b66c2c34a6e82a27c705fe51222a12";
+
 const nextConfig: NextConfig = {
 	// Configuration for subdirectory deployment
 	// Use direct env access for build-time configuration
@@ -74,6 +76,15 @@ const nextConfig: NextConfig = {
 			"./public/fonts/degular_regular.ttf",
 			"./public/fonts/prata_regular.ttf",
 		],
+	},
+	async redirects() {
+		return [
+			{
+				source: `/plans/${officialFeteSourcePlanToken}`,
+				destination: "/plans/fete",
+				permanent: false,
+			},
+		];
 	},
 	async headers() {
 		return [

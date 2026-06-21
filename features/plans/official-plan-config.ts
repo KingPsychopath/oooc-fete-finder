@@ -1,8 +1,9 @@
-export const FEATURED_FETE_ROUTE = {
+export const OFFICIAL_FETE_PLAN = {
 	active: true,
-	slug: "fete-day-route",
-	canonicalPath: "/route",
-	shareToken: "a8b66c2c34a6e82a27c705fe51222a12",
+	slug: "fete",
+	archiveSlug: "fete-2026",
+	shortcutPath: "/route",
+	sourceShareToken: "a8b66c2c34a6e82a27c705fe51222a12",
 	label: "Handmade Fête route",
 	headline: "Need a ready-made route for today?",
 	summary:
@@ -19,10 +20,13 @@ export const FEATURED_FETE_ROUTE = {
 	routeSavedCta: "Route saved",
 } as const;
 
-export const getFeaturedFeteRouteHref = (): string =>
-	FEATURED_FETE_ROUTE.canonicalPath;
+export const getOfficialFetePlanHref = (): string =>
+	`/plans/${OFFICIAL_FETE_PLAN.slug}`;
 
-export const isFeaturedFeteRouteShareToken = (
-	shareToken: string | null | undefined,
+export const getOfficialFetePlanArchiveHref = (): string =>
+	`/plans/${OFFICIAL_FETE_PLAN.archiveSlug}`;
+
+export const isDeprecatedOfficialFeteSourceToken = (
+	value: string | null | undefined,
 ): boolean =>
-	FEATURED_FETE_ROUTE.active && shareToken === FEATURED_FETE_ROUTE.shareToken;
+	OFFICIAL_FETE_PLAN.active && value === OFFICIAL_FETE_PLAN.sourceShareToken;
