@@ -9,6 +9,8 @@ import {
 	useSavedEvents,
 } from "@/features/events/components/saved-events-provider";
 import type { Event } from "@/features/events/types";
+import { requestClientLocation } from "@/features/locations/client-location";
+import { calculateDistanceKm } from "@/features/locations/nearby-event-service";
 import { MapSelectionModal } from "@/features/maps/components/map-selection-modal";
 import { useMapPreference } from "@/features/maps/hooks/use-map-preference";
 import type { MapProvider } from "@/features/maps/types";
@@ -32,6 +34,7 @@ import {
 	CalendarPlus,
 	Check,
 	Copy,
+	LocateFixed,
 	MapPinned,
 	Plus,
 	Route,
@@ -40,7 +43,7 @@ import {
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AddEventToRouteDialog } from "./AddEventToRouteDialog";
-import { PlanRouteSummary } from "./PlanRouteSummary";
+import { PlanRouteSummary, getPlanStopElementId } from "./PlanRouteSummary";
 
 export type SharedPlanPresentation = {
 	kind: "shared" | "official";
@@ -75,6 +78,17 @@ const formatShortDate = (date: string): string => {
 	const day = Number.parseInt(match[3], 10);
 	const month = MONTH_LABELS[monthIndex];
 	return month ? `${day} ${month}` : date;
+};
+
+type ClosestStopState =
+	| { status: "idle"; eventKey: null; message: null }
+	| { status: "locating"; eventKey: null; message: string }
+	| { status: "found"; eventKey: string; message: string }
+	| { status: "unavailable"; eventKey: null; message: string };
+
+const formatDistanceLabel = (distanceKm: number): string => {
+	if (distanceKm < 1) return `${Math.max(30, Math.round(distanceKm * 1000))} m`;
+	return `${distanceKm.toFixed(distanceKm < 10 ? 1 : 0)} km`;
 };
 
 export function SharedPlanClient({
@@ -119,6 +133,11 @@ function SharedPlanWorkspace({
 	const [routeExportStatus, setRouteExportStatus] = useState<string | null>(
 		null,
 	);
+	const [closestStopState, setClosestStopState] = useState<ClosestStopState>({
+		status: "idle",
+		eventKey: null,
+		message: null,
+	});
 	const [isRouteMapPickerOpen, setIsRouteMapPickerOpen] = useState(false);
 	const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 	const [routePickerEvent, setRoutePickerEvent] = useState<Event | null>(null);
@@ -417,6 +436,116 @@ function SharedPlanWorkspace({
 		void openRouteInMapsWithProvider(mapPreference);
 	};
 
+	const findClosestStop = async () => {
+		const mappableStops = routeEvents.filter(
+			(
+				event,
+			): event is Event & { coordinates: NonNullable<Event["coordinates"]> } =>
+				Boolean(
+					event.coordinates &&
+						Number.isFinite(event.coordinates.lat) &&
+						Number.isFinite(event.coordinates.lng),
+				),
+		);
+
+		if (mappableStops.length === 0) {
+			setClosestStopState({
+				status: "unavailable",
+				eventKey: null,
+				message: "No stops have map locations yet.",
+			});
+			trackPlanAnalytics({
+				action: "route_nearest_stop_unavailable",
+				surface: "shared_plan",
+				planId: plan.id,
+				planDate: plan.planDate,
+				stopCount: routeEvents.length,
+				value: "missing_stop_coordinates",
+				flushImmediately: true,
+			});
+			return;
+		}
+
+		setClosestStopState({
+			status: "locating",
+			eventKey: null,
+			message: "Checking your location...",
+		});
+		trackPlanAnalytics({
+			action: "route_nearest_stop_find",
+			surface: "shared_plan",
+			planId: plan.id,
+			planDate: plan.planDate,
+			stopCount: routeEvents.length,
+			flushImmediately: true,
+		});
+
+		const locationResult = await requestClientLocation();
+		if (!locationResult.location) {
+			setClosestStopState({
+				status: "unavailable",
+				eventKey: null,
+				message: "We could not get your location.",
+			});
+			trackPlanAnalytics({
+				action: "route_nearest_stop_unavailable",
+				surface: "shared_plan",
+				planId: plan.id,
+				planDate: plan.planDate,
+				stopCount: routeEvents.length,
+				value: "location_unavailable",
+				flushImmediately: true,
+			});
+			return;
+		}
+
+		const closestStop = mappableStops
+			.map((event) => ({
+				event,
+				distanceKm: calculateDistanceKm(
+					locationResult.location.coordinates,
+					event.coordinates,
+				),
+			}))
+			.sort((left, right) => left.distanceKm - right.distanceKm)[0];
+
+		if (!closestStop) {
+			setClosestStopState({
+				status: "unavailable",
+				eventKey: null,
+				message: "No nearby stop found.",
+			});
+			return;
+		}
+
+		const distanceLabel = formatDistanceLabel(closestStop.distanceKm);
+		const sourceLabel =
+			locationResult.status === "last-known"
+				? "Closest from your last known location"
+				: "Closest to you";
+		setClosestStopState({
+			status: "found",
+			eventKey: closestStop.event.eventKey,
+			message: `${sourceLabel}: ${closestStop.event.name} (${distanceLabel} away).`,
+		});
+		trackPlanAnalytics({
+			action: "route_nearest_stop_found",
+			surface: "shared_plan",
+			planId: plan.id,
+			planDate: plan.planDate,
+			eventKey: closestStop.event.eventKey,
+			stopCount: routeEvents.length,
+			value: Number(closestStop.distanceKm.toFixed(2)),
+			flushImmediately: true,
+		});
+
+		window.setTimeout(() => {
+			document
+				.getElementById(getPlanStopElementId(closestStop.event.eventKey))
+				?.scrollIntoView({ behavior: "smooth", block: "center" });
+		}, 60);
+	};
+
 	return (
 		<div className="relative overflow-hidden">
 			<div
@@ -510,6 +639,18 @@ function SharedPlanWorkspace({
 										<MapPinned className="mr-2 h-4 w-4" />
 										Open in maps
 									</Button>
+									<Button
+										type="button"
+										variant="outline"
+										onClick={() => void findClosestStop()}
+										disabled={closestStopState.status === "locating"}
+										className="rounded-full bg-background/55 text-muted-foreground hover:text-foreground"
+									>
+										<LocateFixed className="mr-2 h-4 w-4" />
+										{closestStopState.status === "locating"
+											? "Finding..."
+											: "Find closest stop"}
+									</Button>
 								</div>
 							)}
 						</div>
@@ -532,6 +673,19 @@ function SharedPlanWorkspace({
 						{routeExportStatus && (
 							<p className="mt-1 text-sm text-muted-foreground">
 								{routeExportStatus}
+							</p>
+						)}
+						{closestStopState.message && (
+							<p
+								className={cn(
+									"mt-1 text-sm",
+									closestStopState.status === "unavailable"
+										? "text-amber-800 dark:text-amber-200"
+										: "text-muted-foreground",
+								)}
+								aria-live="polite"
+							>
+								{closestStopState.message}
 							</p>
 						)}
 					</div>
@@ -569,6 +723,7 @@ function SharedPlanWorkspace({
 						<PlanRouteSummary
 							plan={plan}
 							eventsByKey={eventsByKey}
+							highlightedEventKey={closestStopState.eventKey}
 							onEventSelect={setSelectedEvent}
 						/>
 					</div>

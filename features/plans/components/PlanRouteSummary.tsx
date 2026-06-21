@@ -25,6 +25,8 @@ const formatTime = (value: string | undefined | null): string =>
 
 const PLAN_TIME_INPUT_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const normalizeEventKey = (value: string): string => value.trim().toLowerCase();
+export const getPlanStopElementId = (eventKey: string): string =>
+	`plan-stop-${encodeURIComponent(normalizeEventKey(eventKey)).replace(/%/g, "-")}`;
 const normalizePlanTimeInput = (value: string | undefined | null): string =>
 	value && PLAN_TIME_INPUT_PATTERN.test(value.trim()) ? value.trim() : "";
 const isKnownEventTime = (value: string | undefined | null): value is string =>
@@ -34,13 +36,20 @@ export function PlanRouteSummary({
 	plan,
 	eventsByKey,
 	className,
+	highlightedEventKey,
+	highlightedLabel = "Closest to you",
 	onEventSelect,
 }: {
 	plan: UserPlan;
 	eventsByKey: Map<string, Event>;
 	className?: string;
+	highlightedEventKey?: string | null;
+	highlightedLabel?: string;
 	onEventSelect?: (event: Event) => void;
 }) {
+	const normalizedHighlightedEventKey = highlightedEventKey
+		? normalizeEventKey(highlightedEventKey)
+		: null;
 	const stops = plan.stops
 		.slice()
 		.sort((left, right) => left.stopOrder - right.stopOrder)
@@ -58,6 +67,8 @@ export function PlanRouteSummary({
 				const stop = stops[index]?.stop;
 				const category = getResolvedEventExperienceCategoryDefinition(event);
 				const isInteractive = Boolean(onEventSelect);
+				const isHighlighted =
+					normalizedHighlightedEventKey === normalizeEventKey(event.eventKey);
 				const plannedArrival = normalizePlanTimeInput(stop?.arrivalTime);
 				const officialStart = isKnownEventTime(event.time) ? event.time : null;
 				const plannedArrivalDiffers =
@@ -67,10 +78,17 @@ export function PlanRouteSummary({
 				const cardClassName = cn(
 					"rounded-2xl border border-border/70 bg-background/88 p-3 text-left shadow-sm backdrop-blur transition duration-300 group-hover:-translate-y-0.5 group-hover:border-foreground/25 group-hover:shadow-md sm:p-4",
 					getEventCategoryCardClassName(category),
+					isHighlighted &&
+						"border-foreground/40 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(254,243,199,0.72))] shadow-[0_18px_50px_-28px_rgba(20,20,20,0.7)] ring-2 ring-amber-300/70 dark:bg-[linear-gradient(135deg,rgba(31,24,16,0.96),rgba(69,43,12,0.62))] dark:ring-amber-300/35",
 				);
 				const cardContent = (
 					<>
 						<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+							{isHighlighted && (
+								<span className="inline-flex items-center rounded-full bg-amber-200/75 px-2 py-0.5 font-medium text-amber-950 dark:bg-amber-300/20 dark:text-amber-100">
+									{highlightedLabel}
+								</span>
+							)}
 							<span className="inline-flex items-center gap-1">
 								<Clock className="h-3.5 w-3.5" />
 								{plannedArrival
@@ -113,6 +131,7 @@ export function PlanRouteSummary({
 				return (
 					<li
 						key={event.eventKey}
+						id={getPlanStopElementId(event.eventKey)}
 						className="group relative grid grid-cols-[2.5rem_minmax(0,1fr)] gap-3"
 					>
 						<div className="relative flex justify-center">
@@ -120,6 +139,8 @@ export function PlanRouteSummary({
 								className={cn(
 									"z-10 grid h-10 w-10 place-items-center rounded-full text-sm font-semibold text-white shadow-[0_12px_30px_-18px_rgba(20,20,20,0.75)]",
 									STOP_DOT_CLASSES[index % STOP_DOT_CLASSES.length],
+									isHighlighted &&
+										"scale-105 bg-amber-500 text-amber-950 ring-4 ring-amber-300/55",
 								)}
 							>
 								{index + 1}
