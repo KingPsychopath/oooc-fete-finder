@@ -9,17 +9,13 @@ describe("Countdown", () => {
 		const countdown = calculateCountdown(new Date("2026-06-21T10:35:00+02:00"));
 
 		expect(countdown.isLiveToday).toBe(true);
-		expect(formatCountdown(countdown)).toBe(
-			"The city is live, Happy Fete Day!",
-		);
+		expect(formatCountdown(countdown)).toBe("Fête day is live in Paris");
 	});
 
 	it("uses the Paris calendar day for the live state", () => {
 		const countdown = calculateCountdown(new Date("2026-06-20T22:30:00.000Z"));
 
 		expect(countdown.isLiveToday).toBe(true);
-		expect(formatCountdown(countdown)).toBe(
-			"The city is live, Happy Fete Day!",
-		);
+		expect(formatCountdown(countdown)).toBe("Fête day is live in Paris");
 	});
 });

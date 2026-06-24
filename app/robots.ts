@@ -12,7 +12,11 @@ export default function robots(): MetadataRoute.Robots {
 			},
 			{
 				userAgent: "*",
-				allow: withBasePath("/"),
+				allow: [
+					withBasePath("/"),
+					withBasePath("/plans/fete"),
+					withBasePath("/plans/fete-2026"),
+				],
 				disallow: [
 					withBasePath("/admin"),
 					withBasePath("/api"),

@@ -115,6 +115,28 @@ Expected cron endpoints:
 All require `Authorization: Bearer <CRON_SECRET>`. Cron service commands should
 use `node scripts/railway-cron-trigger.mjs` with `TARGET_URL` and `CRON_SECRET`.
 
+## Post-Season Parking
+
+When Fête week is over and the site is staying online with low traffic:
+
+1. Keep `DATA_MODE=remote` and `DATABASE_URL` configured so admin state,
+   submissions, plans, analytics, and backups remain backed by Postgres.
+2. Keep the four cron services enabled. They are bounded cleanup/backup jobs,
+   and daily event-store backups prune to the retention limit.
+3. Refresh the bundled fallback after the final accepted event-store state:
+   `pnpm db:pull-events-csv`.
+4. Run one manual backup from `/admin/operations`, then verify the latest backup
+   appears before leaving the site unattended.
+5. Use `/admin/content` to decide whether new event submissions and update
+   requests stay open for next-season intake or close until planning resumes.
+6. Use `/admin/content` to turn off dynamic search chips if recent search data
+   feels stale after traffic drops.
+7. Use `/admin/content` to set or disable the sliding banner. The code fallback
+   is post-season safe, but stored KV settings win in production.
+8. Smoke-test `/`, `/exchange`, `/plans`, `/plans/fete`,
+   `/plans/fete-2026`, `/submit-event`, and `/feature-event`.
+9. Confirm Railway cron config drift locally with `pnpm check:railway-cron`.
+
 ## Admin Publish Flow
 
 For event data or placement changes:

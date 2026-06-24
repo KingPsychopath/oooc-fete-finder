@@ -77,7 +77,7 @@ const EVENTS_CACHE_TAGS = [
 ] as const;
 const EVENTS_PUBLIC_LAYOUT_PATHS = ["/", "/feature-event"] as const;
 const SOCIAL_PROOF_COUNTS_REVALIDATE_SECONDS = 30 * 60;
-const SOURCE_EVENTS_REVALIDATE_SECONDS = 5 * 60;
+const SOURCE_EVENTS_REVALIDATE_SECONDS = 30 * 60;
 const SOURCE_EVENTS_CACHE_KEY = ["source-events"];
 
 type EventRevalidationScope = "event-data" | "placements" | "page-only";

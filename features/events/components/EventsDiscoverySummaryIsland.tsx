@@ -57,8 +57,8 @@ export function EventsDiscoverySummaryIsland({
 							Discover events across the city
 						</h2>
 						<p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-							Explore live music and cultural events by arrondissement. Use the
-							map and filters to find what’s on.
+							Browse current and archived Paris music events by arrondissement.
+							Use the 2026 archive when the live view is quiet.
 						</p>
 						<Link
 							href="/how-it-works"

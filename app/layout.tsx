@@ -185,7 +185,7 @@ export const metadata: Metadata = {
 		template: "%s | Fête Finder",
 	},
 	description:
-		"Curated map of Paris music events by Out Of Office Collective. Discover live performances, save your picks, and plan your Fête Finder route.",
+		"Curated Paris music event guide by Out Of Office Collective. Browse the Fête archive, save picks, and plan future routes.",
 	keywords: [
 		"Fête de la Musique",
 		"Paris music events",
@@ -210,7 +210,7 @@ export const metadata: Metadata = {
 		url: siteUrl,
 		title: "Fête Finder | Out Of Office Collective",
 		description:
-			"Curated Paris music events, editorial picks, and live updates from Out Of Office Collective.",
+			"Curated Paris music events, editorial picks, and the Fête archive from Out Of Office Collective.",
 		siteName: "Fête Finder",
 		images: [
 			{
@@ -226,7 +226,7 @@ export const metadata: Metadata = {
 		card: "summary_large_image",
 		title: "Fête Finder | Out Of Office Collective",
 		description:
-			"Curated Paris music events, editorial picks, and live updates from Out Of Office Collective.",
+			"Curated Paris music events, editorial picks, and the Fête archive from Out Of Office Collective.",
 		site: "@OutOfOfficeCol",
 		creator: "@OutOfOfficeCol",
 		images: [

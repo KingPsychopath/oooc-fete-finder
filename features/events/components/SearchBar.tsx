@@ -408,7 +408,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 			{dynamicChips.length > 0 && (
 				<div className="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
 					<span className="inline-flex h-7 items-center rounded-full px-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-						Popular now
+						Recent searches
 					</span>
 					{dynamicChips.map((chip) => (
 						<Button
@@ -420,7 +420,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
 								handleSearch(chip.query, "popular_chip");
 							}}
 							className="h-auto min-w-0 max-w-full rounded-full border-amber-300/70 bg-amber-50/55 px-3 py-1.5 text-xs text-amber-950 transition-colors hover:border-amber-400 hover:bg-amber-100/70 sm:max-w-[13rem] dark:border-amber-500/45 dark:bg-amber-950/25 dark:text-amber-100"
-							aria-label={`Popular now: ${chip.label}`}
+							aria-label={`Recent search: ${chip.label}`}
 							title="Based on recent anonymous searches"
 						>
 							<TrendingUp className="mr-1.5 h-3 w-3" aria-hidden="true" />

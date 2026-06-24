@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getKVStore, getKVStoreInfo } from "@/lib/platform/kv/kv-store-factory";
+import { getDefaultSlidingBannerMessages } from "./default-sliding-banner-messages";
 import type {
 	SlidingBannerPublicSettings,
 	SlidingBannerSettings,
@@ -14,17 +15,10 @@ const MAX_MESSAGE_LENGTH = 160;
 const MIN_MESSAGE_DURATION_MS = 1800;
 const MAX_MESSAGE_DURATION_MS = 12000;
 
-const DEFAULT_MESSAGES = [
-	"Curated by Out Of Office Collective",
-	"Paris summer rhythm, mapped live",
-	"Postgres-first event workflow",
-	"Tap essentials for playlist, food and toilets",
-];
-
 const buildDefaultSettings = (): SlidingBannerSettings => ({
 	version: 1,
 	enabled: true,
-	messages: [...DEFAULT_MESSAGES],
+	messages: getDefaultSlidingBannerMessages(),
 	messageDurationMs: 4200,
 	desktopMessageCount: 2,
 	updatedAt: new Date(0).toISOString(),

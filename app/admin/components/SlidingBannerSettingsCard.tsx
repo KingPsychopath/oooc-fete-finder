@@ -16,6 +16,7 @@ import {
 	getAdminSlidingBannerSettings,
 	updateAdminSlidingBannerSettings,
 } from "@/features/site-settings/actions";
+import { getDefaultSlidingBannerMessages } from "@/features/site-settings/default-sliding-banner-messages";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type SlidingBannerSettingsPayload = Awaited<
@@ -26,12 +27,7 @@ interface SlidingBannerSettingsCardProps {
 	initialSettings?: SlidingBannerSettingsPayload;
 }
 
-const FALLBACK_MESSAGES = [
-	"Curated by Out Of Office Collective",
-	"Paris summer rhythm, mapped live",
-	"Postgres-first event workflow",
-	"Tap essentials for playlist, food and toilets",
-];
+const FALLBACK_MESSAGES = getDefaultSlidingBannerMessages();
 
 const toMessageInput = (messages: string[]): string => messages.join("\n");
 
@@ -338,9 +334,7 @@ export const SlidingBannerSettingsCard = ({
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Desktop Slots
 						</p>
-						<p className="mt-1 text-sm font-medium">
-							{desktopMessageCount}
-						</p>
+						<p className="mt-1 text-sm font-medium">{desktopMessageCount}</p>
 					</div>
 				</div>
 

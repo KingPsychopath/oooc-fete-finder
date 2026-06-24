@@ -80,7 +80,7 @@ export const calculateCountdown = (referenceDate: Date): CountdownState => {
 
 export const formatCountdown = (countdown: CountdownState): string => {
 	if (countdown.isLiveToday) {
-		return "The city is live, Happy Fete Day!";
+		return "Fête day is live in Paris";
 	}
 
 	const parts: string[] = [];

@@ -115,9 +115,11 @@ export function EventsMapIsland({
 	const {
 		activeFiltersCount,
 		applyParisTestLocation,
+		archiveDateRange,
 		canUseParisTestLocation,
 		filteredEvents,
 		hasAnyActiveFilters,
+		isDefaultDiscoveryEmpty,
 		nearbyEventsError,
 		nearbyEventsStatus,
 		nearbyLocation,
@@ -159,7 +161,9 @@ export function EventsMapIsland({
 					onFullscreenClose={handleFullscreenClose}
 					hasActiveFilters={hasAnyActiveFilters}
 					activeFiltersCount={activeFiltersCount}
+					archiveDateRange={archiveDateRange}
 					canUseParisTestLocation={canUseParisTestLocation}
+					isDefaultDiscoveryEmpty={isDefaultDiscoveryEmpty}
 					isOfflineMode={!isOnline}
 					selectedDayNightPeriods={selectedDayNightPeriods}
 					isNearbyActive={sortMode === "nearby"}

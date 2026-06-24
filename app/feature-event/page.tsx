@@ -31,7 +31,7 @@ export const metadata: Metadata = {
 	...generateOGMetadata({
 		title: "Partner With OOOC",
 		description:
-			"Request Spotlight and Promoted placements for Fete de la Musique 2026 in minutes.",
+			"Register interest in OOOC placements for future Fête Finder campaigns.",
 		ogImageUrl: generatePresetOGImage("feature-event"),
 		url: buildSiteUrl("/feature-event"),
 	}),
@@ -47,7 +47,7 @@ export const revalidate = false;
 
 const basePath = getBasePath();
 const contactEmail = "hello@outofofficecollective.co.uk";
-const fallbackContactHref = `mailto:${contactEmail}?subject=OOOC%20Fete%202026%20-%20Partnership%20Inquiry`;
+const fallbackContactHref = `mailto:${contactEmail}?subject=OOOC%20Fete%20-%20Partnership%20Inquiry`;
 const mediaKitHref = `${basePath}/media-kit/OOOC-Fete-2026-Media-Kit.pdf`;
 const ooocPressKitHref = `${basePath}/media-kit/OOOC-Press-Kit.pdf`;
 const featureCardClassName =
@@ -60,8 +60,9 @@ const packages: PromotionPackage[] = [
 		id: "spotlight-standard",
 		name: "Spotlight Standard",
 		price: 80,
-		priceLabel: "EUR 80",
-		description: "Best for early-season bookings before peak June pricing.",
+		priceLabel: "From EUR 80",
+		description:
+			"Best for early-season promotion once the next calendar opens.",
 		includes: [
 			"Above-the-fold Spotlight placement",
 			"Pinned to top of relevant search results",
@@ -75,22 +76,23 @@ const packages: PromotionPackage[] = [
 		id: "spotlight-takeover",
 		name: "Spotlight Takeover",
 		price: 100,
-		priceLabel: "EUR 100",
-		description: "Premium placement for the final Fete push: June 15-20, 2026.",
+		priceLabel: "From EUR 100",
+		description:
+			"Premium placement for the final Fête push. Timing confirmed by email.",
 		includes: [
 			"All above-the-fold Spotlight Standard benefits",
-			"Priority activation window (June 15-20, 2026)",
+			"Priority activation window once the next season opens",
 			"WhatsApp community announcement included",
 			"Ideal for final-week urgency",
 		],
-		badge: "EUR 100 now. EUR 150 during peak week.",
+		badge: "Next-season availability confirmed by OOOC.",
 		tier: "spotlight",
 	},
 	{
 		id: "promoted-listing",
 		name: "Promoted Listing",
 		price: 40,
-		priceLabel: "EUR 40",
+		priceLabel: "From EUR 40",
 		description: "Mid-tier visibility without full Spotlight placement.",
 		includes: [
 			"Promoted badge on event card",
@@ -185,11 +187,11 @@ export default async function FeatureEventPage() {
 						className="mt-2 text-3xl font-light leading-tight tracking-tight text-foreground sm:text-4xl"
 						style={{ fontFamily: "var(--ooo-font-display)" }}
 					>
-						Get your event discovered on Fete night
+						Register promotion interest for the next Fête
 					</h1>
 					<p className="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-						Reach people at the exact moment they decide where to go. Build a
-						promotion request now, then we confirm activation by email.
+						Share the event and placement you have in mind. We confirm fit,
+						timing, and payment details by email before anything goes live.
 					</p>
 					<div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
 						<div className={featurePanelClassName}>
@@ -213,7 +215,7 @@ export default async function FeatureEventPage() {
 							className="rounded-full border border-border bg-foreground px-5 text-background hover:bg-foreground/90"
 							render={<a href="#promotion-request" />}
 						>
-							Build promotion request
+							Build promotion enquiry
 						</Button>
 						<Button
 							nativeButton={false}
@@ -227,7 +229,7 @@ export default async function FeatureEventPage() {
 								/>
 							}
 						>
-							Get Fete media kit
+							Get 2026 media kit
 						</Button>
 						<Button
 							nativeButton={false}
@@ -249,7 +251,7 @@ export default async function FeatureEventPage() {
 						anything goes live.
 					</p>
 					<p className="mt-4 text-xs text-muted-foreground">
-						No event yet? Why are you here.{"  "}
+						No event yet? Submit it first.{" "}
 						<Link
 							href={`${basePath}/submit-event`}
 							className="text-foreground underline underline-offset-4 transition-colors hover:text-foreground/80"

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useOptionalAuth } from "@/features/auth/auth-context";
 import Countdown from "@/features/events/components/Countdown";
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
+import { getDefaultSlidingBannerMessages } from "@/features/site-settings/default-sliding-banner-messages";
 import type { SlidingBannerPublicSettings } from "@/features/site-settings/types";
 // Note: Using process.env directly to avoid server-side env variable access on client
 import { LogOut, Route, Ticket, UserRoundPlus } from "lucide-react";
@@ -33,12 +34,6 @@ const COMPRESS_EXIT_THRESHOLD = 8;
 const COLLAPSE_ENTER_THRESHOLD = 104;
 const COLLAPSE_EXIT_THRESHOLD = 24;
 const STICKY_HEADER_QUERY = "(min-width: 640px)";
-const DEFAULT_BANNER_MESSAGES = [
-	"Curated by Out Of Office Collective",
-	"Paris summer rhythm, mapped live",
-	"Postgres-first event workflow",
-	"Tap essentials for playlist, food and toilets",
-];
 const EXTERNAL_NAV_LINKS = [
 	{
 		label: "FAQs",
@@ -48,7 +43,7 @@ const EXTERNAL_NAV_LINKS = [
 
 const DEFAULT_BANNER_SETTINGS: SlidingBannerPublicSettings = {
 	enabled: true,
-	messages: DEFAULT_BANNER_MESSAGES,
+	messages: getDefaultSlidingBannerMessages(),
 	messageDurationMs: 4200,
 	desktopMessageCount: 2,
 	updatedAt: new Date(0).toISOString(),

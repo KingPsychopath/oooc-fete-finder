@@ -7,6 +7,7 @@ import {
 	panelActionButtonClassName,
 	panelActionIconClassName,
 } from "@/features/events/components/filter-action-button-styles";
+import type { DateRangeFilter } from "@/features/events/filtering";
 import type { DayNightPeriod, Event } from "@/features/events/types";
 import type { SavedClientLocation } from "@/features/locations/client-location";
 import type {
@@ -16,7 +17,8 @@ import type {
 import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
 import { LAYERS } from "@/lib/ui/layers";
 import { cn } from "@/lib/utils";
-import { ChevronDown, Map, Maximize2 } from "lucide-react";
+import { Archive, ArrowRight, ChevronDown, Map, Maximize2 } from "lucide-react";
+import Link from "next/link";
 import {
 	type PointerEvent,
 	useCallback,
@@ -28,6 +30,8 @@ import {
 import { createPortal } from "react-dom";
 
 export type MapLoadStrategy = "immediate" | "expand" | "idle";
+
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 type EventsMapCardProps = {
 	events: Event[];
@@ -51,6 +55,8 @@ type EventsMapCardProps = {
 	nearbyMatchedEventsCount?: number;
 	nearbyRadiusKm?: NearbyRadiusKm;
 	nearbyRadiusOptionsKm?: readonly NearbyRadiusKm[];
+	archiveDateRange?: DateRangeFilter;
+	isDefaultDiscoveryEmpty?: boolean;
 	onNearbyClick?: () => void;
 	onNearbyRadiusChange?: (radiusKm: NearbyRadiusKm) => void;
 	onNearbyResultsClick?: () => void;
@@ -91,6 +97,8 @@ export function EventsMapCard({
 	nearbyMatchedEventsCount = 0,
 	nearbyRadiusKm,
 	nearbyRadiusOptionsKm = [],
+	archiveDateRange,
+	isDefaultDiscoveryEmpty = false,
 	onNearbyClick,
 	onNearbyRadiusChange,
 	onNearbyResultsClick,
@@ -288,6 +296,15 @@ export function EventsMapCard({
 		"mr-0 md:mr-1",
 	);
 	const mapHeaderActionLabelClassName = "sr-only text-sm md:not-sr-only";
+	const archiveHref = (() => {
+		const params = new URLSearchParams();
+		if (archiveDateRange?.from) params.set("df", archiveDateRange.from);
+		if (archiveDateRange?.to) params.set("dt", archiveDateRange.to);
+		const query = params.toString();
+		const rootPath = basePath || "/";
+		return query ? `${rootPath}?${query}` : rootPath;
+	})();
+	const showPostSeasonMapState = isDefaultDiscoveryEmpty && events.length === 0;
 
 	const handleOpenFullscreenPointerDown = (
 		event: PointerEvent<HTMLButtonElement>,
@@ -314,6 +331,64 @@ export function EventsMapCard({
 		}
 		onNearbyResultsClick?.();
 	};
+
+	if (showPostSeasonMapState) {
+		return (
+			<Card className="ooo-site-card overflow-hidden py-0">
+				<CardHeader className="border-b border-border/70 bg-background/18 py-5 pb-4">
+					<div className="flex items-start justify-between gap-3">
+						<CardTitle className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+							<div className="flex items-center gap-2">
+								<Map
+									className="h-5.5 w-5.5 flex-shrink-0 text-muted-foreground/75"
+									strokeWidth={1.6}
+								/>
+								<span className="text-lg [font-family:var(--ooo-font-display)] font-light sm:text-2xl">
+									Paris Event Map
+								</span>
+							</div>
+						</CardTitle>
+						<span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground">
+							<Archive className="h-3 w-3" />
+							Season archive
+						</span>
+					</div>
+				</CardHeader>
+				<CardContent className="px-3 py-5 pt-3 sm:px-6">
+					<div className="relative h-56 overflow-hidden rounded-xl border border-border/65 bg-background">
+						<MapPreview />
+						<div className="absolute inset-0 flex items-center justify-center bg-card/78 px-4 text-center backdrop-blur-[2px]">
+							<div className="max-w-md">
+								<p className="text-sm font-medium text-foreground">
+									No live map activity right now
+								</p>
+								<p className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
+									Fête week has wrapped. Open the 2026 archive to revisit the
+									full map, or submit the next event the collective should know
+									about.
+								</p>
+								<div className="mt-4 flex flex-col items-center justify-center gap-2 sm:flex-row">
+									<Link
+										href={archiveHref}
+										className="inline-flex h-8 items-center justify-center rounded-full border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+									>
+										View 2026 archive
+										<ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+									</Link>
+									<Link
+										href={`${basePath}/submit-event`}
+										className="inline-flex h-8 items-center justify-center rounded-full bg-foreground px-4 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
+									>
+										Submit an event
+									</Link>
+								</div>
+							</div>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+		);
+	}
 
 	const mapContent = (
 		<ParisMapLibre

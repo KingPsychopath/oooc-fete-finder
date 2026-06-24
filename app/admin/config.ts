@@ -158,7 +158,7 @@ export const ADMIN_ROUTES: AdminRouteConfig[] = [
 			{
 				id: "search-chips",
 				label: "Homepage Search Chips",
-				description: "Turn dynamic Popular now chips on or off.",
+				description: "Turn dynamic recent-search chips on or off.",
 				path: "/admin/content#search-chips",
 				moduleKey: "content",
 				keywords: ["search", "chips", "popular", "dynamic"],

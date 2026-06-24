@@ -232,13 +232,11 @@ export const SearchChipSettingsCard = ({
 					<div>
 						<CardTitle>Homepage Search Chips</CardTitle>
 						<CardDescription>
-							Control whether anonymous aggregate searches can add Popular now
+							Control whether anonymous aggregate searches can add recent-search
 							chips beside the curated suggestions.
 						</CardDescription>
 					</div>
-					<Badge variant={dynamicStateVariant}>
-						{dynamicStateLabel}
-					</Badge>
+					<Badge variant={dynamicStateVariant}>{dynamicStateLabel}</Badge>
 				</div>
 			</CardHeader>
 			<CardContent className="space-y-4">
@@ -247,9 +245,7 @@ export const SearchChipSettingsCard = ({
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
 							Dynamic Chips
 						</p>
-						<p className="mt-1 text-sm font-medium">
-							{dynamicStateLabel}
-						</p>
+						<p className="mt-1 text-sm font-medium">{dynamicStateLabel}</p>
 					</div>
 					<div className="rounded-md border bg-background/60 p-3">
 						<p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -305,8 +301,8 @@ export const SearchChipSettingsCard = ({
 
 				<p className="text-sm text-muted-foreground">
 					Static chips always remain curated. Dynamic chips are canonicalized,
-					filtered for safety, capped by the control above, and ranked from anonymous
-					aggregate searches over the last{" "}
+					filtered for safety, capped by the control above, and ranked from
+					anonymous aggregate searches over the last{" "}
 					{signalStatus?.windowDays?.toLocaleString() ?? 7} days.
 				</p>
 

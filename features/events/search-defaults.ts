@@ -1,10 +1,10 @@
 export const DEFAULT_SEARCH_EXAMPLES = [
-	"Monday",
 	"Night",
 	"Free",
 	"21st",
-	"Pre-Fete",
-	"Post-Fete",
+	"OOOC",
+	"R&B",
+	"Afrobeats",
 	"Konpa",
 	"Amapiano",
 ] as const;

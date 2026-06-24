@@ -6,8 +6,16 @@ import {
 import { type Event, getEventTypeForDate } from "@/features/events/types";
 import { describe, expect, it } from "vitest";
 
+const UPCOMING_TEST_DATE = "2099-06-21";
+const CURRENT_PARIS_YEAR = new Intl.DateTimeFormat("en-CA", {
+	timeZone: "Europe/Paris",
+	year: "numeric",
+}).format(new Date());
+const CURRENT_YEAR_TEST_DATE = `${CURRENT_PARIS_YEAR}-12-31`;
+const OLD_TEST_DATE = "2025-06-21";
+
 const makeEvent = (overrides: Partial<Event>): Event => {
-	const date = overrides.date ?? "2026-06-21";
+	const date = overrides.date ?? UPCOMING_TEST_DATE;
 	return {
 		eventKey: `evt_${overrides.id ?? "test"}`,
 		slug: `event-${overrides.id ?? "test"}`,
@@ -33,12 +41,12 @@ const makeEvent = (overrides: Partial<Event>): Event => {
 describe("search chips", () => {
 	it("builds curated static chips", () => {
 		expect(buildStaticSearchChips().map((chip) => chip.label)).toEqual([
-			"Monday",
 			"Night",
 			"Free",
 			"21st",
-			"Pre-Fete",
-			"Post-Fete",
+			"OOOC",
+			"R&B",
+			"Afrobeats",
 			"Konpa",
 			"Amapiano",
 		]);
@@ -186,7 +194,6 @@ describe("search chips", () => {
 				makeEvent({
 					id: "free-youth",
 					name: "SSSOUND x Free the Youth",
-					date: "2026-06-21",
 				}),
 			],
 			{ staticQueries: [], maxChips: 4 },
@@ -217,7 +224,7 @@ describe("search chips", () => {
 		expect(chips.map((chip) => chip.query)).not.toContain("La Sunday Abidjan");
 	});
 
-	it("excludes old event-title candidates when current-year events exist", () => {
+	it("excludes old event-title candidates when newer in-range events exist", () => {
 		const chips = buildDynamicSearchChips(
 			[
 				{
@@ -231,12 +238,12 @@ describe("search chips", () => {
 				makeEvent({
 					id: "old-free-youth",
 					name: "SSSOUND x Free the Youth",
-					date: "2025-06-21",
+					date: OLD_TEST_DATE,
 				}),
 				makeEvent({
-					id: "current",
+					id: "upcoming",
 					name: "Amapiano Night",
-					date: "2026-06-21",
+					date: CURRENT_YEAR_TEST_DATE,
 				}),
 			],
 			{ staticQueries: [], maxChips: 4 },
@@ -265,7 +272,7 @@ describe("search chips", () => {
 		expect(matches).toEqual([
 			expect.objectContaining({
 				label: "La Sunday Abidjan",
-				eventDate: "2026-06-21",
+				eventDate: UPCOMING_TEST_DATE,
 				matchedSignalQuery: "La Sunday Abidjan",
 				matchedSignalCount: 30,
 				matchedSignalSources: ["input"],

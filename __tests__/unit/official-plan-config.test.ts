@@ -18,10 +18,10 @@ describe("official plan config", () => {
 
 	it("uses human-facing copy for the route prompt", () => {
 		expect(OFFICIAL_FETE_PLAN.crossSellHeadline).toBe(
-			"Need a ready-made route for today?",
+			"Want the 2026 OOOC route?",
 		);
 		expect(OFFICIAL_FETE_PLAN.crossSellSummary).toBe(
-			"Follow our handmade route for Fête.",
+			"Use the archived Fête route as a starting point.",
 		);
 	});
 });

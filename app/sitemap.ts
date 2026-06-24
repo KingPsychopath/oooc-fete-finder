@@ -13,8 +13,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		{
 			url: buildSiteUrl("/"),
 			lastModified,
-			changeFrequency: "daily",
-			priority: 1,
+			changeFrequency: "weekly",
+			priority: 0.9,
 		},
 		{
 			url: buildSiteUrl("/how-it-works"),
@@ -37,8 +37,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		{
 			url: buildSiteUrl("/exchange"),
 			lastModified,
-			changeFrequency: "hourly",
-			priority: 0.8,
+			changeFrequency: "weekly",
+			priority: 0.6,
 		},
 		{
 			url: buildSiteUrl("/plans"),
@@ -51,8 +51,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
 					{
 						url: buildSiteUrl(getOfficialFetePlanHref()),
 						lastModified,
-						changeFrequency: "hourly" as const,
-						priority: 0.8,
+						changeFrequency: "yearly" as const,
+						priority: 0.5,
 					},
 					{
 						url: buildSiteUrl(getOfficialFetePlanArchiveHref()),
