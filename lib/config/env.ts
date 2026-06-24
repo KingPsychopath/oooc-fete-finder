@@ -157,6 +157,7 @@ export const env = createEnv({
 		TICKET_EXCHANGE_FROM_EMAIL: z.string().optional(),
 		TICKET_EXCHANGE_REPLY_TO: z.string().optional(),
 		TICKET_EXCHANGE_BOT_SECRET: z.string().optional(),
+		TICKET_EXCHANGE_EXAMPLES_ENABLED: z.enum(["true", "false"]).default("true"),
 	},
 
 	/**
@@ -230,6 +231,8 @@ export const env = createEnv({
 		TICKET_EXCHANGE_FROM_EMAIL: process.env.TICKET_EXCHANGE_FROM_EMAIL,
 		TICKET_EXCHANGE_REPLY_TO: process.env.TICKET_EXCHANGE_REPLY_TO,
 		TICKET_EXCHANGE_BOT_SECRET: process.env.TICKET_EXCHANGE_BOT_SECRET,
+		TICKET_EXCHANGE_EXAMPLES_ENABLED:
+			process.env.TICKET_EXCHANGE_EXAMPLES_ENABLED,
 
 		// Client
 		NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH,

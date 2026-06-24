@@ -2,6 +2,7 @@ import "server-only";
 
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import type { Event } from "@/features/events/types";
+import { areTicketExchangeExamplesEnabled } from "./config";
 import { isTicketExchangeEmailEnabled } from "./email";
 import {
 	type TicketExchangeRepository,
@@ -71,13 +72,11 @@ const createTicketExchangePageData = async ({
 	selectedEventKey,
 	session,
 }: TicketExchangePageDataInput): Promise<TicketExchangePageModel> => {
-	const selectedEvent = findTicketExchangeEventByKey(
-		events,
-		selectedEventKey,
-	);
+	const selectedEvent = findTicketExchangeEventByKey(events, selectedEventKey);
 	const canonicalSelectedEventKey = selectedEvent?.eventKey ?? null;
 	const userId = session.userId ?? null;
 	const userEmail = session.email ?? null;
+	const examplesEnabled = areTicketExchangeExamplesEnabled();
 
 	if (!repository) {
 		return {
@@ -93,6 +92,7 @@ const createTicketExchangePageData = async ({
 				userId,
 				supported: false,
 				emailEnabled: isTicketExchangeEmailEnabled(),
+				examplesEnabled,
 			},
 		};
 	}
@@ -132,6 +132,7 @@ const createTicketExchangePageData = async ({
 			userId,
 			supported: true,
 			emailEnabled: isTicketExchangeEmailEnabled(),
+			examplesEnabled,
 		},
 	};
 };

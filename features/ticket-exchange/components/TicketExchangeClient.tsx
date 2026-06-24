@@ -169,6 +169,29 @@ const MARKETPLACE_TABS: Array<{ key: MarketplaceTabKey; label: string }> = [
 	{ key: "selling", label: "Selling" },
 	{ key: "looking", label: "Looking" },
 ];
+type TicketExchangeExampleListing = {
+	id: string;
+	listingType: TicketExchangeListingType;
+	quantityLabel: string;
+	priceLabel: string;
+	note: string;
+};
+const TICKET_EXCHANGE_EXAMPLE_LISTINGS = [
+	{
+		id: "selling-face-value",
+		listingType: "selling",
+		quantityLabel: "1 ticket available",
+		priceLabel: "Face value",
+		note: "Buyer and seller confirm the ticket, transfer method, and payment directly.",
+	},
+	{
+		id: "looking-flexible-budget",
+		listingType: "looking",
+		quantityLabel: "Looking for 2 tickets",
+		priceLabel: "Flexible budget",
+		note: "Someone can reply if they have a real ticket to move.",
+	},
+] as const satisfies readonly TicketExchangeExampleListing[];
 const WEEKDAY_SHORT_LABELS = {
 	monday: "Mon",
 	tuesday: "Tue",
@@ -226,6 +249,23 @@ const methodLabels: Record<TicketExchangeContactMethod, string> = {
 };
 
 const CREATE_LISTING_CONTROL_CLASS = "h-11 rounded-xl px-3";
+
+const getTicketExchangeExampleListings = (
+	activeTab: TabKey,
+): readonly TicketExchangeExampleListing[] => {
+	if (activeTab === "selling") {
+		return TICKET_EXCHANGE_EXAMPLE_LISTINGS.filter(
+			(listing) => listing.listingType === "selling",
+		);
+	}
+	if (activeTab === "looking") {
+		return TICKET_EXCHANGE_EXAMPLE_LISTINGS.filter(
+			(listing) => listing.listingType === "looking",
+		);
+	}
+	if (activeTab === "mine") return [];
+	return TICKET_EXCHANGE_EXAMPLE_LISTINGS;
+};
 
 const getRelativeTime = (iso: string): string => {
 	const ms = new Date(iso).getTime();
@@ -492,6 +532,7 @@ const withTicketExchangeTimeout = async (
 const getPreferredMarketplaceTab = (
 	summaries: TicketExchangeSummary[],
 	selectedEventKey: string | null,
+	examplesEnabled: boolean,
 ): MarketplaceTabKey => {
 	if (selectedEventKey) {
 		const summary = summaries.find(
@@ -499,7 +540,7 @@ const getPreferredMarketplaceTab = (
 		);
 		if ((summary?.sellingCount ?? 0) > 0) return "selling";
 		if ((summary?.lookingCount ?? 0) > 0) return "looking";
-		return "selling";
+		return examplesEnabled ? "all" : "selling";
 	}
 	const relevantSummaries = selectedEventKey
 		? summaries.filter((summary) => summary.eventKey === selectedEventKey)
@@ -508,7 +549,8 @@ const getPreferredMarketplaceTab = (
 		(total, summary) => total + summary.sellingCount + summary.lookingCount,
 		0,
 	);
-	return activeCount > 0 ? "all" : "selling";
+	if (activeCount > 0 || examplesEnabled) return "all";
+	return "selling";
 };
 
 const getContactSetupPrompt = (
@@ -551,6 +593,7 @@ export function TicketExchangeClient({
 	const initialMarketplaceTab = getPreferredMarketplaceTab(
 		initialData.summaries,
 		initialData.selectedEventKey,
+		initialData.examplesEnabled,
 	);
 	const [activeTab, setActiveTab] = useState<TabKey>(initialMarketplaceTab);
 	const lastMarketplaceTabRef = useRef<MarketplaceTabKey>(
@@ -613,10 +656,11 @@ export function TicketExchangeClient({
 		const preferredTab = getPreferredMarketplaceTab(
 			data.summaries,
 			selectedEventKey,
+			data.examplesEnabled,
 		);
 		lastMarketplaceTabRef.current = preferredTab;
 		setActiveTab(preferredTab);
-	}, [data.summaries, selectedEventKey]);
+	}, [data.examplesEnabled, data.summaries, selectedEventKey]);
 
 	const canSortListingsByPrice = Boolean(
 		selectedEventKey && activeTab === "selling",
@@ -964,24 +1008,28 @@ export function TicketExchangeClient({
 				}
 			: activeTab === "selling"
 				? {
-						title: "No tickets available yet",
-						body: "Post a selling listing if you have tickets, or check Looking to see who needs one.",
+						title: "No tickets available right now",
+						body: "Ticket Exchange is quiet between events. Post a selling listing if you have a real ticket to move.",
 						cta: "Post selling",
 						type: "selling" as const,
 					}
 				: activeTab === "looking"
 					? {
-							title: "No one looking yet",
-							body: "Post a looking listing if you need a ticket, or check Selling for available tickets.",
+							title: "No one looking right now",
+							body: "Ticket Exchange is quiet between events. Post a looking listing if you need a real ticket.",
 							cta: "Post looking",
 							type: "looking" as const,
 						}
 					: {
-							title: "No ticket exchange activity yet",
-							body: "Create a selling or looking listing to get the exchange moving.",
+							title: "No active ticket listings right now",
+							body: "Ticket Exchange is quiet between events. Post a real selling or looking listing when there is something live to trade.",
 							cta: "Post listing",
 							type: "selling" as const,
 						};
+	const exampleListings =
+		data.supported && data.examplesEnabled
+			? getTicketExchangeExampleListings(activeTab)
+			: [];
 
 	const openEmptyStateListing = () => {
 		trackTicketExchangeAnalytics({
@@ -2736,20 +2784,28 @@ export function TicketExchangeClient({
 						)}
 
 					{visibleListings.length === 0 ? (
-						<div className="rounded-2xl border border-dashed border-border bg-card/48 p-8 text-center">
-							<Search className="mx-auto h-8 w-8 text-muted-foreground" />
-							<p className="mt-3 font-medium">{emptyListingCopy.title}</p>
-							<p className="mt-1 text-sm text-muted-foreground">
-								{emptyListingCopy.body}
-							</p>
-							<Button
-								type="button"
-								onClick={openEmptyStateListing}
-								className="mt-4"
-							>
-								<Plus className="h-4 w-4" />
-								{emptyListingCopy.cta}
-							</Button>
+						<div className="space-y-4">
+							<div className="rounded-2xl border border-dashed border-border bg-card/48 p-8 text-center">
+								<Search className="mx-auto h-8 w-8 text-muted-foreground" />
+								<p className="mt-3 font-medium">{emptyListingCopy.title}</p>
+								<p className="mt-1 text-sm text-muted-foreground">
+									{emptyListingCopy.body}
+								</p>
+								<Button
+									type="button"
+									onClick={openEmptyStateListing}
+									className="mt-4"
+								>
+									<Plus className="h-4 w-4" />
+									{emptyListingCopy.cta}
+								</Button>
+							</div>
+							{exampleListings.length > 0 ? (
+								<TicketExchangeExampleListings
+									examples={exampleListings}
+									event={selectedEvent ?? null}
+								/>
+							) : null}
 						</div>
 					) : (
 						<div className="grid gap-3">
@@ -3206,6 +3262,134 @@ function ContactMethodPicker({
 				</p>
 			)}
 		</div>
+	);
+}
+
+function TicketExchangeExampleListings({
+	examples,
+	event,
+}: {
+	examples: readonly TicketExchangeExampleListing[];
+	event: Event | null;
+}) {
+	const eventName = event?.name ?? "Example event";
+	const eventMeta = event ? formatEventListMetadata(event) : "Workflow sample";
+	return (
+		<section aria-labelledby="ticket-exchange-examples-heading">
+			<div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+				<div>
+					<h3
+						id="ticket-exchange-examples-heading"
+						className="text-sm font-semibold text-foreground"
+					>
+						How the exchange works
+					</h3>
+					<p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+						Example-only cards show the workflow without creating marketplace
+						inventory.
+					</p>
+				</div>
+				<Badge
+					variant="outline"
+					className="w-fit border-border/70 bg-background/50 text-muted-foreground"
+				>
+					Examples only
+				</Badge>
+			</div>
+			<div className="mt-3 grid gap-3 md:grid-cols-2">
+				{examples.map((example) => (
+					<TicketExchangeExampleCard
+						key={example.id}
+						example={example}
+						eventName={eventName}
+						eventMeta={eventMeta}
+					/>
+				))}
+			</div>
+		</section>
+	);
+}
+
+function TicketExchangeExampleCard({
+	example,
+	eventName,
+	eventMeta,
+}: {
+	example: TicketExchangeExampleListing;
+	eventName: string;
+	eventMeta: string;
+}) {
+	const listingModeLabel =
+		example.listingType === "selling" ? "Selling" : "Looking";
+	const quantityLabel =
+		example.listingType === "selling" ? "Available" : "Needed";
+	const priceModeLabel = example.listingType === "selling" ? "Price" : "Budget";
+
+	return (
+		<article
+			className={cn(
+				"relative overflow-hidden rounded-xl border bg-card/58 p-4 shadow-sm sm:p-5",
+				example.listingType === "selling"
+					? "border-emerald-500/18"
+					: "border-sky-500/18",
+			)}
+		>
+			<span
+				aria-hidden="true"
+				className={cn(
+					"absolute top-4 bottom-4 left-0 w-1 rounded-r-full",
+					example.listingType === "selling"
+						? "bg-emerald-500/35"
+						: "bg-sky-500/35",
+				)}
+			/>
+			<div className="flex flex-wrap items-center gap-2">
+				<Badge
+					className={cn(
+						"border shadow-none",
+						example.listingType === "selling"
+							? "border-emerald-500/25 bg-emerald-500/10 text-emerald-800 dark:text-emerald-100"
+							: "border-sky-500/25 bg-sky-500/10 text-sky-800 dark:text-sky-100",
+					)}
+				>
+					{listingModeLabel}
+				</Badge>
+				<Badge
+					variant="outline"
+					className="border-border/60 bg-background/45 text-muted-foreground"
+				>
+					Example only
+				</Badge>
+			</div>
+			<div className="mt-3">
+				<p className="line-clamp-2 text-lg font-semibold leading-tight text-foreground">
+					{eventName}
+				</p>
+				<p className="mt-1 text-xs text-muted-foreground">{eventMeta}</p>
+			</div>
+			<div className="mt-4 grid gap-3 sm:grid-cols-2">
+				<div>
+					<p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+						{quantityLabel}
+					</p>
+					<p className="mt-1 text-base font-semibold leading-tight">
+						{example.quantityLabel}
+					</p>
+				</div>
+				<div>
+					<p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+						{priceModeLabel}
+					</p>
+					<p className="mt-1 text-base font-semibold leading-tight">
+						{example.priceLabel}
+					</p>
+				</div>
+			</div>
+			<p className="mt-4 border-t border-border/60 pt-3 text-sm leading-6 text-muted-foreground">
+				{example.note} These examples are display-only and never count as live
+				listings.
+			</p>
+		</article>
 	);
 }
 

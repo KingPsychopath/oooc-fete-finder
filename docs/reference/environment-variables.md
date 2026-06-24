@@ -33,6 +33,11 @@ Some optional diagnostics and maintenance-script variables are read directly fro
 | `STRIPE_PAYMENT_LINK_ID_PROMOTED` | No | - | Maps Stripe Payment Link IDs to partner package keys |
 | `STRIPE_PAYMENT_LINK_ID_ADDON_WHATSAPP` | No | - | Maps Stripe Payment Link IDs to partner add-on keys |
 | `STRIPE_PAYMENT_LINK_ID_ADDON_NEWSLETTER` | No | - | Maps Stripe Payment Link IDs to partner add-on keys |
+| `TICKET_EXCHANGE_EMAIL_ENABLED` | No | `false` | Enables Ticket Exchange email hooks when a transactional provider is configured |
+| `TICKET_EXCHANGE_FROM_EMAIL` | No | `tickets@fete.outofofficecollective.co.uk` | Sender address for Ticket Exchange email hooks |
+| `TICKET_EXCHANGE_REPLY_TO` | No | `tickets@outofofficecollective.co.uk` | Reply-to address for Ticket Exchange email hooks |
+| `TICKET_EXCHANGE_EXAMPLES_ENABLED` | No | `true` | Shows non-actionable example cards when the public exchange board is empty; set to `false` to hide |
+| `TICKET_EXCHANGE_BOT_SECRET` | No | - | Protects Ticket Exchange bot-only endpoints |
 
 ## Client Variables
 

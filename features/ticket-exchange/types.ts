@@ -220,6 +220,7 @@ export interface TicketExchangePageData {
 	userId: string | null;
 	supported: boolean;
 	emailEnabled: boolean;
+	examplesEnabled: boolean;
 }
 
 export interface TicketExchangeActionResult {
