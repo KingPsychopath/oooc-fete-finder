@@ -74,6 +74,7 @@ import { createPortal } from "react-dom";
 type FilterPanelProps = {
 	selectedDateRange: DateRangeFilter;
 	defaultDateRange: DateRangeFilter;
+	archiveDateRange: DateRangeFilter;
 	selectedDayNightPeriods: DayNightPeriod[];
 	selectedArrondissements: ParisArrondissement[];
 	selectedGenres: MusicGenre[];
@@ -124,6 +125,7 @@ type FilterPanelProps = {
 const FilterPanel: React.FC<FilterPanelProps> = ({
 	selectedDateRange,
 	defaultDateRange,
+	archiveDateRange,
 	selectedDayNightPeriods,
 	selectedArrondissements,
 	selectedGenres,
@@ -532,11 +534,15 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 
 	const renderDefaultDateRangeHint = () => {
 		if (!isUsingDefaultDateRange) return null;
+		const archiveYear =
+			archiveDateRange.from?.slice(0, 4) ??
+			archiveDateRange.to?.slice(0, 4) ??
+			"season";
 
 		return (
 			<div className="rounded-lg border border-border/70 bg-muted/35 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground lg:text-[10px]">
-				Showing live and upcoming events by default. Past season events are
-				still available if you widen the date range.
+				Showing live and upcoming events by default. Use the {archiveYear}{" "}
+				archive or All dates to browse past season events.
 			</div>
 		);
 	};
@@ -1101,6 +1107,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												<DateRangePickerControl
 													selectedDateRange={selectedDateRange}
 													defaultDateRange={defaultDateRange}
+													archiveDateRange={archiveDateRange}
 													onDateRangeChange={onDateRangeChange}
 													availableEventDates={availableEventDates}
 													quickSelectEventDates={quickSelectEventDates}
@@ -1829,6 +1836,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 												<DateRangePickerControl
 													selectedDateRange={selectedDateRange}
 													defaultDateRange={defaultDateRange}
+													archiveDateRange={archiveDateRange}
 													onDateRangeChange={onDateRangeChange}
 													availableEventDates={availableEventDates}
 													quickSelectEventDates={quickSelectEventDates}
@@ -1907,6 +1915,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
 											mobileNative
 											selectedDateRange={selectedDateRange}
 											defaultDateRange={defaultDateRange}
+											archiveDateRange={archiveDateRange}
 											onDateRangeChange={onDateRangeChange}
 											availableEventDates={availableEventDates}
 											quickSelectEventDates={quickSelectEventDates}

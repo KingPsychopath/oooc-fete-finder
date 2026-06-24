@@ -14,10 +14,10 @@ import type {
 	NearbyLocationScope,
 	NearbyRadiusKm,
 } from "@/features/locations/nearby-location";
-import ParisMapLibre from "@/features/maps/components/ParisMapLibre";
 import { LAYERS } from "@/lib/ui/layers";
 import { cn } from "@/lib/utils";
 import { Archive, ArrowRight, ChevronDown, Map, Maximize2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
 	type PointerEvent,
@@ -74,6 +74,14 @@ function MapPreview() {
 		</div>
 	);
 }
+
+const ParisMapLibre = dynamic(
+	() => import("@/features/maps/components/ParisMapLibre"),
+	{
+		ssr: false,
+		loading: () => <MapPreview />,
+	},
+);
 
 export function EventsMapCard({
 	events,

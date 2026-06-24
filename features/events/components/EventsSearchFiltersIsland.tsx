@@ -42,6 +42,7 @@ export function EventsSearchFiltersIsland({
 		availableEventDates,
 		availableGenres,
 		availableNationalities,
+		archiveDateRange,
 		defaultDateRange,
 		filteredEvents,
 		handleSearchFocus,
@@ -240,6 +241,7 @@ export function EventsSearchFiltersIsland({
 					<FilterPanel
 						selectedDateRange={selectedDateRange}
 						defaultDateRange={defaultDateRange}
+						archiveDateRange={archiveDateRange}
 						selectedDayNightPeriods={selectedDayNightPeriods}
 						selectedArrondissements={selectedArrondissements}
 						selectedGenres={selectedGenres}

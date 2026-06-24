@@ -22,6 +22,7 @@ type DateRangePickerControlProps = {
 	mobileNative?: boolean;
 	selectedDateRange: DateRangeFilter;
 	defaultDateRange: DateRangeFilter;
+	archiveDateRange: DateRangeFilter;
 	onDateRangeChange: (dateRange: DateRangeFilter) => void;
 	availableEventDates: string[];
 	quickSelectEventDates: string[];
@@ -36,6 +37,7 @@ function DateRangePickerControl({
 	mobileNative = false,
 	selectedDateRange,
 	defaultDateRange,
+	archiveDateRange,
 	onDateRangeChange,
 	availableEventDates,
 	quickSelectEventDates,
@@ -52,9 +54,42 @@ function DateRangePickerControl({
 		selectedDateRange.from !== null || selectedDateRange.to !== null;
 	const hasDefaultDateRange =
 		defaultDateRange.from !== null || defaultDateRange.to !== null;
-	const hasCustomDateRange =
-		hasSelectedDateRange &&
-		!areDateRangesEqual(selectedDateRange, defaultDateRange);
+	const hasArchiveDateRange =
+		archiveDateRange.from !== null || archiveDateRange.to !== null;
+	const archiveYear =
+		archiveDateRange.from?.slice(0, 4) ?? archiveDateRange.to?.slice(0, 4);
+	const archiveRangeLabel = archiveYear
+		? `${archiveYear} archive`
+		: "Season archive";
+	const dateRangeActions = [
+		hasDefaultDateRange &&
+		!areDateRangesEqual(selectedDateRange, defaultDateRange)
+			? {
+					key: "default",
+					label: "Live/upcoming",
+					dateRange: defaultDateRange,
+				}
+			: null,
+		hasArchiveDateRange &&
+		!areDateRangesEqual(selectedDateRange, archiveDateRange)
+			? {
+					key: "archive",
+					label: archiveRangeLabel,
+					dateRange: archiveDateRange,
+				}
+			: null,
+		hasSelectedDateRange
+			? {
+					key: "all",
+					label: "All dates",
+					dateRange: { from: null, to: null },
+				}
+			: null,
+	].filter(Boolean) as Array<{
+		key: string;
+		label: string;
+		dateRange: DateRangeFilter;
+	}>;
 	const mobileDateRangeLabel = hasSelectedDateRange
 		? formatDateRangeLabel(selectedDateRange)
 		: "All dates";
@@ -152,47 +187,22 @@ function DateRangePickerControl({
 		<div className={`${sectionClassName} min-w-0 overflow-hidden`}>
 			<div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
 				<h4 className={sectionTitleClassName}>Pick Date Range</h4>
-				{hasSelectedDateRange ? (
-					<div className="flex shrink-0 items-center gap-1">
-						{hasCustomDateRange && hasDefaultDateRange && (
+				{dateRangeActions.length > 0 ? (
+					<div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
+						{dateRangeActions.map((action) => (
 							<Button
+								key={action.key}
 								type="button"
 								variant="ghost"
 								size="sm"
-								className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent lg:text-[11px]"
-								onClick={() => handleDateRangeChange(defaultDateRange)}
+								className="h-7 whitespace-nowrap rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent lg:text-[11px]"
+								onClick={() => handleDateRangeChange(action.dateRange)}
 							>
-								This year
+								{action.label}
 							</Button>
-						)}
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent lg:text-[11px]"
-							onClick={() =>
-								handleDateRangeChange({
-									from: null,
-									to: null,
-								})
-							}
-						>
-							All dates
-						</Button>
+						))}
 					</div>
-				) : (
-					hasDefaultDateRange && (
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							className="h-7 rounded-full border border-border/70 px-2 text-xs text-foreground/80 hover:bg-accent lg:text-[11px]"
-							onClick={() => handleDateRangeChange(defaultDateRange)}
-						>
-							This year
-						</Button>
-					)
-				)}
+				) : null}
 			</div>
 			{mobileNative ? (
 				<div className="min-w-0 space-y-2">
