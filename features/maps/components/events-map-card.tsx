@@ -312,6 +312,8 @@ export function EventsMapCard({
 		const rootPath = basePath || "/";
 		return query ? `${rootPath}?${query}` : rootPath;
 	})();
+	// Keep the archive CTA as a normal document navigation so public URL
+	// filter hydration runs for signed-out visitors on this same page.
 	const showPostSeasonMapState = isDefaultDiscoveryEmpty && events.length === 0;
 
 	const handleOpenFullscreenPointerDown = (
@@ -376,13 +378,13 @@ export function EventsMapCard({
 									about.
 								</p>
 								<div className="mt-4 flex flex-col items-center justify-center gap-2 sm:flex-row">
-									<Link
+									<a
 										href={archiveHref}
 										className="inline-flex h-8 items-center justify-center rounded-full border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted"
 									>
 										View 2026 archive
 										<ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-									</Link>
+									</a>
 									<Link
 										href={`${basePath}/submit-event`}
 										className="inline-flex h-8 items-center justify-center rounded-full bg-foreground px-4 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
