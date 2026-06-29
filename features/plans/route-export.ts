@@ -8,12 +8,13 @@ import type { MapProvider } from "@/features/maps/types";
 import { distanceKmBetweenEvents } from "@/features/plans/route-suggestion";
 import type { UserPlan } from "@/features/plans/types";
 
-export type RouteMapCoverage = "full-route" | "first-leg" | "single-stop";
+export type RouteMapCoverage = "full-route" | "single-stop";
+type RouteMapProvider = Exclude<MapProvider, "ask" | "system">;
 
 export interface RouteMapTarget {
 	url: string;
 	coverage: RouteMapCoverage;
-	provider: Exclude<MapProvider, "ask">;
+	provider: RouteMapProvider;
 }
 
 const ROUTE_TIMEZONE = "Europe/Paris";
@@ -173,14 +174,24 @@ const getDisplayRouteTime = (
 			: "Time TBC";
 };
 
+const resolveRouteMapProvider = (
+	preference: Exclude<MapProvider, "ask">,
+	userAgent: string,
+): RouteMapProvider => {
+	if (preference === "google" || preference === "apple") return preference;
+	return /iPad|iPhone|iPod|Macintosh|Mac OS X/.test(userAgent)
+		? "apple"
+		: "google";
+};
+
 export const buildRouteMapTarget = (
 	events: Event[],
 	preference: Exclude<MapProvider, "ask">,
-	_userAgent = "",
+	userAgent = "",
 ): RouteMapTarget | null => {
 	if (events.length === 0) return null;
 
-	const provider = preference === "system" ? "google" : preference;
+	const provider = resolveRouteMapProvider(preference, userAgent);
 	const points = events.map(getEventPoint);
 
 	if (events.length === 1) {
@@ -196,10 +207,17 @@ export const buildRouteMapTarget = (
 	}
 
 	if (provider === "apple") {
+		const source = encodeURIComponent(points[0]);
+		const destination = encodeURIComponent(points[points.length - 1]);
+		const waypoints = points
+			.slice(1, -1)
+			.map((point) => `&waypoint=${encodeURIComponent(point)}`)
+			.join("");
+
 		return {
 			provider,
-			coverage: "first-leg",
-			url: `https://maps.apple.com/?saddr=${encodeURIComponent(points[0])}&daddr=${encodeURIComponent(points[1])}&dirflg=w`,
+			coverage: "full-route",
+			url: `https://maps.apple.com/directions?source=${source}${waypoints}&destination=${destination}&mode=walking`,
 		};
 	}
 

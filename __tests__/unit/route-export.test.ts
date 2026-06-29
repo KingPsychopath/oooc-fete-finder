@@ -124,7 +124,7 @@ describe("route export", () => {
 		expect(target?.url).toContain("travelmode=walking");
 	});
 
-	it("uses Apple Maps for the first leg when Apple is explicitly selected", () => {
+	it("builds a full Apple route with repeated waypoints", () => {
 		const target = buildRouteMapTarget(
 			[
 				event({ coordinates: { lat: 48.86, lng: 2.35 } }),
@@ -132,15 +132,58 @@ describe("route export", () => {
 					eventKey: "second",
 					coordinates: { lat: 48.87, lng: 2.36 },
 				}),
-				event({ eventKey: "third", coordinates: { lat: 48.88, lng: 2.37 } }),
+				event({
+					eventKey: "third",
+					coordinates: { lat: 48.88, lng: 2.37 },
+				}),
+				event({ eventKey: "last", coordinates: { lat: 48.89, lng: 2.38 } }),
 			],
 			"apple",
 		);
 
-		expect(target?.coverage).toBe("first-leg");
-		expect(target?.url).toContain("maps.apple.com");
-		expect(target?.url).toContain("saddr=48.86%2C2.35");
-		expect(target?.url).toContain("daddr=48.87%2C2.36");
-		expect(target?.url).toContain("dirflg=w");
+		expect(target?.coverage).toBe("full-route");
+		expect(target?.url).toContain("maps.apple.com/directions");
+		expect(target?.url).toContain("source=48.86%2C2.35");
+		expect(target?.url).toContain("waypoint=48.87%2C2.36");
+		expect(target?.url).toContain("waypoint=48.88%2C2.37");
+		expect(target?.url).toContain("destination=48.89%2C2.38");
+		expect(target?.url).toContain("mode=walking");
+		expect(target?.url).not.toContain("saddr=");
+	});
+
+	it("uses Apple Maps for the system route provider on Apple devices", () => {
+		const target = buildRouteMapTarget(
+			[
+				event({ coordinates: { lat: 48.86, lng: 2.35 } }),
+				event({
+					eventKey: "second",
+					coordinates: { lat: 48.87, lng: 2.36 },
+				}),
+			],
+			"system",
+			"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+		);
+
+		expect(target?.provider).toBe("apple");
+		expect(target?.coverage).toBe("full-route");
+		expect(target?.url).toContain("maps.apple.com/directions");
+	});
+
+	it("uses Google Maps for the system route provider on non-Apple devices", () => {
+		const target = buildRouteMapTarget(
+			[
+				event({ coordinates: { lat: 48.86, lng: 2.35 } }),
+				event({
+					eventKey: "second",
+					coordinates: { lat: 48.87, lng: 2.36 },
+				}),
+			],
+			"system",
+			"Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+		);
+
+		expect(target?.provider).toBe("google");
+		expect(target?.coverage).toBe("full-route");
+		expect(target?.url).toContain("google.com/maps/dir");
 	});
 });

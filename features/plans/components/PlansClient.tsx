@@ -51,7 +51,6 @@ import { validatePlanTitle } from "@/features/plans/plan-title";
 import { PlansProvider, usePlans } from "@/features/plans/plans-provider";
 import {
 	buildRouteMapTarget,
-	buildRouteText,
 	downloadRouteICSFile,
 } from "@/features/plans/route-export";
 import {
@@ -87,6 +86,7 @@ import {
 	Plus,
 	RefreshCw,
 	Route,
+	Settings,
 	Share2,
 	Trash2,
 	Unlock,
@@ -265,6 +265,8 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 	const [routeExportStatus, setRouteExportStatus] = useState<string | null>(
 		null,
 	);
+	const [showRouteMapPreferenceAction, setShowRouteMapPreferenceAction] =
+		useState(false);
 	const [isRouteMapPickerOpen, setIsRouteMapPickerOpen] = useState(false);
 	const [routePickerEvent, setRoutePickerEvent] = useState<Event | null>(null);
 	const trackedNoSuggestionKeyRef = useRef<string | null>(null);
@@ -1159,6 +1161,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 	const exportRouteToCalendar = () => {
 		if (!activePlan || activeEvents.length === 0) return;
 		const didExport = downloadRouteICSFile(activePlan, activeEvents);
+		setShowRouteMapPreferenceAction(false);
 		setRouteExportStatus(
 			didExport
 				? "Calendar file downloaded with stops in route order."
@@ -1185,7 +1188,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 		}
 	};
 
-	const openRouteInMapsWithProvider = async (
+	const openRouteInMapsWithProvider = (
 		provider: Exclude<MapProvider, "ask">,
 	) => {
 		if (!activePlan || activeEvents.length === 0) return;
@@ -1204,6 +1207,7 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 				value: provider,
 				flushImmediately: true,
 			});
+			setShowRouteMapPreferenceAction(false);
 			return;
 		}
 
@@ -1214,47 +1218,40 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 			planId: activePlan.id,
 			planDate: activePlan.planDate,
 			stopCount: activeEvents.length,
-			value: `${provider}:${target.coverage}`,
+			value: `${target.provider}:${target.coverage}`,
 			flushImmediately: true,
 		});
 
-		if (target.coverage === "first-leg") {
-			try {
-				await navigator.clipboard.writeText(
-					buildRouteText(activePlan, activeEvents),
-				);
-				setRouteExportStatus(
-					"Opened the first leg in Apple Maps. Full route copied.",
-				);
-			} catch {
-				setRouteExportStatus("Opened the first leg in Apple Maps.");
-			}
-			return;
-		}
-
+		const providerLabel =
+			target.provider === "apple" ? "Apple Maps" : "Google Maps";
+		setShowRouteMapPreferenceAction(true);
 		setRouteExportStatus(
 			target.coverage === "single-stop"
-				? "Opened this stop in maps."
-				: "Opened the full route in maps.",
+				? `Opened this stop in ${providerLabel}.`
+				: `Opened the full route in ${providerLabel}.`,
 		);
+	};
+
+	const openRouteMapPicker = () => {
+		if (activePlan) {
+			trackPlanAnalytics({
+				action: "route_map_picker_open",
+				surface: "export",
+				planId: activePlan.id,
+				planDate: activePlan.planDate,
+				stopCount: activeEvents.length,
+				flushImmediately: true,
+			});
+		}
+		setIsRouteMapPickerOpen(true);
 	};
 
 	const openRouteInMaps = () => {
 		if (mapPreference === "ask") {
-			if (activePlan) {
-				trackPlanAnalytics({
-					action: "route_map_picker_open",
-					surface: "export",
-					planId: activePlan.id,
-					planDate: activePlan.planDate,
-					stopCount: activeEvents.length,
-					flushImmediately: true,
-				});
-			}
-			setIsRouteMapPickerOpen(true);
+			openRouteMapPicker();
 			return;
 		}
-		void openRouteInMapsWithProvider(mapPreference);
+		openRouteInMapsWithProvider(mapPreference);
 	};
 
 	const setShareOwnerNameVisible = async (
@@ -1827,9 +1824,24 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 						</p>
 					)}
 					{routeExportStatus && (
-						<p className="mb-4 shrink-0 rounded-2xl border border-border/70 bg-background px-3 py-2 text-sm text-muted-foreground">
-							{routeExportStatus}
-						</p>
+						<div
+							className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl border border-border/70 bg-background px-3 py-2 text-sm text-muted-foreground"
+							aria-live="polite"
+						>
+							<span>{routeExportStatus}</span>
+							{showRouteMapPreferenceAction && (
+								<Button
+									type="button"
+									variant="ghost"
+									size="xs"
+									onClick={openRouteMapPicker}
+									className="-my-1 text-muted-foreground hover:text-foreground"
+								>
+									<Settings className="h-3 w-3" />
+									Change default
+								</Button>
+							)}
+						</div>
 					)}
 					{activePlan?.shareToken && (
 						<div className="mb-3 flex items-center gap-2 rounded-2xl border border-border/70 bg-background/80 px-2 py-1.5">
@@ -2519,10 +2531,10 @@ function PlansWorkspace({ initialEvents }: PlansClientProps) {
 				isOpen={isRouteMapPickerOpen}
 				onClose={() => setIsRouteMapPickerOpen(false)}
 				title="Open route in maps"
-				description="Choose where to open these stops."
+				description="Choose where to open these stops, or set a default for next time."
 				onSelect={(provider) => {
 					if (provider === "ask") return;
-					void openRouteInMapsWithProvider(provider);
+					openRouteInMapsWithProvider(provider);
 				}}
 				onRememberPreference={(provider) => setMapPreference(provider)}
 			/>

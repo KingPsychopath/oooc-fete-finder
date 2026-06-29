@@ -24,7 +24,6 @@ import { formatPublicPlanTitle } from "@/features/plans/plan-title";
 import { PlansProvider, usePlans } from "@/features/plans/plans-provider";
 import {
 	buildRouteMapTarget,
-	buildRouteText,
 	downloadRouteICSFile,
 } from "@/features/plans/route-export";
 import type { SharedPlan, UserPlan } from "@/features/plans/types";
@@ -38,6 +37,7 @@ import {
 	MapPinned,
 	Plus,
 	Route,
+	Settings,
 	Share2,
 } from "lucide-react";
 import Link from "next/link";
@@ -133,6 +133,8 @@ function SharedPlanWorkspace({
 	const [routeExportStatus, setRouteExportStatus] = useState<string | null>(
 		null,
 	);
+	const [showRouteMapPreferenceAction, setShowRouteMapPreferenceAction] =
+		useState(false);
 	const [closestStopState, setClosestStopState] = useState<ClosestStopState>({
 		status: "idle",
 		eventKey: null,
@@ -340,6 +342,7 @@ function SharedPlanWorkspace({
 	const exportRouteToCalendar = () => {
 		if (routeEvents.length === 0) return;
 		const didExport = downloadRouteICSFile(publicPlanForExport, routeEvents);
+		setShowRouteMapPreferenceAction(false);
 		setRouteExportStatus(
 			didExport
 				? "Calendar file downloaded with stops in route order."
@@ -366,7 +369,7 @@ function SharedPlanWorkspace({
 		}
 	};
 
-	const openRouteInMapsWithProvider = async (
+	const openRouteInMapsWithProvider = (
 		provider: Exclude<MapProvider, "ask">,
 	) => {
 		if (routeEvents.length === 0) return;
@@ -385,6 +388,7 @@ function SharedPlanWorkspace({
 				value: provider,
 				flushImmediately: true,
 			});
+			setShowRouteMapPreferenceAction(false);
 			return;
 		}
 
@@ -395,45 +399,38 @@ function SharedPlanWorkspace({
 			planId: plan.id,
 			planDate: plan.planDate,
 			stopCount: routeEvents.length,
-			value: `${provider}:${target.coverage}`,
+			value: `${target.provider}:${target.coverage}`,
 			flushImmediately: true,
 		});
 
-		if (target.coverage === "first-leg") {
-			try {
-				await navigator.clipboard.writeText(
-					buildRouteText(publicPlanForExport, routeEvents),
-				);
-				setRouteExportStatus(
-					"Opened the first leg in Apple Maps. Full route copied.",
-				);
-			} catch {
-				setRouteExportStatus("Opened the first leg in Apple Maps.");
-			}
-			return;
-		}
-
+		const providerLabel =
+			target.provider === "apple" ? "Apple Maps" : "Google Maps";
+		setShowRouteMapPreferenceAction(true);
 		setRouteExportStatus(
 			target.coverage === "single-stop"
-				? "Opened this stop in maps."
-				: "Opened the full route in maps.",
+				? `Opened this stop in ${providerLabel}.`
+				: `Opened the full route in ${providerLabel}.`,
 		);
+	};
+
+	const openRouteMapPicker = () => {
+		trackPlanAnalytics({
+			action: "route_map_picker_open",
+			surface: "shared_plan",
+			planId: plan.id,
+			planDate: plan.planDate,
+			stopCount: routeEvents.length,
+			flushImmediately: true,
+		});
+		setIsRouteMapPickerOpen(true);
 	};
 
 	const openRouteInMaps = () => {
 		if (mapPreference === "ask") {
-			trackPlanAnalytics({
-				action: "route_map_picker_open",
-				surface: "shared_plan",
-				planId: plan.id,
-				planDate: plan.planDate,
-				stopCount: routeEvents.length,
-				flushImmediately: true,
-			});
-			setIsRouteMapPickerOpen(true);
+			openRouteMapPicker();
 			return;
 		}
-		void openRouteInMapsWithProvider(mapPreference);
+		openRouteInMapsWithProvider(mapPreference);
 	};
 
 	const findClosestStop = async () => {
@@ -671,9 +668,24 @@ function SharedPlanWorkspace({
 										: "Saving creates your own private copy."}
 						</p>
 						{routeExportStatus && (
-							<p className="mt-1 text-sm text-muted-foreground">
-								{routeExportStatus}
-							</p>
+							<div
+								className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground"
+								aria-live="polite"
+							>
+								<span>{routeExportStatus}</span>
+								{showRouteMapPreferenceAction && (
+									<Button
+										type="button"
+										variant="ghost"
+										size="xs"
+										onClick={openRouteMapPicker}
+										className="-my-1 text-muted-foreground hover:text-foreground"
+									>
+										<Settings className="h-3 w-3" />
+										Change default
+									</Button>
+								)}
+							</div>
 						)}
 						{closestStopState.message && (
 							<p
@@ -814,10 +826,10 @@ function SharedPlanWorkspace({
 				isOpen={isRouteMapPickerOpen}
 				onClose={() => setIsRouteMapPickerOpen(false)}
 				title="Open route in maps"
-				description="Choose where to open these stops."
+				description="Choose where to open these stops, or set a default for next time."
 				onSelect={(provider) => {
 					if (provider === "ask") return;
-					void openRouteInMapsWithProvider(provider);
+					openRouteInMapsWithProvider(provider);
 				}}
 				onRememberPreference={(provider) => {
 					setMapPreference(provider);
