@@ -1,8 +1,9 @@
 # Railway Placeholder
 
 This directory is a tiny static fallback for the off-season Fete Finder page.
-It is intentionally plain HTML and CSS served by Caddy, with no app runtime and
-no client JavaScript.
+It builds with Vite and is served by Caddy as static files, with no server-side
+app runtime. JavaScript is used only for progressive animation, smooth scrolling,
+and the licensed soundtrack fade.
 
 The current page is a static 2026 recap. Its public numbers were generated from
 the local event CSV plus aggregate-only analytics from a local Postgres dump.
@@ -16,6 +17,8 @@ The event count is `159` dated 2026 listings from `app_event_store_rows` /
 - Redirect every non-asset route back to `/` while the finder is resting.
 - Publish aggregate recap numbers only; never ship raw user rows or identifiers.
 - Use JavaScript only for progressive enhancement that the page survives without.
+- Keep the client stack intentionally small: Vite, GSAP/ScrollTrigger, and
+  Lenis.
 - Keep motion subtle, useful, and disabled by `prefers-reduced-motion`.
 - Preserve a calm two-line hero before the recap starts.
 - Avoid repeated branding, decorative labels, awkward pills, and overflowing
@@ -23,6 +26,21 @@ The event count is `159` dated 2026 listings from `app_event_store_rows` /
 - Keep cards at `8px` radius or below and make every number fit its own card.
 
 ## Deploy
+
+Local iteration:
+
+```bash
+cd railway-placeholder
+npm install
+npm run dev -- --port 8090
+```
+
+Production build check:
+
+```bash
+cd railway-placeholder
+npm run build
+```
 
 Create or update a separate Railway service with this directory as its root:
 
@@ -37,9 +55,9 @@ If configuring the service in the Railway dashboard, set:
 - Domain port: the Railway-provided `PORT` env var, with the container fallback
   listening on `8080`
 
-The Caddy service serves `/`, `/styles.css`, `/recap.js`, and `/favicon.svg`.
-Other paths intentionally `302` redirect to `/` so old indexed Fete Finder URLs
-land on the resting recap page.
+The Caddy service serves `/`, `/assets/*`, and `/favicon.svg`. Other paths
+intentionally `302` redirect to `/` so old indexed Fete Finder URLs land on the
+resting recap page.
 
 ## Off-Season Switch
 

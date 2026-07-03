@@ -9,8 +9,7 @@
 			content="Fete Finder is resting after Fete. A warm recap of what the OOOC community searched, saved, mapped, and loved in Paris."
 		/>
 		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-		<link rel="stylesheet" href="/styles.css?v=20260703-2" />
-		<script src="/recap.js?v=20260703-2" defer></script>
+		<script type="module" src="/src/recap.js"></script>
 	</head>
 	<body>
 		<a class="skip-link" href="#recap">Skip to recap</a>
@@ -23,14 +22,19 @@
 					<span>is resting.</span>
 				</h1>
 				<p class="opening">
-					Fete is over for now, so the live finder is offline. While we keep
-					things light behind the scenes.
+					Fete is over for now, so the live finder is offline.<br />
+					While we keep things light behind the scenes,
 					<span class="marker">here's what you all cared about this year.</span>
 				</p>
 				<p class="tiny-note">
 					We will switch the full experience back on for demos and the next
 					season.
 				</p>
+				<a class="scroll-cue" href="#recap" aria-label="Scroll to recap">
+					<svg viewBox="0 0 24 24" aria-hidden="true">
+						<path d="M6 9l6 6 6-6" />
+					</svg>
+				</a>
 			</div>
 		</header>
 
@@ -62,19 +66,19 @@
 			<section class="ticker" aria-label="Recap highlights">
 				<div class="ticker-track">
 					<span><strong>159</strong> listings</span>
-					<span><strong>78</strong> free events</span>
-					<span><strong>155</strong> with locations</span>
+					<span><strong>78</strong> free</span>
+					<span><strong>155</strong> mapped listings</span>
 					<span><strong>109</strong> late-night options</span>
-					<span><strong>180</strong> mapped places</span>
-					<span><strong>10,270</strong> event link clicks</span>
+					<span><strong>180</strong> places</span>
+					<span><strong>10,270</strong> outbound clicks</span>
 					<span><strong>2,855</strong> saves</span>
 					<span><strong>914</strong> map opens</span>
 					<span aria-hidden="true"><strong>159</strong> listings</span>
-					<span aria-hidden="true"><strong>78</strong> free events</span>
-					<span aria-hidden="true"><strong>155</strong> with locations</span>
+					<span aria-hidden="true"><strong>78</strong> free</span>
+					<span aria-hidden="true"><strong>155</strong> mapped listings</span>
 					<span aria-hidden="true"><strong>109</strong> late-night options</span>
-					<span aria-hidden="true"><strong>180</strong> mapped places</span>
-					<span aria-hidden="true"><strong>10,270</strong> event link clicks</span>
+					<span aria-hidden="true"><strong>180</strong> places</span>
+					<span aria-hidden="true"><strong>10,270</strong> outbound clicks</span>
 					<span aria-hidden="true"><strong>2,855</strong> saves</span>
 					<span aria-hidden="true"><strong>914</strong> map opens</span>
 				</div>
@@ -123,26 +127,69 @@
 					</p>
 				</div>
 				<div class="day-chart" aria-label="Activity by day">
-					<div class="day-row">
-						<span>Fri 19</span>
-						<em><i style="--size: 30%"></i></em>
-						<strong>7.8k</strong>
-					</div>
-					<div class="day-row">
-						<span>Sat 20</span>
-						<em><i style="--size: 50%"></i></em>
-						<strong>13.3k</strong>
-					</div>
-					<div class="day-row big">
-						<span>Sun 21</span>
-						<em><i style="--size: 100%"></i></em>
-						<strong>26.4k</strong>
-					</div>
-					<div class="day-row">
-						<span>Mon 22</span>
-						<em><i style="--size: 23%"></i></em>
-						<strong>6.2k</strong>
-					</div>
+					<svg class="weekend-wave" viewBox="0 0 940 330" role="img">
+						<title>Activity by day: Friday 7.8k, Saturday 13.3k, Sunday 26.4k, Monday 6.2k</title>
+						<defs>
+							<linearGradient id="wave-fill" x1="0" x2="1" y1="0" y2="0">
+								<stop offset="0" stop-color="#1f6d55" stop-opacity="0.08" />
+								<stop offset="0.62" stop-color="#8f9639" stop-opacity="0.48" />
+								<stop offset="1" stop-color="#d94b35" stop-opacity="0.12" />
+							</linearGradient>
+							<linearGradient id="wave-stroke" x1="0" x2="1" y1="0" y2="0">
+								<stop offset="0" stop-color="#0f7b73" />
+								<stop offset="0.72" stop-color="#0f7b73" />
+								<stop offset="1" stop-color="#0f7b73" />
+							</linearGradient>
+						</defs>
+						<path class="map-thread thread-a" d="M650 16 C728 94 800 42 897 114" />
+						<path class="map-thread thread-b" d="M792 -6 C808 88 870 111 930 82" />
+						<path class="base-line" d="M92 226 H878" />
+						<path class="guide-line" d="M226 72 V226" />
+						<path class="guide-line" d="M452 38 V226" />
+						<path class="guide-line hot" d="M678 16 V226" />
+						<path class="guide-line" d="M840 82 V226" />
+						<path
+							class="wave-area"
+							d="M92 190 C160 174 186 139 226 134 C308 124 342 98 452 88 C548 78 600 32 678 18 C754 43 774 138 840 138 C870 156 884 168 906 180 L906 226 L92 226 Z"
+						/>
+						<path
+							class="wave-line"
+							pathLength="1"
+							d="M92 190 C160 174 186 139 226 134 C308 124 342 98 452 88 C548 78 600 32 678 18 C754 43 774 138 840 138 C870 156 884 168 906 180"
+						/>
+						<g class="flag-icon">
+							<path d="M205 96 V50" />
+							<path d="M207 54 L246 72 L207 89 Z" />
+							<path d="M217 60 L216 84" />
+						</g>
+						<g class="finish-icon">
+							<path d="M888 102 V50" />
+							<path d="M891 52 h35 v28 h-35 z" />
+							<path d="M891 61 h35 M891 70 h35 M900 52 v28 M909 52 v28 M918 52 v28" />
+						</g>
+						<g class="spark spark-a"><path d="M448 38 V12 M434 48 l-16 -17 M464 48 l16 -17" /></g>
+						<g class="spark spark-b"><path d="M678 12 V-9 M662 21 l-14 -16 M694 21 l14 -16" /></g>
+						<g class="wave-point point-a">
+							<circle cx="226" cy="134" r="13" />
+							<text class="day-label" x="226" y="266">Fri 19</text>
+							<text class="value-label" x="226" y="305">7.8k</text>
+						</g>
+						<g class="wave-point point-b">
+							<circle cx="452" cy="88" r="13" />
+							<text class="day-label" x="452" y="266">Sat 20</text>
+							<text class="value-label" x="452" y="305">13.3k</text>
+						</g>
+						<g class="wave-point point-c">
+							<circle cx="678" cy="18" r="13" />
+							<text class="day-label" x="678" y="266">Sun 21</text>
+							<text class="value-label peak" x="678" y="305">26.4k</text>
+						</g>
+						<g class="wave-point point-d">
+							<circle cx="840" cy="138" r="13" />
+							<text class="day-label" x="840" y="266">Mon 22</text>
+							<text class="value-label" x="840" y="305">6.2k</text>
+						</g>
+					</svg>
 				</div>
 			</section>
 
@@ -155,29 +202,35 @@
 					</p>
 				</div>
 				<div class="signal-board" aria-label="Most-used product actions">
-					<div>
+					<div class="signal-item">
 						<span>Plan actions</span>
 						<strong data-count="13037">13,037</strong>
+						<small>Filters, dates, and quick choices before heading out.</small>
 					</div>
-					<div>
+					<div class="signal-item">
 						<span>Event link clicks</span>
 						<strong data-count="10270">10,270</strong>
+						<small>People leaving the guide to RSVP, book, or check details.</small>
 					</div>
-					<div>
+					<div class="signal-item">
 						<span>Event opens</span>
 						<strong data-count="7045">7,045</strong>
+						<small>Listings people paused on long enough to inspect.</small>
 					</div>
-					<div>
+					<div class="signal-item">
 						<span>Saved toggles</span>
 						<strong data-count="2855">2,855</strong>
+						<small>Shortlist moments: maybe later, maybe this is the one.</small>
 					</div>
-					<div>
+					<div class="signal-item">
 						<span>Map interactions</span>
 						<strong data-count="2390">2,390</strong>
+						<small>Distance checks, street decisions, and nearby pivots.</small>
 					</div>
-					<div>
+					<div class="signal-item">
 						<span>Ticket Exchange views</span>
 						<strong data-count="6533">6,533</strong>
+						<small>Demand when plans changed and spare tickets mattered.</small>
 					</div>
 				</div>
 			</section>
@@ -208,11 +261,24 @@
 			</section>
 
 			<section class="taste">
-				<h2>The soundtrack was not subtle.</h2>
-				<p class="taste-note">
-					From Afrobeats to Amapiano, the searches leaned warm, rhythmic, and
-					made for moving through the city.
-				</p>
+				<div class="taste-head">
+					<div>
+						<h2>The soundtrack was not subtle.</h2>
+						<p class="taste-note">
+							From Afrobeats to Amapiano, the searches leaned warm, rhythmic,
+							and made for moving through the city.
+						</p>
+					</div>
+					<button class="sound-toggle" type="button" data-sound-toggle>
+						Listen
+					</button>
+				</div>
+				<audio
+					data-soundtrack
+					loop
+					preload="metadata"
+					src="/assets/mauvais-djo-pile-fete-recap-14-45.mp3"
+				></audio>
 				<div class="genre-list" aria-label="Top music categories">
 					<div><span>Afrobeats</span><strong>85</strong></div>
 					<div><span>Amapiano</span><strong>80</strong></div>

@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+railway-placeholder/node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -21,6 +22,7 @@
 
 # production
 /build
+railway-placeholder/dist/
 
 # misc
 .DS_Store
