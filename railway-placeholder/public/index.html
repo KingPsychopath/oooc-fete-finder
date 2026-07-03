@@ -24,12 +24,12 @@
 				</h1>
 				<p class="opening">
 					Fete is over for now, so the live finder is offline. While we keep
-					things light behind the scenes, here's what you all cared about this
-					year.
+					things light behind the scenes.
+					<span class="marker">here's what you all cared about this year.</span>
 				</p>
 				<p class="tiny-note">
-					We will switch the full experience back on for demos on request and
-					the next season.
+					We will switch the full experience back on for demos and the next
+					season.
 				</p>
 			</div>
 		</header>
@@ -44,6 +44,9 @@
 						aria-hidden="true"
 						fill="none"
 					>
+						<circle class="route-stop stop-a" cx="160" cy="72" r="7" />
+						<circle class="route-stop stop-b" cx="432" cy="66" r="7" />
+						<circle class="route-stop stop-c" cx="695" cy="39" r="7" />
 						<path
 							d="M18 126 C126 28 208 142 314 70 C431 -9 506 152 615 75 C699 15 756 47 822 24"
 							fill="none"
@@ -58,22 +61,22 @@
 
 			<section class="ticker" aria-label="Recap highlights">
 				<div class="ticker-track">
-					<span>159 listings</span>
-					<span>78 free events</span>
-					<span>155 with locations</span>
-					<span>109 late-night options</span>
-					<span>180 mapped places</span>
-					<span>10,270 event link clicks</span>
-					<span>2,855 saves</span>
-					<span>914 map opens</span>
-					<span aria-hidden="true">159 listings</span>
-					<span aria-hidden="true">78 free events</span>
-					<span aria-hidden="true">155 with locations</span>
-					<span aria-hidden="true">109 late-night options</span>
-					<span aria-hidden="true">180 mapped places</span>
-					<span aria-hidden="true">10,270 event link clicks</span>
-					<span aria-hidden="true">2,855 saves</span>
-					<span aria-hidden="true">914 map opens</span>
+					<span><strong>159</strong> listings</span>
+					<span><strong>78</strong> free events</span>
+					<span><strong>155</strong> with locations</span>
+					<span><strong>109</strong> late-night options</span>
+					<span><strong>180</strong> mapped places</span>
+					<span><strong>10,270</strong> event link clicks</span>
+					<span><strong>2,855</strong> saves</span>
+					<span><strong>914</strong> map opens</span>
+					<span aria-hidden="true"><strong>159</strong> listings</span>
+					<span aria-hidden="true"><strong>78</strong> free events</span>
+					<span aria-hidden="true"><strong>155</strong> with locations</span>
+					<span aria-hidden="true"><strong>109</strong> late-night options</span>
+					<span aria-hidden="true"><strong>180</strong> mapped places</span>
+					<span aria-hidden="true"><strong>10,270</strong> event link clicks</span>
+					<span aria-hidden="true"><strong>2,855</strong> saves</span>
+					<span aria-hidden="true"><strong>914</strong> map opens</span>
 				</div>
 			</section>
 
@@ -88,22 +91,26 @@
 				</p>
 			</section>
 
-			<section class="stats-grid" aria-label="Fete Finder recap numbers">
-				<article class="stat-card warm">
-					<span class="stat-number">159</span>
-					<p>2026 event listings, with 80 legacy 2025 rows kept in the archive.</p>
+			<section class="stats-showcase" aria-label="Fete Finder recap numbers">
+				<article class="hero-stat" tabindex="0">
+					<p>2026 listings in the live guide</p>
+					<span class="stat-number" data-count="159">159</span>
+					<small>Plus 80 legacy 2025 rows kept for the archive.</small>
 				</article>
-				<article class="stat-card green">
-					<span class="stat-number">78</span>
-					<p>free events, because the best plan was often just showing up.</p>
+				<article class="stat-card green" tabindex="0">
+					<span class="stat-number" data-count="78">78</span>
+					<p>free events</p>
+					<small>Easy plans people could say yes to quickly.</small>
 				</article>
-				<article class="stat-card red">
-					<span class="stat-number">2,003</span>
-					<p>active sessions on 21 June, the busiest day of the season.</p>
+				<article class="stat-card red" tabindex="0">
+					<span class="stat-number" data-count="2003">2,003</span>
+					<p>active sessions on 21 June</p>
+					<small>The busiest day of the season.</small>
 				</article>
-				<article class="stat-card ink">
-					<span class="stat-number">54,295</span>
-					<p>page views across June, mostly from phones.</p>
+				<article class="stat-card ink" tabindex="0">
+					<span class="stat-number" data-count="54295">54,295</span>
+					<p>page views across June</p>
+					<small>Mostly from phones, mostly in motion.</small>
 				</article>
 			</section>
 
@@ -150,27 +157,27 @@
 				<div class="signal-board" aria-label="Most-used product actions">
 					<div>
 						<span>Plan actions</span>
-						<strong>13,037</strong>
+						<strong data-count="13037">13,037</strong>
 					</div>
 					<div>
 						<span>Event link clicks</span>
-						<strong>10,270</strong>
+						<strong data-count="10270">10,270</strong>
 					</div>
 					<div>
 						<span>Event opens</span>
-						<strong>7,045</strong>
+						<strong data-count="7045">7,045</strong>
 					</div>
 					<div>
 						<span>Saved toggles</span>
-						<strong>2,855</strong>
+						<strong data-count="2855">2,855</strong>
 					</div>
 					<div>
 						<span>Map interactions</span>
-						<strong>2,390</strong>
+						<strong data-count="2390">2,390</strong>
 					</div>
 					<div>
 						<span>Ticket Exchange views</span>
-						<strong>6,533</strong>
+						<strong data-count="6533">6,533</strong>
 					</div>
 				</div>
 			</section>
@@ -179,10 +186,13 @@
 				<div class="phone-scene" aria-hidden="true">
 					<div class="phone">
 						<div class="phone-top"></div>
+						<div class="map-route"></div>
 						<div class="map-dot dot-a"></div>
 						<div class="map-dot dot-b"></div>
 						<div class="map-dot dot-c"></div>
 						<div class="map-pulse"></div>
+						<span class="map-label label-a">free nearby</span>
+						<span class="map-label label-b">open late</span>
 						<p>nearby now</p>
 					</div>
 				</div>
@@ -190,15 +200,19 @@
 					<h2>Nearby was the street feature.</h2>
 					<p>
 						There were <strong>407</strong> location requests and
-						<strong>116</strong> nearby sort changes. That is the bit I would
-						show in a demo: someone outside, battery low, deciding the next
-						move without opening six tabs.
+						<strong>116</strong> nearby sort changes. For anyone deciding the
+						next move from the pavement, it turned the guide from a list into a
+						quick read of what was close, open, and worth crossing town for.
 					</p>
 				</div>
 			</section>
 
 			<section class="taste">
 				<h2>The soundtrack was not subtle.</h2>
+				<p class="taste-note">
+					From Afrobeats to Amapiano, the searches leaned warm, rhythmic, and
+					made for moving through the city.
+				</p>
 				<div class="genre-list" aria-label="Top music categories">
 					<div><span>Afrobeats</span><strong>85</strong></div>
 					<div><span>Amapiano</span><strong>80</strong></div>
@@ -211,18 +225,18 @@
 
 			<section class="top-events">
 				<div>
-					<h2>The listings people kept touching.</h2>
+					<h2>The listings people returned to.</h2>
 					<p>
-						These were the events that pulled the most tracked attention across
-						opens, saves, map opens, calendar saves, and outbound clicks.
+						These are June attention signals, not attendance claims: opens,
+						saves, map opens, calendar saves, and outbound clicks combined.
 					</p>
 				</div>
 				<ol>
 					<li><span>ONE2MANY DAYCLUB</span><strong>830 actions</strong></li>
-					<li><span>Damside FDLM Block Party ft. YeYe</span><strong>560</strong></li>
-					<li><span>Ascension Block Party</span><strong>540</strong></li>
-					<li><span>SUMMER DISTRICT</span><strong>500</strong></li>
-					<li><span>OFFLINE</span><strong>485</strong></li>
+					<li><span>Damside FDLM Block Party ft. YeYe</span><strong>560 actions</strong></li>
+					<li><span>Ascension Block Party</span><strong>540 actions</strong></li>
+					<li><span>SUMMER DISTRICT</span><strong>500 actions</strong></li>
+					<li><span>OFFLINE</span><strong>485 actions</strong></li>
 				</ol>
 			</section>
 
@@ -236,11 +250,13 @@
 			</section>
 
 			<section class="cta" aria-labelledby="cta-title">
-				<p>Fete Finder is sleeping. OOOC is not.</p>
-				<h2 id="cta-title">If Paris was your kind of chaos, come on the next trip.</h2>
-				<a href="https://www.outofofficecollective.co.uk/">
-					Explore Out of Office Collective
-				</a>
+				<div>
+					<p>Fete Finder is sleeping. OOOC is not.</p>
+					<h2 id="cta-title">If Paris was your kind of chaos, come on the next trip.</h2>
+					<a href="https://www.outofofficecollective.co.uk/">
+						Explore Out of Office Collective
+					</a>
+				</div>
 			</section>
 		</main>
 	</body>
