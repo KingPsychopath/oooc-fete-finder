@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FEATURED_EVENTS_CONFIG } from "@/features/events/featured/constants";
 import { getFeaturedProjection } from "@/features/events/featured/service";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import {
 	generateOGMetadata,
@@ -174,6 +175,49 @@ function FeatureEventStatusSectionFallback() {
 }
 
 export default async function FeatureEventPage() {
+	const archiveMode = isArchiveModeEnabled();
+
+	if (archiveMode) {
+		return (
+			<main className="container mx-auto max-w-3xl px-4 py-8 pb-28 sm:py-10 sm:pb-12">
+				<section className={`${featureCardClassName} rounded-2xl p-6 sm:p-8`}>
+					<p className="text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+						OOOC Partnerships
+					</p>
+					<h1
+						className="mt-2 text-3xl font-light leading-tight tracking-tight text-foreground sm:text-4xl"
+						style={{ fontFamily: "var(--ooo-font-display)" }}
+					>
+						Promotion intake is closed for the archive
+					</h1>
+					<p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
+						Fête Finder is serving the frozen public archive. Partner requests,
+						paid placements, and post-event reporting will reopen with the next
+						campaign cycle.
+					</p>
+					<div className="mt-6 flex flex-wrap items-center gap-3">
+						<Button
+							nativeButton={false}
+							variant="outline"
+							className="rounded-full"
+							render={<a href={fallbackContactHref} />}
+						>
+							Email OOOC
+						</Button>
+						<Button
+							nativeButton={false}
+							variant="outline"
+							className="rounded-full"
+							render={<Link href={basePath || "/"} />}
+						>
+							Back to archive
+						</Button>
+					</div>
+				</section>
+			</main>
+		);
+	}
+
 	return (
 		<>
 			<main className="container mx-auto max-w-6xl px-4 py-8 pb-28 sm:py-10 sm:pb-12">

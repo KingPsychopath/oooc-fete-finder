@@ -14,6 +14,10 @@ import { OnlineStatusProvider } from "@/components/online-status-gate";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { AuthProvider } from "@/features/auth/auth-context";
 import { CommunityInvite } from "@/features/social/components/CommunityInvite";
+import {
+	isArchiveModeEnabled,
+	isFirstPartyAnalyticsEnabled,
+} from "@/lib/archive-mode";
 import { getSiteUrl } from "@/lib/site-url";
 import { generateMainOGImage } from "@/lib/social/og-utils";
 import { ThemeProvider } from "next-themes";
@@ -260,6 +264,9 @@ export default function RootLayout({
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
+	const archiveMode = isArchiveModeEnabled();
+	const analyticsEnabled = isFirstPartyAnalyticsEnabled();
+
 	return (
 		<html
 			lang="en"
@@ -345,12 +352,12 @@ export default function RootLayout({
 					<SmoothAnchorScroll />
 					<ServiceWorkerRegistration />
 					<ThemeColorSync />
-					<FirstPartyAnalytics />
+					{analyticsEnabled ? <FirstPartyAnalytics /> : null}
 					<OnlineStatusProvider>
 						<AuthProvider>
-							<AppSettingsSync />
+							{archiveMode ? null : <AppSettingsSync />}
 							{children}
-							<UserNoticeCenter />
+							{archiveMode ? null : <UserNoticeCenter />}
 							<Footer />
 							<MobileBottomNav />
 							<SupportCoffeePrompt />

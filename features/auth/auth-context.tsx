@@ -7,6 +7,7 @@ import {
 	isOfflineGraceActive,
 	parseOfflineGraceState,
 } from "@/features/auth/offline-grace";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { clientLog } from "@/lib/platform/client-logger";
 import React, {
 	createContext,
@@ -92,6 +93,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 	const [offlineGraceExpiresAt, setOfflineGraceExpiresAt] = useState<
 		number | null
 	>(null);
+	const archiveMode = isArchiveModeEnabled();
 
 	const setSignedOutState = useCallback(() => {
 		setIsAuthenticated(false);
@@ -139,6 +141,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 	}, []);
 
 	const refreshSession = useCallback(async () => {
+		if (archiveMode) {
+			clearOfflineGraceState();
+			setIsAdminAuthenticated(false);
+			setSignedOutState();
+			setIsAuthResolved(true);
+			return false;
+		}
+
 		const startTimeMs =
 			typeof performance !== "undefined" ? performance.now() : Date.now();
 		let statusCode: number | null = null;
@@ -235,6 +245,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 			setIsAuthResolved(true);
 		}
 	}, [
+		archiveMode,
 		authMode,
 		isAuthenticated,
 		isOnline,
@@ -244,6 +255,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 	]);
 
 	useEffect(() => {
+		if (archiveMode) {
+			clearOfflineGraceState();
+			setIsAdminAuthenticated(false);
+			setSignedOutState();
+			setIsAuthResolved(true);
+			return;
+		}
+
 		if (isOnline) {
 			void refreshSession();
 			return;
@@ -254,9 +273,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 			setSignedOutState();
 		}
 		setIsAuthResolved(true);
-	}, [isOnline, refreshSession, setSignedOutState, tryApplyOfflineGraceState]);
+	}, [
+		archiveMode,
+		isOnline,
+		refreshSession,
+		setSignedOutState,
+		tryApplyOfflineGraceState,
+	]);
 
 	const logout = async () => {
+		if (archiveMode) {
+			clearOfflineGraceState();
+			setSignedOutState();
+			setIsAuthResolved(true);
+			return;
+		}
+
 		try {
 			await fetch(`${basePath}/api/auth/session`, {
 				method: "DELETE",

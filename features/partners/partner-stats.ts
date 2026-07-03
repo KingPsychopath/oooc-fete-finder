@@ -2,6 +2,7 @@ import "server-only";
 
 import { timingSafeEqual } from "crypto";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import { getPartnerActivationRepository } from "@/lib/platform/postgres/partner-activation-repository";
 
@@ -64,6 +65,14 @@ export async function getPartnerStatsSnapshot(input: {
 				| "service_unavailable";
 	  }
 > {
+	if (isArchiveModeEnabled()) {
+		return {
+			success: false,
+			error: "Partner stats are unavailable in archive mode",
+			code: "service_unavailable",
+		};
+	}
+
 	const activationRepository = getPartnerActivationRepository();
 	const engagementRepository = getEventEngagementRepository();
 	if (!activationRepository || !engagementRepository) {

@@ -3,6 +3,7 @@ import {
 	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
 import { getUserActionPolicyDecision } from "@/features/users/policy";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	DEFAULT_JSON_BODY_LIMIT_BYTES,
@@ -58,6 +59,13 @@ const getUserRelationshipId = async (
 };
 
 export async function GET(request: Request) {
+	if (isArchiveModeEnabled()) {
+		return NextResponse.json(
+			{ success: true, eventKeys: [], archiveMode: true },
+			{ headers: NO_STORE_HEADERS },
+		);
+	}
+
 	const repository = getUserEventRelationshipRepository();
 	const identity = await getUserRelationshipId(request);
 	if (!repository || !identity) {
@@ -88,6 +96,13 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+	if (isArchiveModeEnabled()) {
+		return NextResponse.json(
+			{ success: true, archiveMode: true },
+			{ status: 202, headers: NO_STORE_HEADERS },
+		);
+	}
+
 	if (!isSameOriginRequest(request)) {
 		return acceptedNoStoreResponse();
 	}

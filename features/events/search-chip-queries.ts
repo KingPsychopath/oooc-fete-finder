@@ -1,5 +1,7 @@
 import "server-only";
 
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
+import { ARCHIVE_KV_KEYS, getArchiveKVValue } from "@/lib/archive-static-data";
 import { getDiscoveryAnalyticsRepository } from "@/lib/platform/postgres/discovery-analytics-repository";
 import { unstable_cache } from "next/cache";
 import {
@@ -61,6 +63,12 @@ const getCachedPopularSearchSignals = unstable_cache(
 );
 
 export async function getPublicSearchChipSettingsCached(): Promise<SearchChipPublicSettings> {
+	if (isArchiveModeEnabled()) {
+		return SearchChipSettingsStore.getPublicSettingsFromValue(
+			getArchiveKVValue(ARCHIVE_KV_KEYS.searchChips),
+		);
+	}
+
 	try {
 		return await getCachedSearchChipSettings();
 	} catch {
@@ -71,6 +79,10 @@ export async function getPublicSearchChipSettingsCached(): Promise<SearchChipPub
 export async function getPopularSearchChipSignalsCached(): Promise<
 	SearchChipSignal[]
 > {
+	if (isArchiveModeEnabled()) {
+		return [];
+	}
+
 	try {
 		return await getCachedPopularSearchSignals();
 	} catch {

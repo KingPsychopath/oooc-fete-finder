@@ -11,6 +11,7 @@ import {
 	getSocialProofSaveWindowDays,
 } from "@/features/events/social-proof";
 import type { Event } from "@/features/events/types";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { getEventEngagementRepository } from "@/lib/platform/postgres/event-engagement-repository";
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { cache } from "react";
@@ -177,7 +178,8 @@ const getLiveEventsForRequest = cache(
 			metrics.fetchCount += 1;
 
 			const normalized = toEventsResult(result);
-			if (normalized.success && includeFeaturedProjection) {
+			const archiveMode = isArchiveModeEnabled();
+			if (normalized.success && includeFeaturedProjection && !archiveMode) {
 				normalized.data = await applyFeaturedProjectionToEvents(
 					normalized.data,
 				);
@@ -185,7 +187,14 @@ const getLiveEventsForRequest = cache(
 					normalized.data,
 				);
 			}
-			if (normalized.success && includeEngagementProjection) {
+			if (normalized.success && includeEngagementProjection && archiveMode) {
+				normalized.data = normalized.data.map((event) => ({
+					...event,
+					socialProofSaveCount: 0,
+					socialProofHistoricalSaveCount: 0,
+				}));
+			}
+			if (normalized.success && includeEngagementProjection && !archiveMode) {
 				const eventKeys = normalized.data.map((event) => event.eventKey);
 				const [socialProofSaveCounts, socialProofHistoricalSaveCounts] =
 					await Promise.all([

@@ -15,6 +15,7 @@ import {
 	getUserActionPolicyDecision,
 	getUserRestrictionMessage,
 } from "@/features/users/policy";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	EVENT_SUBMISSION_JSON_BODY_LIMIT_BYTES,
@@ -67,6 +68,17 @@ const serviceUnavailableResponse = (): NextResponse =>
 export async function POST(request: Request) {
 	if (!isSameOriginRequest(request)) {
 		return forbiddenNoStoreResponse();
+	}
+	if (isArchiveModeEnabled()) {
+		return NextResponse.json(
+			{
+				success: false,
+				error:
+					"Event submissions are closed while Fête Finder is in archive mode.",
+				archiveMode: true,
+			},
+			{ status: 503, headers: NO_STORE_HEADERS },
+		);
 	}
 	if (!isWithinBodySizeLimit(request, EVENT_SUBMISSION_JSON_BODY_LIMIT_BYTES)) {
 		return tooLargeNoStoreResponse();

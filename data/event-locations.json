@@ -1,750 +1,3348 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-02-17T18:58:31.164Z",
+  "lastUpdated": "2026-06-21T10:53:12.907Z",
   "locations": {
     "139_rue_du_temple_3": {
       "id": "139_rue_du_temple_3",
       "name": "139 Rue du Temple",
       "arrondissement": 3,
       "coordinates": {
-        "lat": 48.8644,
-        "lng": 2.3615
+        "lat": 48.8636961,
+        "lng": 2.3584431
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:36:59.009Z"
-    },
-    "folies_pigalle_9": {
-      "id": "folies_pigalle_9",
-      "name": "Folies Pigalle",
-      "arrondissement": 9,
-      "coordinates": {
-        "lat": 48.8785,
-        "lng": 2.3373
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:36:59.009Z"
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "139 Rue du Temple, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJyVwyAwVu5kcRhtaJn0A9Hvc",
+      "query": "139 Rue du Temple, 3e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:03:07.619Z"
     },
     "64_bd_diderot_12": {
       "id": "64_bd_diderot_12",
       "name": "64 Bd Diderot",
       "arrondissement": 12,
       "coordinates": {
-        "lat": 48.8448,
-        "lng": 2.389
+        "lat": 48.846516,
+        "lng": 2.3808222
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:36:59.009Z"
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "64 Bd Diderot, 75012 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJU5hXCSpz5kcRguSi9p8xRgk",
+      "query": "64 Bd Diderot, 12e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:13.857Z"
     },
     "titi_palacio_4": {
       "id": "titi_palacio_4",
       "name": "TiTi Palacio",
       "arrondissement": 4,
       "coordinates": {
-        "lat": 48.8551,
-        "lng": 2.3618
+        "lat": 48.8501543,
+        "lng": 2.3629381
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:05.606Z"
-    },
-    "mama_shelter_paris_east_20": {
-      "id": "mama_shelter_paris_east_20",
-      "name": "Mama Shelter Paris East",
-      "arrondissement": 20,
-      "coordinates": {
-        "lat": 48.8632,
-        "lng": 2.3969
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:05.626Z"
-    },
-    "belushi's_paris_(canal)_19": {
-      "id": "belushi's_paris_(canal)_19",
-      "name": "Belushi's Paris (Canal)",
-      "arrondissement": 19,
-      "coordinates": {
-        "lat": 48.8799,
-        "lng": 2.3781
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:05.644Z"
-    },
-    "california_avenue_1": {
-      "id": "california_avenue_1",
-      "name": "California Avenue",
-      "arrondissement": 1,
-      "coordinates": {
-        "lat": 48.8606,
-        "lng": 2.3376
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:05.647Z"
-    },
-    "level_paris_club_8": {
-      "id": "level_paris_club_8",
-      "name": "Level Paris Club",
-      "arrondissement": 8,
-      "coordinates": {
-        "lat": 48.8736,
-        "lng": 2.3111
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:58.406Z"
-    },
-    "folie's_pigalle_9": {
-      "id": "folie's_pigalle_9",
-      "name": "Folie's Pigalle",
-      "arrondissement": 9,
-      "coordinates": {
-        "lat": 48.8785,
-        "lng": 2.3373
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:58.408Z"
-    },
-    "211_19": {
-      "id": "211_19",
-      "name": "211",
-      "arrondissement": 19,
-      "coordinates": {
-        "lat": 48.8799,
-        "lng": 2.3781
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:58.409Z"
-    },
-    "la_calavados_8": {
-      "id": "la_calavados_8",
-      "name": "La Calavados",
-      "arrondissement": 8,
-      "coordinates": {
-        "lat": 48.8736,
-        "lng": 2.3111
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:58.414Z"
-    },
-    "la_java_10": {
-      "id": "la_java_10",
-      "name": "La Java",
-      "arrondissement": 10,
-      "coordinates": {
-        "lat": 48.876,
-        "lng": 2.359
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:58.415Z"
-    },
-    "carré_montparnasse_14": {
-      "id": "carré_montparnasse_14",
-      "name": "Carré Montparnasse",
-      "arrondissement": 14,
-      "coordinates": {
-        "lat": 48.8339,
-        "lng": 2.3273
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:59.415Z"
-    },
-    "bridge_club_15": {
-      "id": "bridge_club_15",
-      "name": "Bridge Club",
-      "arrondissement": 15,
-      "coordinates": {
-        "lat": 48.8422,
-        "lng": 2.2966
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:59.419Z"
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "17 Bd Morland, 75004 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJFZtbwQVx5kcRGKXUIJbyUgI",
+      "query": "TiTi Palacio, 4e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:29.232Z"
     },
     "yoyo_16": {
       "id": "yoyo_16",
       "name": "YOYO",
       "arrondissement": 16,
       "coordinates": {
-        "lat": 48.8555,
-        "lng": 2.269
+        "lat": 48.864188,
+        "lng": 2.296512
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:59.430Z"
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "Palais De Tokyo, 13 Av. du Président Wilson, 75016 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJJyEHfuZv5kcRI50UlzHOzTU",
+      "query": "YOYO, 16e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:52:23.737Z"
     },
-    "la_bellevilloise_20": {
-      "id": "la_bellevilloise_20",
-      "name": "La Bellevilloise",
-      "arrondissement": 20,
+    "t7_15": {
+      "id": "t7_15",
+      "name": "T7",
+      "arrondissement": 15,
       "coordinates": {
-        "lat": 48.8632,
-        "lng": 2.3969
+        "lat": 48.827455699999994,
+        "lng": 2.2920944999999997
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:59.441Z"
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Pl. des Insurgés de Varsovie, 75015 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJbzI4iBpx5kcROb0MOc50yAQ",
+      "query": "T7, 15e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:27.836Z"
     },
-    "wanderlust_13": {
-      "id": "wanderlust_13",
-      "name": "Wanderlust",
-      "arrondissement": 13,
-      "coordinates": {
-        "lat": 48.8322,
-        "lng": 2.3647
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:40:59.444Z"
-    },
-    "la_nuit_9": {
-      "id": "la_nuit_9",
-      "name": "La Nuit",
-      "arrondissement": 9,
-      "coordinates": {
-        "lat": 48.8785,
-        "lng": 2.3373
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:42:04.830Z"
-    },
-    "jump_in_bastille_11": {
-      "id": "jump_in_bastille_11",
-      "name": "Jump in bastille",
+    "speechless_11": {
+      "id": "speechless_11",
+      "name": "Speechless",
       "arrondissement": 11,
       "coordinates": {
-        "lat": 48.8594,
-        "lng": 2.3765
+        "lat": 48.8505009,
+        "lng": 2.3881781
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:42:04.831Z"
-    },
-    "bateau_concorde_atlantique_7": {
-      "id": "bateau_concorde_atlantique_7",
-      "name": "Bateau Concorde Atlantique",
-      "arrondissement": 7,
-      "coordinates": {
-        "lat": 48.8566,
-        "lng": 2.3165
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:42:04.833Z"
-    },
-    "movida_club_19": {
-      "id": "movida_club_19",
-      "name": "Movida Club",
-      "arrondissement": 19,
-      "coordinates": {
-        "lat": 48.8799,
-        "lng": 2.3781
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:42:04.835Z"
-    },
-    "solum_7": {
-      "id": "solum_7",
-      "name": "Solum",
-      "arrondissement": 7,
-      "coordinates": {
-        "lat": 48.8566,
-        "lng": 2.3165
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:42:04.857Z"
-    },
-    "le_mondial_10": {
-      "id": "le_mondial_10",
-      "name": "Le Mondial",
-      "arrondissement": 10,
-      "coordinates": {
-        "lat": 48.876,
-        "lng": 2.359
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:43:27.826Z"
-    },
-    "the_hideout_clothing_·_thc_-_paris_3": {
-      "id": "the_hideout_clothing_·_thc_-_paris_3",
-      "name": "The Hideout Clothing · THC - Paris",
-      "arrondissement": 3,
-      "coordinates": {
-        "lat": 48.8644,
-        "lng": 2.3615
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:43:27.830Z"
-    },
-    "2_pass._du_jeu_de_boules_3": {
-      "id": "2_pass._du_jeu_de_boules_3",
-      "name": "2 Pass. du Jeu de Boules",
-      "arrondissement": 3,
-      "coordinates": {
-        "lat": 48.8644,
-        "lng": 2.3615
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:43:27.831Z"
-    },
-    "36_rue_notre_dame_de_nazareth_3": {
-      "id": "36_rue_notre_dame_de_nazareth_3",
-      "name": "36 Rue Notre Dame de Nazareth",
-      "arrondissement": 3,
-      "coordinates": {
-        "lat": 48.8644,
-        "lng": 2.3615
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:43:27.834Z"
-    },
-    "esplanade_nathalie_sarraute_18": {
-      "id": "esplanade_nathalie_sarraute_18",
-      "name": "Esplanade Nathalie Sarraute",
-      "arrondissement": 18,
-      "coordinates": {
-        "lat": 48.8927,
-        "lng": 2.3436
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:43:40.463Z"
-    },
-    "velvet_bar_paris_1": {
-      "id": "velvet_bar_paris_1",
-      "name": "Velvet Bar Paris",
-      "arrondissement": 1,
-      "coordinates": {
-        "lat": 48.8606,
-        "lng": 2.3376
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:43:40.464Z"
-    },
-    "kalbas_1": {
-      "id": "kalbas_1",
-      "name": "Kalbas",
-      "arrondissement": 1,
-      "coordinates": {
-        "lat": 48.8606,
-        "lng": 2.3376
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:43:40.465Z"
-    },
-    "place_joachim_du_bellay_1": {
-      "id": "place_joachim_du_bellay_1",
-      "name": "Place Joachim du Bellay",
-      "arrondissement": 1,
-      "coordinates": {
-        "lat": 48.8606,
-        "lng": 2.3376
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:43:40.470Z"
-    },
-    "petit_bao_-_faubourg_saint-denis_10": {
-      "id": "petit_bao_-_faubourg_saint-denis_10",
-      "name": "Petit Bao - Faubourg Saint-Denis",
-      "arrondissement": 10,
-      "coordinates": {
-        "lat": 48.876,
-        "lng": 2.359
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:43:41.535Z"
-    },
-    "safe_concept_3": {
-      "id": "safe_concept_3",
-      "name": "SAFE Concept",
-      "arrondissement": 3,
-      "coordinates": {
-        "lat": 48.8644,
-        "lng": 2.3615
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:43:41.536Z"
-    },
-    "132_rue_rambuteau_1": {
-      "id": "132_rue_rambuteau_1",
-      "name": "132 Rue Rambuteau",
-      "arrondissement": 1,
-      "coordinates": {
-        "lat": 48.8606,
-        "lng": 2.3376
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:43:41.536Z"
-    },
-    "18_av._richerand_10": {
-      "id": "18_av._richerand_10",
-      "name": "18 Av. Richerand",
-      "arrondissement": 10,
-      "coordinates": {
-        "lat": 48.876,
-        "lng": 2.359
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:43:41.537Z"
-    },
-    "zinga_10": {
-      "id": "zinga_10",
-      "name": "Zinga",
-      "arrondissement": 10,
-      "coordinates": {
-        "lat": 48.876,
-        "lng": 2.359
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:45:36.807Z"
-    },
-    "griffon_4": {
-      "id": "griffon_4",
-      "name": "Griffon",
-      "arrondissement": 4,
-      "coordinates": {
-        "lat": 48.8551,
-        "lng": 2.3618
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:45:36.810Z"
-    },
-    "valma_brasserie_provençale_10": {
-      "id": "valma_brasserie_provençale_10",
-      "name": "Valma Brasserie Provençale",
-      "arrondissement": 10,
-      "coordinates": {
-        "lat": 48.876,
-        "lng": 2.359
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:45:36.814Z"
-    },
-    "porte_saint-denis_2": {
-      "id": "porte_saint-denis_2",
-      "name": "Porte Saint-Denis",
-      "arrondissement": 2,
-      "coordinates": {
-        "lat": 48.8677,
-        "lng": 2.3414
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:45:36.820Z"
-    },
-    "le_verre_taquin_/_la_taquinerie_10": {
-      "id": "le_verre_taquin_/_la_taquinerie_10",
-      "name": "Le Verre Taquin / La Taquinerie",
-      "arrondissement": 10,
-      "coordinates": {
-        "lat": 48.876,
-        "lng": 2.359
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:45:36.835Z"
-    },
-    "67_rue_d'aboukir_2": {
-      "id": "67_rue_d'aboukir_2",
-      "name": "67 Rue d'Aboukir",
-      "arrondissement": 2,
-      "coordinates": {
-        "lat": 48.8677,
-        "lng": 2.3414
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:46:18.216Z"
-    },
-    "le_bunker_paris_18": {
-      "id": "le_bunker_paris_18",
-      "name": "Le Bunker Paris",
-      "arrondissement": 18,
-      "coordinates": {
-        "lat": 48.8927,
-        "lng": 2.3436
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:46:18.217Z"
-    },
-    "café_divan_11": {
-      "id": "café_divan_11",
-      "name": "Café Divan",
-      "arrondissement": 11,
-      "coordinates": {
-        "lat": 48.8594,
-        "lng": 2.3765
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:46:18.217Z"
-    },
-    "bomaye_burger_paradis_10": {
-      "id": "bomaye_burger_paradis_10",
-      "name": "Bomaye Burger Paradis",
-      "arrondissement": 10,
-      "coordinates": {
-        "lat": 48.876,
-        "lng": 2.359
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:46:18.231Z"
-    },
-    "trabendo_19": {
-      "id": "trabendo_19",
-      "name": "Trabendo",
-      "arrondissement": 19,
-      "coordinates": {
-        "lat": 48.8799,
-        "lng": 2.3781
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:46:19.093Z"
-    },
-    "7_rue_tiquetonne_2": {
-      "id": "7_rue_tiquetonne_2",
-      "name": "7 Rue Tiquetonne",
-      "arrondissement": 2,
-      "coordinates": {
-        "lat": 48.8677,
-        "lng": 2.3414
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:46:19.096Z"
-    },
-    "djoon_club_13": {
-      "id": "djoon_club_13",
-      "name": "Djoon Club",
-      "arrondissement": 13,
-      "coordinates": {
-        "lat": 48.8322,
-        "lng": 2.3647
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:46:19.101Z"
-    },
-    "obey_1": {
-      "id": "obey_1",
-      "name": "OBEY",
-      "arrondissement": 1,
-      "coordinates": {
-        "lat": 48.8606,
-        "lng": 2.3376
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:46:19.103Z"
-    },
-    "bb_restaurant_9": {
-      "id": "bb_restaurant_9",
-      "name": "BB RESTAURANT",
-      "arrondissement": 9,
-      "coordinates": {
-        "lat": 48.8785,
-        "lng": 2.3373
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:46:19.120Z"
-    },
-    "club_haussmann_9": {
-      "id": "club_haussmann_9",
-      "name": "Club Haussmann",
-      "arrondissement": 9,
-      "coordinates": {
-        "lat": 48.8785,
-        "lng": 2.3373
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:49:44.827Z"
-    },
-    "le_tlm_19": {
-      "id": "le_tlm_19",
-      "name": "Le TLM",
-      "arrondissement": 19,
-      "coordinates": {
-        "lat": 48.8799,
-        "lng": 2.3781
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:49:44.829Z"
-    },
-    "blüm_8": {
-      "id": "blüm_8",
-      "name": "BLÜM",
-      "arrondissement": 8,
-      "coordinates": {
-        "lat": 48.8736,
-        "lng": 2.3111
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:54:17.845Z"
-    },
-    "punk_paradise_11": {
-      "id": "punk_paradise_11",
-      "name": "Punk Paradise",
-      "arrondissement": 11,
-      "coordinates": {
-        "lat": 48.8594,
-        "lng": 2.3765
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:54:17.848Z"
-    },
-    "cha-cha_club_1": {
-      "id": "cha-cha_club_1",
-      "name": "Cha-Cha Club",
-      "arrondissement": 1,
-      "coordinates": {
-        "lat": 48.8606,
-        "lng": 2.3376
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:54:17.850Z"
-    },
-    "aquarium_de_paris_16": {
-      "id": "aquarium_de_paris_16",
-      "name": "Aquarium de Paris",
-      "arrondissement": 16,
-      "coordinates": {
-        "lat": 48.8555,
-        "lng": 2.269
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:54:17.856Z"
-    },
-    "la_machine_du_moulin_rouge_18": {
-      "id": "la_machine_du_moulin_rouge_18",
-      "name": "La Machine du Moulin Rouge",
-      "arrondissement": 18,
-      "coordinates": {
-        "lat": 48.8927,
-        "lng": 2.3436
-      },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:54:17.863Z"
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "45 Rue de Montreuil, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJexT09SVz5kcRhCDuV57ytAM",
+      "query": "Speechless, 11e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:04:16.356Z"
     },
     "terminal_7_15": {
       "id": "terminal_7_15",
       "name": "Terminal 7",
       "arrondissement": 15,
       "coordinates": {
-        "lat": 48.8422,
-        "lng": 2.2966
+        "lat": 48.8273739,
+        "lng": 2.2888958
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:54:24.648Z"
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "Pavillon 7, 1 Pl. de la Prte de Versailles Etage 7.4, 75015 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJlxcrmm9w5kcRTIMhgnBv3Vw",
+      "query": "Terminal 7, 15e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:47.006Z"
     },
-    "le_cardinal_2": {
-      "id": "le_cardinal_2",
-      "name": "Le Cardinal",
-      "arrondissement": 2,
+    "movida_club_19": {
+      "id": "movida_club_19",
+      "name": "Movida Club",
+      "arrondissement": 19,
       "coordinates": {
-        "lat": 48.8677,
-        "lng": 2.3414
+        "lat": 48.8972242,
+        "lng": 2.3857316
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:54:24.658Z"
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "32 Av. Corentin Cariou, 75019 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJGY8-g4Bt5kcRPmM0GD-uwEM",
+      "query": "Movida Club, 19e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:02:58.565Z"
     },
-    "barbanegra_|_terrasse_festive_12": {
-      "id": "barbanegra_|_terrasse_festive_12",
-      "name": "Barbanegra | Terrasse Festive",
-      "arrondissement": 12,
+    "california_avenue_1": {
+      "id": "california_avenue_1",
+      "name": "California Avenue",
+      "arrondissement": 1,
       "coordinates": {
-        "lat": 48.8448,
-        "lng": 2.389
+        "lat": 48.85964360000001,
+        "lng": 2.3482741
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:56:20.538Z"
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "33 bis Rue des Lombards, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJm0L35h5u5kcRTELOCIYDrac",
+      "query": "California Avenue, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:02:11.666Z"
     },
-    "41_quai_françois_mauriac_13": {
-      "id": "41_quai_françois_mauriac_13",
-      "name": "41 Quai François Mauriac",
+    "la_clairiere_16": {
+      "id": "la_clairiere_16",
+      "name": "La Clairière",
+      "arrondissement": 16,
+      "coordinates": {
+        "lat": 48.86459,
+        "lng": 2.237507
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "1 Carr de Longchamp, 75016 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJh78UOSll5kcR2dcUuRHo0IQ",
+      "query": "La Clairière, 16e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:05.107Z"
+    },
+    "salons_du_louvre_1": {
+      "id": "salons_du_louvre_1",
+      "name": "Salons du Louvre",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.864216,
+        "lng": 2.344059
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "66 Rue Jean-Jacques Rousseau, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ2SlGjCJu5kcRJC-x-IeDUjE",
+      "query": "Salons du Louvre, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:08:07.076Z"
+    },
+    "la_machine_du_moulin_rouge_18": {
+      "id": "la_machine_du_moulin_rouge_18",
+      "name": "La Machine du Moulin Rouge",
+      "arrondissement": 18,
+      "coordinates": {
+        "lat": 48.8841316,
+        "lng": 2.3321191
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "90 Bd de Clichy, 75018 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJpe8qVk5u5kcR2Rle3TZh9GA",
+      "query": "La Machine du Moulin Rouge, 18e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:39.525Z"
+    },
+    "folie_s_pigalle_9": {
+      "id": "folie_s_pigalle_9",
+      "name": "Folie's Pigalle",
+      "arrondissement": 9,
+      "address": "",
+      "postalCode": "",
+      "city": "",
+      "coordinates": {
+        "lat": 48.8819903,
+        "lng": 2.3368769
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "11 Pl. Pigalle, 75009 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJrRjx3EVu5kcRR7YnfFgO15k",
+      "query": "Folie's Pigalle, 9e arrondissement, Paris, France",
+      "lastUpdated": "2026-06-02T13:35:03.433Z"
+    },
+    "wanderlust_13": {
+      "id": "wanderlust_13",
+      "name": "Wanderlust",
       "arrondissement": 13,
       "coordinates": {
-        "lat": 48.8322,
-        "lng": 2.3647
+        "lat": 48.8401365,
+        "lng": 2.3705889
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:56:20.540Z"
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "32 Quai d'Austerlitz, 75013 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJfY12pR5y5kcRAX8ZRkMlzVs",
+      "query": "Wanderlust, 13e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:02:51.253Z"
     },
-    "point_éphémère_10": {
-      "id": "point_éphémère_10",
+    "club_haussmann_9": {
+      "id": "club_haussmann_9",
+      "name": "Club Haussmann",
+      "arrondissement": 9,
+      "coordinates": {
+        "lat": 48.8731355,
+        "lng": 2.3352556
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "23 Rue Taitbout, 75009 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJJcsz6jlu5kcR8osd7GJCwiw",
+      "query": "Club Haussmann, 9e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:30.568Z"
+    },
+    "phantom_12": {
+      "id": "phantom_12",
+      "name": "Phantom",
+      "arrondissement": 12,
+      "coordinates": {
+        "lat": 48.8380071,
+        "lng": 2.3793154999999997
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "8 Bd de Bercy, 75012 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJdcJVxBtz5kcR4Pwz6Z2yfgw",
+      "query": "Phantom, 12e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:24.336Z"
+    },
+    "infinity_club_9": {
+      "id": "infinity_club_9",
+      "name": "INFINITY CLUB",
+      "arrondissement": 9,
+      "coordinates": {
+        "lat": 48.88228489999999,
+        "lng": 2.3273068
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "94 Rue d'Amsterdam, 75009 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ2USVXwBv5kcRZ-k_NF4_Bo4",
+      "query": "INFINITY CLUB, 9e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:35.091Z"
+    },
+    "belushi_s_paris_canal_19": {
+      "id": "belushi_s_paris_canal_19",
+      "name": "Belushi's Paris (Canal)",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.88850499999999,
+        "lng": 2.3790066
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "159 Rue de Crimée, 75019 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJDfUgNdBt5kcR605nMrf15XU",
+      "query": "Belushi's Paris (Canal), 19e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:02:09.814Z"
+    },
+    "point_ephemere_10": {
+      "id": "point_ephemere_10",
       "name": "Point Éphémère",
       "arrondissement": 10,
       "coordinates": {
-        "lat": 48.876,
-        "lng": 2.359
+        "lat": 48.8813836,
+        "lng": 2.3685579
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:56:20.543Z"
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "200 Quai de Valmy, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJT78RxHVu5kcRZoDCLEKfs3M",
+      "query": "Point Éphémère, 10e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:36.028Z"
     },
     "pavillon_tilsitt_17": {
       "id": "pavillon_tilsitt_17",
       "name": "Pavillon Tilsitt",
       "arrondissement": 17,
       "coordinates": {
-        "lat": 48.8848,
-        "lng": 2.312
+        "lat": 48.8748389,
+        "lng": 2.2931702
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:58:06.234Z"
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "32 Rue de Tilsitt, 75017 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJH7P2u4dv5kcRFQNxY2f9dPM",
+      "query": "Pavillon Tilsitt, 17e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:17.454Z"
+    },
+    "solum_7": {
+      "id": "solum_7",
+      "name": "Solum",
+      "arrondissement": 7,
+      "coordinates": {
+        "lat": 48.8630831,
+        "lng": 2.3131842
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Rive gauche, Pont Alexandre III, 75007 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJB16-WX9v5kcR_nyOhqycn20",
+      "query": "Solum, 7e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:45.528Z"
+    },
+    "41_quai_francois_mauriac_13": {
+      "id": "41_quai_francois_mauriac_13",
+      "name": "41 Quai François Mauriac",
+      "arrondissement": 13,
+      "coordinates": {
+        "lat": 48.834344,
+        "lng": 2.376776
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "41 Quai François Mauriac, 75013 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ4512ST1y5kcRG_N2tT2JcKo",
+      "query": "41 Quai François Mauriac, 13e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:03:10.636Z"
     },
     "la_planque_10": {
       "id": "la_planque_10",
       "name": "La Planque",
       "arrondissement": 10,
       "coordinates": {
-        "lat": 48.876,
-        "lng": 2.359
+        "lat": 48.87189,
+        "lng": 2.37008
       },
-      "confidence": 0.5,
-      "source": "estimated",
-      "lastUpdated": "2026-02-17T18:58:31.163Z"
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "3 Rue Arthur Groussier, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJBQmMluFt5kcRs344PiEqC4A",
+      "query": "La Planque, 10e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:08.326Z"
+    },
+    "folies_pigalle_9": {
+      "id": "folies_pigalle_9",
+      "name": "Folies Pigalle",
+      "arrondissement": 9,
+      "coordinates": {
+        "lat": 48.8819903,
+        "lng": 2.3368769
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "11 Pl. Pigalle, 75009 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJrRjx3EVu5kcRR7YnfFgO15k",
+      "query": "Folies Pigalle, 9e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:33.593Z"
+    },
+    "the_hideout_clothing_thc_paris_3": {
+      "id": "the_hideout_clothing_thc_paris_3",
+      "name": "The Hideout Clothing · THC - Paris",
+      "arrondissement": 3,
+      "coordinates": {
+        "lat": 48.8598788,
+        "lng": 2.3497275
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "11 Rue de la Reynie, 75004 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ3cEeoZ1v5kcRIDHWVd7eO6Y",
+      "query": "The Hideout Clothing · THC - Paris, 3e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:04:17.276Z"
+    },
+    "36_rue_notre_dame_de_nazareth_3": {
+      "id": "36_rue_notre_dame_de_nazareth_3",
+      "name": "36 Rue Notre Dame de Nazareth",
+      "arrondissement": 3,
+      "coordinates": {
+        "lat": 48.8675425,
+        "lng": 2.3590556
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "36 Rue Notre Dame de Nazareth, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJnWTIow9u5kcRd9pMHg7KKJI",
+      "query": "36 Rue Notre Dame de Nazareth, 3e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:02:08.259Z"
+    },
+    "le_mondial_10": {
+      "id": "le_mondial_10",
+      "name": "Le Mondial",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.872909,
+        "lng": 2.354717
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "78 Rue du Château d'Eau, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJKUxTTBJu5kcR7KEgdAPUwGA",
+      "query": "Le Mondial, 10e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:11.485Z"
+    },
+    "velvet_bar_paris_1": {
+      "id": "velvet_bar_paris_1",
+      "name": "Velvet Bar Paris",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8607768,
+        "lng": 2.3454208
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "43 Rue Saint-Honoré, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJq-XFUR9u5kcRgSahYxl9IhE",
+      "query": "Velvet Bar Paris, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:32.743Z"
+    },
+    "esplanade_nathalie_sarraute_18": {
+      "id": "esplanade_nathalie_sarraute_18",
+      "name": "Esplanade Nathalie Sarraute",
+      "arrondissement": 18,
+      "coordinates": {
+        "lat": 48.8886337,
+        "lng": 2.3626053
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Espl. Nathalie Sarraute, 75018 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJJx4vW3pu5kcRSRikcmOeEps",
+      "query": "Esplanade Nathalie Sarraute, 18e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:02:59.668Z"
+    },
+    "2_pass_du_jeu_de_boules_3": {
+      "id": "2_pass_du_jeu_de_boules_3",
+      "name": "2 Pass. du Jeu de Boules",
+      "arrondissement": 3,
+      "coordinates": {
+        "lat": 48.8654489,
+        "lng": 2.366622
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "2 Pass. du Jeu de Boules, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ8bhZ5Adu5kcRxJTuP2TpWzA",
+      "query": "2 Pass. du Jeu de Boules, 3e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:03:08.819Z"
+    },
+    "place_joachim_du_bellay_1": {
+      "id": "place_joachim_du_bellay_1",
+      "name": "Place Joachim du Bellay",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8606759,
+        "lng": 2.3475903
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Pl. Joachim du Bellay, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJzS20KR9u5kcRPKt3aiJfpbA",
+      "query": "Place Joachim du Bellay, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:31.155Z"
+    },
+    "211_19": {
+      "id": "211_19",
+      "name": "211",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.892225,
+        "lng": 2.388358
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "27 Gal de la Villette, 75019 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ68FK3nZt5kcR3HKGyFdM98k",
+      "query": "211, 19e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:02:07.552Z"
+    },
+    "kalbas_1": {
+      "id": "kalbas_1",
+      "name": "KALBAS",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8611307,
+        "lng": 2.3461847
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Métro Les Halles - Sortie Porte Berger, Pass. des Lingeres, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJEzKkSqdv5kcR64b5bQ0888I",
+      "query": "KALBAS, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:36.537Z"
+    },
+    "18_av_richerand_10": {
+      "id": "18_av_richerand_10",
+      "name": "18 Av. Richerand",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.87261669999999,
+        "lng": 2.3666398
+      },
+      "confidence": 0.9,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "18 Av. Richerand, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "EiUxOCBBdi4gUmljaGVyYW5kLCA3NTAxMCBQYXJpcywgRnJhbmNlIjASLgoUChIJPYo7Rgpu5kcRauHmAzoX7mUQEioUChIJCx4tSApu5kcRGO8NBDaG07c",
+      "query": "18 Av. Richerand, 10e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:03:08.186Z"
+    },
+    "safe_concept_3": {
+      "id": "safe_concept_3",
+      "name": "SAFE Concept",
+      "arrondissement": 3,
+      "coordinates": {
+        "lat": 48.862110400000006,
+        "lng": 2.3657499000000004
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "11 Rue Commines, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJg-jmW_lv5kcR2Afjs9zvXL0",
+      "query": "SAFE Concept, 3e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:27.143Z"
+    },
+    "petit_bao_faubourg_saint_denis_10": {
+      "id": "petit_bao_faubourg_saint_denis_10",
+      "name": "Petit Bao - Faubourg Saint-Denis",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.8726501,
+        "lng": 2.3540984
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "69 Rue du Faubourg Saint-Denis, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJR3ZMyftv5kcRwUCCKesUv1I",
+      "query": "Petit Bao - Faubourg Saint-Denis, 10e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:18.169Z"
+    },
+    "griffon_4": {
+      "id": "griffon_4",
+      "name": "Griffon",
+      "arrondissement": 4,
+      "coordinates": {
+        "lat": 48.8595623,
+        "lng": 2.3571917
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "55bis Rue des Francs Bourgeois, 75004 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJH2a65OVv5kcRXsrMs-IAn7A",
+      "query": "Griffon, 4e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:01.046Z"
+    },
+    "132_rue_rambuteau_1": {
+      "id": "132_rue_rambuteau_1",
+      "name": "132 Rue Rambuteau",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.862983,
+        "lng": 2.3465293
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "132 Rue Rambuteau, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJcZIZ7Rhu5kcR36IzmaJ8pKw",
+      "query": "132 Rue Rambuteau, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:02:06.941Z"
+    },
+    "porte_saint_denis_2": {
+      "id": "porte_saint_denis_2",
+      "name": "Porte Saint-Denis",
+      "arrondissement": 2,
+      "coordinates": {
+        "lat": 48.869417,
+        "lng": 2.35333
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Porte Saint-Denis, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ56w0DhFu5kcRYJVikFR73qo",
+      "query": "Porte Saint-Denis, 2e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:05:50.607Z"
+    },
+    "valma_brasserie_provencale_10": {
+      "id": "valma_brasserie_provencale_10",
+      "name": "Valma Brasserie Provençale",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.8696677,
+        "lng": 2.3661525
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "45 Quai de Valmy, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ3eIklglu5kcRpX9JYrT_Vlc",
+      "query": "Valma Brasserie Provençale, 10e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:32.029Z"
+    },
+    "67_rue_d_aboukir_2": {
+      "id": "67_rue_d_aboukir_2",
+      "name": "67 Rue d'Aboukir",
+      "arrondissement": 2,
+      "coordinates": {
+        "lat": 48.8677291,
+        "lng": 2.3465311
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "67 Rue d'Aboukir, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJLSGvxxdu5kcRKzJWRILv85I",
+      "query": "67 Rue d'Aboukir, 2e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:16.909Z"
+    },
+    "le_verre_taquin_la_taquinerie_10": {
+      "id": "le_verre_taquin_la_taquinerie_10",
+      "name": "Le Verre Taquin / La Taquinerie",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.8759487,
+        "lng": 2.3688106
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "22 Rue Juliette Dodu, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJi53m_99t5kcRH0rj1sjXCAE",
+      "query": "Le Verre Taquin / La Taquinerie, 10e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:13.862Z"
+    },
+    "zinga_10": {
+      "id": "zinga_10",
+      "name": "Zinga",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.873191299999995,
+        "lng": 2.3534322999999997
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "10 R. des Petites Écuries, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ5ZiYNllv5kcRlaRcQ3cyZ5M",
+      "query": "Zinga, 10e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:33.430Z"
+    },
+    "bomaye_burger_paradis_10": {
+      "id": "bomaye_burger_paradis_10",
+      "name": "Bomaye Burger Paradis",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.8748586,
+        "lng": 2.3538422
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "16 Rue de Paradis, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJp-lQJMhv5kcR1XpBMSPaaqM",
+      "query": "Bomaye Burger Paradis, 10e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:21.435Z"
+    },
+    "le_bunker_paris_18": {
+      "id": "le_bunker_paris_18",
+      "name": "Le Bunker Paris",
+      "arrondissement": 18,
+      "coordinates": {
+        "lat": 48.8896714,
+        "lng": 2.3584228
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "12 Rue Jean Robert, 75018 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJYXbEAwBv5kcRxnAOGARpa_Q",
+      "query": "Le Bunker Paris, 18e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:09.866Z"
+    },
+    "cafe_divan_11": {
+      "id": "cafe_divan_11",
+      "name": "Café Divan",
+      "arrondissement": 11,
+      "coordinates": {
+        "lat": 48.8551949,
+        "lng": 2.3739288
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "60 Rue de la Roquette, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJx8BKXAdy5kcRDCNVYFQMsXA",
+      "query": "Café Divan, 11e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:03:14.007Z"
+    },
+    "djoon_club_13": {
+      "id": "djoon_club_13",
+      "name": "Djoon Club",
+      "arrondissement": 13,
+      "coordinates": {
+        "lat": 48.8365668,
+        "lng": 2.3714388
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "22 Bd Vincent Auriol, 75013 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJuRLcthhy5kcR7ovFp3H_DVM",
+      "query": "Djoon Club, 13e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:32.079Z"
+    },
+    "7_rue_tiquetonne_2": {
+      "id": "7_rue_tiquetonne_2",
+      "name": "7 Rue Tiquetonne",
+      "arrondissement": 2,
+      "coordinates": {
+        "lat": 48.86438589999999,
+        "lng": 2.3495434
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "7 Rue Tiquetonne, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJd5Znlxlu5kcRUbVeey4le1U",
+      "query": "7 Rue Tiquetonne, 2e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:03:11.592Z"
+    },
+    "trabendo_19": {
+      "id": "trabendo_19",
+      "name": "Trabendo",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.8926277,
+        "lng": 2.3939626
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "Parc de la Villette, 211 Av. Jean Jaurès, 75019 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJHbrByclt5kcRiMhRF_o4g4E",
+      "query": "Trabendo, 19e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:30.634Z"
+    },
+    "bb_restaurant_9": {
+      "id": "bb_restaurant_9",
+      "name": "BB RESTAURANT",
+      "arrondissement": 9,
+      "coordinates": {
+        "lat": 48.87739999999999,
+        "lng": 2.347017
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "8 Rue Pierre Semard, 75009 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJERDjvGpu5kcR6iuDHs9hT6E",
+      "query": "BB RESTAURANT, 9e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:03:13.021Z"
+    },
+    "obey_1": {
+      "id": "obey_1",
+      "name": "OBEY",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.865146,
+        "lng": 2.3442518
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "40 Rue Étienne Marcel, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJd7py_Itv5kcRnaD6ldl0GgU",
+      "query": "OBEY, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:05:46.709Z"
+    },
+    "le_tlm_19": {
+      "id": "le_tlm_19",
+      "name": "Le TLM",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.8962662,
+        "lng": 2.3788453
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "105 Rue Curial, 75019 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ_RXLf9dt5kcR1wJQdKbe0HE",
+      "query": "Le TLM, 19e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:12.250Z"
+    },
+    "carre_montparnasse_14": {
+      "id": "carre_montparnasse_14",
+      "name": "Carré Montparnasse",
+      "arrondissement": 14,
+      "coordinates": {
+        "lat": 48.8417501,
+        "lng": 2.3220629
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "34-36 Rue du Départ, 75015 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJw74-mcxx5kcRaBtl199K5Hg",
+      "query": "Carré Montparnasse, 14e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:02:12.253Z"
+    },
+    "punk_paradise_11": {
+      "id": "punk_paradise_11",
+      "name": "Punk Paradise",
+      "arrondissement": 11,
+      "coordinates": {
+        "lat": 48.8636957,
+        "lng": 2.3724211
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "44 Rue de la Folie Méricourt, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJP-6qkHBt5kcRGBpsNL6iP0s",
+      "query": "Punk Paradise, 11e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:25.058Z"
+    },
+    "blum_8": {
+      "id": "blum_8",
+      "name": "BLÜM",
+      "arrondissement": 8,
+      "coordinates": {
+        "lat": 48.8714402,
+        "lng": 2.3057988
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "51 Rue de Ponthieu, 75008 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJR5-FZcZv5kcRzV6dzqD0Ynk",
+      "query": "BLÜM, 8e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:19.895Z"
+    },
+    "cha_cha_club_1": {
+      "id": "cha_cha_club_1",
+      "name": "Cha Cha Club",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.862049,
+        "lng": 2.3424365
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "47 Rue Berger 1er étage, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJNfZVawBv5kcRf_B2a4wYqHA",
+      "query": "Cha Cha Club, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:26.020Z"
+    },
+    "bridge_club_15": {
+      "id": "bridge_club_15",
+      "name": "Bridge Club",
+      "arrondissement": 15,
+      "coordinates": {
+        "lat": 48.863766,
+        "lng": 2.313529
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "3 Port des Champs-Élysées, 75008 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJF4qP9rxv5kcR0d9sBBnsono",
+      "query": "Bridge Club, 15e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:02:10.397Z"
+    },
+    "aquarium_de_paris_16": {
+      "id": "aquarium_de_paris_16",
+      "name": "Aquarium de Paris",
+      "arrondissement": 16,
+      "coordinates": {
+        "lat": 48.8622162,
+        "lng": 2.2909927
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "5 Av. Albert de Mun, 75016 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ5YcxPONv5kcR6ES0Plzsivg",
+      "query": "Aquarium de Paris, 16e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:03:12.293Z"
+    },
+    "le_cardinal_2": {
+      "id": "le_cardinal_2",
+      "name": "Le Cardinal",
+      "arrondissement": 2,
+      "coordinates": {
+        "lat": 48.871689,
+        "lng": 2.339763
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "1 Bd des Italiens, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJqS0eUzlu5kcR7jrDnAZ7zcY",
+      "query": "Le Cardinal, 2e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:10.646Z"
+    },
+    "mama_shelter_paris_east_20": {
+      "id": "mama_shelter_paris_east_20",
+      "name": "Mama Shelter Paris East",
+      "arrondissement": 20,
+      "coordinates": {
+        "lat": 48.8597834,
+        "lng": 2.40285
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "109 Rue de Bagnolet, 75020 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJkcvdcIZt5kcRZ4FcBh5cHbg",
+      "query": "Mama Shelter Paris East, 20e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:16.335Z"
+    },
+    "la_calavados_8": {
+      "id": "la_calavados_8",
+      "name": "La Calavados",
+      "arrondissement": 8,
+      "coordinates": {
+        "lat": 48.8680049,
+        "lng": 2.3005798
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "40 Av. Pierre 1er de Serbie, 75008 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJQZNTpsJv5kcRT04iskWV2vM",
+      "query": "La Calavados, 8e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:04.301Z"
+    },
+    "la_java_10": {
+      "id": "la_java_10",
+      "name": "La Java",
+      "arrondissement": 10,
+      "coordinates": {
+        "lat": 48.87111549999999,
+        "lng": 2.3738277
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "105 Rue du Faubourg du Temple, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJMeUZq-Zt5kcR2uyC_G7HI84",
+      "query": "La Java, 10e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:05.859Z"
+    },
+    "level_paris_club_8": {
+      "id": "level_paris_club_8",
+      "name": "Level Paris Club",
+      "arrondissement": 8,
+      "coordinates": {
+        "lat": 48.8716438,
+        "lng": 2.3061108
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "49 Rue de Ponthieu, 75008 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJC6JY0H9v5kcRP5HTAk5r3aY",
+      "query": "Level Paris Club, 8e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:15.492Z"
+    },
+    "la_bellevilloise_20": {
+      "id": "la_bellevilloise_20",
+      "name": "La Bellevilloise",
+      "arrondissement": 20,
+      "coordinates": {
+        "lat": 48.8683511,
+        "lng": 2.3921569
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "19-21 Rue Boyer, 75020 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJVeiKGZNt5kcRkPH9S37Lnzg",
+      "query": "La Bellevilloise, 20e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:38.032Z"
+    },
+    "jump_in_bastille_11": {
+      "id": "jump_in_bastille_11",
+      "name": "Jump in bastille",
+      "arrondissement": 11,
+      "coordinates": {
+        "lat": 48.85359570000001,
+        "lng": 2.3731315
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "29 Rue de Lappe, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJz4iqeFNz5kcRGxb7XWFjlhM",
+      "query": "Jump in bastille, 11e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:01.823Z"
+    },
+    "bateau_concorde_atlantique_7": {
+      "id": "bateau_concorde_atlantique_7",
+      "name": "Bateau Concorde Atlantique",
+      "arrondissement": 7,
+      "coordinates": {
+        "lat": 48.862086,
+        "lng": 2.3222996
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "Port de Solférino, Quai Anatole France niveau 23, 75007 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJP8b4ZClu5kcRTzPznvEwddA",
+      "query": "Bateau Concorde Atlantique, 7e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:18.405Z"
+    },
+    "la_nuit_9": {
+      "id": "la_nuit_9",
+      "name": "La Nuit",
+      "arrondissement": 9,
+      "coordinates": {
+        "lat": 48.87005,
+        "lng": 2.3268983
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "8 Bd de la Madeleine, 75009 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJedE4atFv5kcRw8fbdCHqb4w",
+      "query": "La Nuit, 9e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:07.428Z"
+    },
+    "rex_club_2": {
+      "id": "rex_club_2",
+      "name": "Rex Club",
+      "arrondissement": 2,
+      "coordinates": {
+        "lat": 48.870572499999994,
+        "lng": 2.3473815
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "5 Bd Poissonnière, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJX3AIchZu5kcRB4kmkKyOy0g",
+      "query": "Rex Club, 2e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:25.732Z"
+    },
+    "la_place_1": {
+      "id": "la_place_1",
+      "name": "La Place",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8622635,
+        "lng": 2.347373
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "10 Pass. de la Canopée, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ5epQ3Bhu5kcRVK-kOKFFgBI",
+      "query": "La Place, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:42.534Z"
+    },
+    "carre_montparnasse_15": {
+      "id": "carre_montparnasse_15",
+      "name": "Carré Montparnasse",
+      "arrondissement": 15,
+      "coordinates": {
+        "lat": 48.8417501,
+        "lng": 2.3220629
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "34-36 Rue du Départ, 75015 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJw74-mcxx5kcRaBtl199K5Hg",
+      "query": "Carré Montparnasse, 15e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:24.482Z"
+    },
+    "les_planches_8": {
+      "id": "les_planches_8",
+      "name": "Les Planches",
+      "arrondissement": 8,
+      "coordinates": {
+        "lat": 48.871525,
+        "lng": 2.311091
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "40 Rue du Colisée, 75008 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJA0HI5sVv5kcRe57e277jBsY",
+      "query": "Les Planches, 8e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:14.684Z"
+    },
+    "42_rue_notre_dame_de_nazareth_3": {
+      "id": "42_rue_notre_dame_de_nazareth_3",
+      "name": "42 Rue Notre Dame De Nazareth",
+      "arrondissement": 3,
+      "coordinates": {
+        "lat": 48.8676173,
+        "lng": 2.3582891
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "42 Rue Notre Dame de Nazareth, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ7yTPvg9u5kcRRj-Y4jDqCuA",
+      "query": "42 Rue Notre Dame De Nazareth, 3e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:12.312Z"
+    },
+    "66_rue_jean_jacques_rousseau_1": {
+      "id": "66_rue_jean_jacques_rousseau_1",
+      "name": "66 Rue Jean-Jacques Rousseau",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8641703,
+        "lng": 2.3439768
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "66 Rue Jean-Jacques Rousseau, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ1cInjCJu5kcRDfJ01L-ljXo",
+      "query": "66 Rue Jean-Jacques Rousseau, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:15.360Z"
+    },
+    "la_petite_halle_19": {
+      "id": "la_petite_halle_19",
+      "name": "La Petite Halle",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.890517,
+        "lng": 2.390599
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "Attenant à la Grande Halle de la Villette, 211 Av. Jean Jaurès, 75019 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJnxWzi8lt5kcRppSHPQdyRDY",
+      "query": "La Petite Halle, 19e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:41.043Z"
+    },
+    "130_rue_de_rivoli_1": {
+      "id": "130_rue_de_rivoli_1",
+      "name": "130 Rue de Rivoli",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8599332,
+        "lng": 2.3443146
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "130 Rue de Rivoli, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJwTrH3SFu5kcRwQBTxYPSbTk",
+      "query": "130 Rue de Rivoli, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:02:06.272Z"
+    },
+    "champ_de_mars_7": {
+      "id": "champ_de_mars_7",
+      "name": "Champ de Mars",
+      "arrondissement": 7,
+      "coordinates": {
+        "lat": 48.85580470000001,
+        "lng": 2.2983766
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Champ de Mars, 75007 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJB0gcnCBw5kcRHoIAPcTEApc",
+      "query": "Champ de Mars, 7e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:27.558Z"
+    },
+    "le_trabendo_19": {
+      "id": "le_trabendo_19",
+      "name": "Le Trabendo",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.8926277,
+        "lng": 2.3939626
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "Parc de la Villette, 211 Av. Jean Jaurès, 75019 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJHbrByclt5kcRiMhRF_o4g4E",
+      "query": "Le Trabendo, 19e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:13.030Z"
+    },
+    "21_rue_notre_dame_de_nazareth_3": {
+      "id": "21_rue_notre_dame_de_nazareth_3",
+      "name": "21 Rue Notre Dame de Nazareth",
+      "arrondissement": 3,
+      "coordinates": {
+        "lat": 48.8671735,
+        "lng": 2.3595859
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "21 Rue Notre Dame de Nazareth, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJaSkgdQ9u5kcRMhjaasvLbgo",
+      "query": "21 Rue Notre Dame de Nazareth, 3e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:03:09.466Z"
+    },
+    "cabaret_sauvage_19": {
+      "id": "cabaret_sauvage_19",
+      "name": "Cabaret Sauvage",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.8954475,
+        "lng": 2.3921596
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "59 Bd Macdonald, 75019 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJp5OWcslt5kcRqIxFo29GBV8",
+      "query": "Cabaret Sauvage, 19e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:02:11.040Z"
+    },
+    "chatelet_les_halles_1": {
+      "id": "chatelet_les_halles_1",
+      "name": "Châtelet les Halles",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8590937,
+        "lng": 2.3465301
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Châtelet, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJDewDAB9u5kcRCDCRWiMfz0M",
+      "query": "Châtelet les Halles, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:29.061Z"
+    },
+    "saargale_12": {
+      "id": "saargale_12",
+      "name": "SAARGALE",
+      "arrondissement": 12,
+      "coordinates": {
+        "lat": 48.847396599999996,
+        "lng": 2.3755498
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "47 Av. Daumesnil, 75012 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJS0cZDSFz5kcRjQnk2iNbYGI",
+      "query": "SAARGALE, 12e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:26.434Z"
+    },
+    "panic_room_11": {
+      "id": "panic_room_11",
+      "name": "Panic Room",
+      "arrondissement": 11,
+      "coordinates": {
+        "lat": 48.8612154,
+        "lng": 2.3675387999999997
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "101 Rue Amelot, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJN3Ry-f1t5kcRNxyphp--Vsw",
+      "query": "Panic Room, 11e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:23.680Z"
+    },
+    "utopia_1": {
+      "id": "utopia_1",
+      "name": "UTOPIA",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8611952,
+        "lng": 2.3426691
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "60 Rue de l'Arbre Sec, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJNd6gk9Vv5kcRo9tqPfWFPHk",
+      "query": "UTOPIA, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:31.336Z"
+    },
+    "tour_eiffel_7": {
+      "id": "tour_eiffel_7",
+      "name": "Tour Eiffel",
+      "arrondissement": 7,
+      "coordinates": {
+        "lat": 48.858370099999995,
+        "lng": 2.2944812999999997
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Av. Gustave Eiffel, 75007 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJLU7jZClu5kcR4PcOOO6p3I0",
+      "query": "Tour Eiffel, 7e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:13:29.947Z"
+    },
+    "club_tout_le_monde_en_parle_15": {
+      "id": "club_tout_le_monde_en_parle_15",
+      "name": "Club Tout Le Monde En Parle",
+      "arrondissement": 15,
+      "coordinates": {
+        "lat": 48.8431231,
+        "lng": 2.3235144
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "4 Rue du Départ, 75015 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJNxei6Mxx5kcRyG2NQ-ovCl4",
+      "query": "Club Tout Le Monde En Parle, 15e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:03:15.030Z"
+    },
+    "virage_paris_17": {
+      "id": "virage_paris_17",
+      "name": "Virage Paris",
+      "arrondissement": 17,
+      "coordinates": {
+        "lat": 48.9006622,
+        "lng": 2.3220267
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "26 Rue Hélène et François Missoffe, 75017 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJmz_egshv5kcRCjk1rSaW1Fw",
+      "query": "Virage Paris, 17e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:07:07.691Z"
+    },
+    "la_jungle_urbaine_19": {
+      "id": "la_jungle_urbaine_19",
+      "name": "La Jungle Urbaine",
+      "arrondissement": 19,
+      "coordinates": {
+        "lat": 48.8805057,
+        "lng": 2.3705623
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "164 Bd de la Villette, 75019 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJmegWqZRt5kcRUNd7EmWoxuI",
+      "query": "La Jungle Urbaine, 19e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:06.666Z"
+    },
+    "l_alimentation_generale_11": {
+      "id": "l_alimentation_generale_11",
+      "name": "L'Alimentation Générale",
+      "arrondissement": 11,
+      "coordinates": {
+        "lat": 48.8667023,
+        "lng": 2.3744867
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "64 Rue Jean-Pierre Timbaud, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJUTymveRt5kcR4Hhikq-gFxs",
+      "query": "L'Alimentation Générale, 11e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:02.667Z"
+    },
+    "30_rue_pierre_lescot_1": {
+      "id": "30_rue_pierre_lescot_1",
+      "name": "30 Rue Pierre Lescot",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8635967,
+        "lng": 2.3491725
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "30 Rue Pierre Lescot, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJF5vsChlu5kcRmoouGy3GDTI",
+      "query": "30 Rue Pierre Lescot, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:03:10.062Z"
+    },
+    "la_boule_noire_18": {
+      "id": "la_boule_noire_18",
+      "name": "La Boule Noire",
+      "arrondissement": 18,
+      "coordinates": {
+        "lat": 48.8823362,
+        "lng": 2.3402948
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "120 Blvd Marguerite de Rochechouart, 75018 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ-37ID0Ru5kcRIHTwlcOMd54",
+      "query": "La Boule Noire, 18e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:03:03.473Z"
+    },
+    "ancora_au_perchoir_porte_de_versailles_15": {
+      "id": "ancora_au_perchoir_porte_de_versailles_15",
+      "name": "ANCORA au Perchoir Porte de Versailles",
+      "arrondissement": 15,
+      "coordinates": {
+        "lat": 48.8302489,
+        "lng": 2.2920136
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "2 Av. de la Prte de la Plaine, 75015 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJr242L4Jx5kcRmyQkIeGDf7Y",
+      "query": "ANCORA au Perchoir Porte de Versailles, 15e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T20:57:24.089Z"
+    },
+    "tape_paris_1": {
+      "id": "tape_paris_1",
+      "name": "Tape Paris",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.86484060000001,
+        "lng": 2.3362526
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "25 Rue de Richelieu, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ3xfPDONv5kcROr1HB1TdbTk",
+      "query": "Tape Paris, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T20:57:24.670Z"
+    },
+    "le_hasard_ludique_18": {
+      "id": "le_hasard_ludique_18",
+      "name": "Le Hasard Ludique",
+      "arrondissement": 18,
+      "coordinates": {
+        "lat": 48.895697,
+        "lng": 2.3285964
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "128 Av. de Saint-Ouen, 75018 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJxyu3DNRt5kcRxbCXtlfzjRE",
+      "query": "Le Hasard Ludique, 18e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:08:44.024Z"
+    },
+    "la_casa_club_11": {
+      "id": "la_casa_club_11",
+      "name": "La CASA Club",
+      "arrondissement": 11,
+      "coordinates": {
+        "lat": 48.8549075,
+        "lng": 2.3709324
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "15 Rue Daval, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJq49xs3xz5kcR8Axi_B6Dj2A",
+      "query": "La CASA Club, 11e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:32:48.219Z"
+    },
+    "bowling_foch_16": {
+      "id": "bowling_foch_16",
+      "name": "Bowling Foch",
+      "arrondissement": 16,
+      "coordinates": {
+        "lat": 48.873293,
+        "lng": 2.2924202
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "En sous-sol, 1 Av. Foch, 75016 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJiar-N-xv5kcRl7Rh1wg70J4",
+      "query": "Bowling Foch, 16e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:33:57.785Z"
+    },
+    "le_klub_1": {
+      "id": "le_klub_1",
+      "name": "Le Klub",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8591102,
+        "lng": 2.3479063
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "14 Rue St Denis, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJTRUb_B5u5kcRRlxRefhPsHY",
+      "query": "Le Klub, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T21:42:27.465Z"
+    },
+    "club_vendome_2": {
+      "id": "club_vendome_2",
+      "name": "Club Vendome",
+      "arrondissement": 2,
+      "coordinates": {
+        "lat": 48.8692647,
+        "lng": 2.3318765
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "9 Rue Daunou, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJowwF_DBu5kcR5IoO4jFQSfw",
+      "query": "Club Vendome, 2e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:05:41.255Z"
+    },
+    "guinguette_la_javelle_12": {
+      "id": "guinguette_la_javelle_12",
+      "name": "Guinguette La Javelle",
+      "arrondissement": 12,
+      "coordinates": {
+        "lat": 48.8304659,
+        "lng": 2.3918032
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "5 Bd Poniatowski, 75012 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJwzCwa6F65kcR9-gju3DviAw",
+      "query": "Guinguette La Javelle, 12e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:05:42.008Z"
+    },
+    "le_bunker_paris_17": {
+      "id": "le_bunker_paris_17",
+      "name": "Le Bunker Paris",
+      "arrondissement": 17,
+      "coordinates": {
+        "lat": 48.8924399,
+        "lng": 2.3253762
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "54 Rue Guy Môquet, 75017 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJeXmPWgBv5kcRjRFsdNQ9J6g",
+      "query": "Le Bunker Paris, 17e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T22:05:42.756Z"
+    },
+    "dayclub_9": {
+      "id": "dayclub_9",
+      "name": "DAYCLUB",
+      "arrondissement": 9,
+      "coordinates": {
+        "lat": 48.8746267,
+        "lng": 2.3428482
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "12 Rue Cadet, 75009 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJx6gh9mJv5kcRkclbVJs2YhM",
+      "query": "DAYCLUB, 9e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T23:57:43.613Z"
+    },
+    "dock_b_FR": {
+      "id": "dock_b_FR",
+      "name": "Dock B",
+      "arrondissement": "greater-paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8949083,
+        "lng": 2.4154524
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "1 Place de la Pointe, 93500 Pantin, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJMQolAQBt5kcRxGoCYgE_dXI",
+      "query": "Dock B, Île-de-France, France",
+      "lastUpdated": "2026-05-27T22:51:28.542Z"
+    },
+    "paddock_lounge_FR": {
+      "id": "paddock_lounge_FR",
+      "name": "Paddock Lounge",
+      "arrondissement": "greater-paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8941607,
+        "lng": 2.4296895
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "54-60 Av. Gaston Roussel, 93230 Romainville, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJC7tZk_1t5kcRWQXvfNggU0s",
+      "query": "Paddock Lounge, Île-de-France, France",
+      "lastUpdated": "2026-05-27T22:51:28.914Z"
+    },
+    "bal_chavaux_FR": {
+      "id": "bal_chavaux_FR",
+      "name": "Bal Chavaux",
+      "arrondissement": "greater-paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8587004,
+        "lng": 2.4360166
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "1 Av. de la Résistance, 93100 Montreuil, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJL93qTJ1t5kcRUCKYVJTHB0U",
+      "query": "Bal Chavaux, Île-de-France, France",
+      "lastUpdated": "2026-05-27T22:51:29.283Z"
+    },
+    "beach_bowling_FR": {
+      "id": "beach_bowling_FR",
+      "name": "Beach Bowling",
+      "arrondissement": "greater-paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.7553636,
+        "lng": 2.3720407
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Centre Commercial Belle Epine, 94320 Thiais, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJtT_flxd05kcRGTj_evEah2c",
+      "query": "Beach Bowling, Île-de-France, France",
+      "lastUpdated": "2026-05-27T22:51:29.653Z"
+    },
+    "le_chinois_FR": {
+      "id": "le_chinois_FR",
+      "name": "Le Chinois",
+      "arrondissement": "greater-paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8581085,
+        "lng": 2.4341792
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "6 Pl. du Marché, 93100 Montreuil, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJC5sHo2Bt5kcR2-EJfMMTdpU",
+      "query": "Le Chinois, Île-de-France, France",
+      "lastUpdated": "2026-05-27T22:51:30.023Z"
+    },
+    "domaine_de_la_grange_la_prevote_avenue_du_8_mai_1945_77176_savigny_le_temple_FR": {
+      "id": "domaine_de_la_grange_la_prevote_avenue_du_8_mai_1945_77176_savigny_le_temple_FR",
+      "name": "Domaine de la Grange-la-Prévôté",
+      "arrondissement": "outside-paris",
+      "address": "Avenue du 8 Mai 1945",
+      "postalCode": "77176",
+      "city": "Savigny-le-Temple",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.6003155,
+        "lng": 2.5560718
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Domaine de la Grange-la-Prévôté, 77176 Savigny-le-Temple, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ5cf4J27k5UcRJdKneSvsOcY",
+      "query": "Domaine de la Grange-la-Prévôté, Avenue du 8 Mai 1945, 77176 Savigny-le-Temple, France",
+      "lastUpdated": "2026-05-27T22:51:30.392Z"
+    },
+    "domaine_de_grosbois_FR": {
+      "id": "domaine_de_grosbois_FR",
+      "name": "Domaine de Grosbois",
+      "arrondissement": "greater-paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.73560260000001,
+        "lng": 2.5279045
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "46 Av. de Grosbois, 94440 Marolles-en-Brie, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJYWscStIL5kcRugeoinkGtXs",
+      "query": "Domaine de Grosbois, Île-de-France, France",
+      "lastUpdated": "2026-05-27T22:51:30.760Z"
+    },
+    "l_empire_club_3_route_de_longjumeau_91380_chilly_mazarin_FR": {
+      "id": "l_empire_club_3_route_de_longjumeau_91380_chilly_mazarin_FR",
+      "name": "L'EMPIRE CLUB",
+      "arrondissement": "outside-paris",
+      "address": "3 Route de Longjumeau",
+      "postalCode": "91380",
+      "city": "Chilly-Mazarin",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.7142153,
+        "lng": 2.2989455999999997
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "3 Rte de Longjumeau, 91380 Chilly-Mazarin, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ_518NMZ35kcRahkL-E7K5SE",
+      "query": "L'EMPIRE CLUB, 3 Route de Longjumeau, 91380 Chilly-Mazarin, France",
+      "lastUpdated": "2026-05-27T22:51:31.132Z"
+    },
+    "g_club_FR": {
+      "id": "g_club_FR",
+      "name": "G Club",
+      "arrondissement": "greater-paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.942673500000005,
+        "lng": 2.3421808
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "4 Rue du Fort de la Briche, 93200 Saint-Denis, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJARTPD9Zp5kcRO74LF8M09IY",
+      "query": "G Club, Île-de-France, France",
+      "lastUpdated": "2026-05-27T22:51:31.502Z"
+    },
+    "la_cite_fertile_FR": {
+      "id": "la_cite_fertile_FR",
+      "name": "La Cité Fertile",
+      "arrondissement": "greater-paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.898464,
+        "lng": 2.398827
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "14 Av. Edouard Vaillant, 93500 Pantin, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJZaJogm1t5kcR3KFd4AfxLKY",
+      "query": "La Cité Fertile, Île-de-France, France",
+      "lastUpdated": "2026-05-27T22:51:31.873Z"
+    },
+    "auber_garden_FR": {
+      "id": "auber_garden_FR",
+      "name": "Auber Garden",
+      "arrondissement": "greater-paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.90335460000001,
+        "lng": 2.3677555
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "210 Av. des Magasins Généraux, 93300 Aubervilliers, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJnQjyAUBv5kcRA9uLuptf-Hc",
+      "query": "Auber Garden, Île-de-France, France",
+      "lastUpdated": "2026-05-27T22:51:32.243Z"
+    },
+    "la_place_10_pass_de_la_canopee_75001_paris_FR": {
+      "id": "la_place_10_pass_de_la_canopee_75001_paris_FR",
+      "name": "La Place",
+      "arrondissement": 1,
+      "address": "10 Pass. de la Canopée",
+      "postalCode": "75001",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8622635,
+        "lng": 2.347373
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "10 Pass. de la Canopée, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ5epQ3Bhu5kcRVK-kOKFFgBI",
+      "query": "La Place, 10 Pass. de la Canopée, 75001 Paris, France",
+      "lastUpdated": "2026-05-27T23:48:55.120Z"
+    },
+    "barbanegra_12": {
+      "id": "barbanegra_12",
+      "name": "Barbanegra",
+      "arrondissement": 12,
+      "coordinates": {
+        "lat": 48.8423435,
+        "lng": 2.3706196
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "13 Port de la Rapée, 75012 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJu6_x8-Jz5kcR8QU9aT4xhGQ",
+      "query": "Barbanegra, 12e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T23:57:35.335Z"
+    },
+    "terrasse_festive_12": {
+      "id": "terrasse_festive_12",
+      "name": "Terrasse Festive",
+      "arrondissement": 12,
+      "coordinates": {
+        "lat": 48.8423435,
+        "lng": 2.3706196
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "13 Port de la Rapée, 75012 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJu6_x8-Jz5kcR8QU9aT4xhGQ",
+      "query": "Terrasse Festive, 12e arrondissement, Paris, France",
+      "lastUpdated": "2026-05-27T23:57:39.639Z"
+    },
+    "gula_125_av_ledru_rollin_75011_paris_FR": {
+      "id": "gula_125_av_ledru_rollin_75011_paris_FR",
+      "name": "GULA",
+      "arrondissement": 11,
+      "address": "125 Av. Ledru Rollin",
+      "postalCode": "75011",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8541901,
+        "lng": 2.3775868
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "125 Av. Ledru Rollin, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJiZn2a0Fz5kcRfp5UCpny7Jc",
+      "query": "GULA, 125 Av. Ledru Rollin, 75011 Paris, France",
+      "lastUpdated": "2026-05-28T11:32:36.192Z"
+    },
+    "vns_sneakers_20_rue_notre_dame_de_nazareth_75003_paris_FR": {
+      "id": "vns_sneakers_20_rue_notre_dame_de_nazareth_75003_paris_FR",
+      "name": "VNS Sneakers",
+      "arrondissement": 3,
+      "address": "20 Rue Notre Dame de Nazareth",
+      "postalCode": "75003",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.86736579999999,
+        "lng": 2.360561
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "20 Rue Notre Dame de Nazareth, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ4zvkNSxv5kcRcZ9Ho-jTX6k",
+      "query": "VNS Sneakers, 20 Rue Notre Dame de Nazareth, 75003 Paris, France",
+      "lastUpdated": "2026-05-28T12:59:32.031Z"
+    },
+    "le_mistral_gagnant_2_rue_saint_mathieu_75018_paris_FR": {
+      "id": "le_mistral_gagnant_2_rue_saint_mathieu_75018_paris_FR",
+      "name": "Le Mistral Gagnant",
+      "arrondissement": 18,
+      "address": "2 Rue Saint-Mathieu",
+      "postalCode": "75018",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8864126,
+        "lng": 2.356361
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "2 Rue Saint-Mathieu, 75018 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJj4zLY2Vu5kcRi3A9_H8ZzVc",
+      "query": "Le Mistral Gagnant, 2 Rue Saint-Mathieu, 75018 Paris, France",
+      "lastUpdated": "2026-06-02T13:09:19.758Z"
+    },
+    "pont_au_change_pont_au_change_75001_paris_FR": {
+      "id": "pont_au_change_pont_au_change_75001_paris_FR",
+      "name": "Pont au Change",
+      "arrondissement": 1,
+      "address": "Pont au Change",
+      "postalCode": "75001",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8566201,
+        "lng": 2.3467988
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Pont au Change, Pont au Change, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJpRG50B9u5kcRWXhSvP7k4cw",
+      "query": "Pont au Change, 75001 Paris, France",
+      "lastUpdated": "2026-06-02T13:13:46.242Z"
+    },
+    "chalet_du_lac_bois_de_vincennes_2_av_anna_politkovskaia_oree_du_75012_paris_FR": {
+      "id": "chalet_du_lac_bois_de_vincennes_2_av_anna_politkovskaia_oree_du_75012_paris_FR",
+      "name": "Chalet du Lac",
+      "arrondissement": 12,
+      "address": "Bois de Vincennes, 2 Av. Anna Politkovskaïa Orée du,",
+      "postalCode": "75012",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8428073,
+        "lng": 2.4221133
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "Bois de Vincennes, 2 Av. Anna Politkovskaïa Orée du, 75012 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJxYCuI3By5kcR2va6TDSFMv4",
+      "query": "Chalet du Lac, Bois de Vincennes, 2 Av. Anna Politkovskaïa Orée du,, 75012 Paris, France",
+      "lastUpdated": "2026-06-02T13:20:01.607Z"
+    },
+    "124_voie_georges_pompidou_124_voie_georges_pompidou_75004_paris_FR": {
+      "id": "124_voie_georges_pompidou_124_voie_georges_pompidou_75004_paris_FR",
+      "name": "124 Voie Georges Pompidou",
+      "arrondissement": 4,
+      "address": "124 Voie Georges Pompidou",
+      "postalCode": "75004",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.856727,
+        "lng": 2.348452
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "124 Voie Georges Pompidou, 75004 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJd3g4Ix5u5kcRd_VIwi7th88",
+      "query": "124 Voie Georges Pompidou, 75004 Paris, France",
+      "lastUpdated": "2026-06-02T13:28:41.963Z"
+    },
+    "folie_s_pigalle_11_pl_pigalle_75009_paris_FR": {
+      "id": "folie_s_pigalle_11_pl_pigalle_75009_paris_FR",
+      "name": "Folie's Pigalle",
+      "arrondissement": 9,
+      "address": "11 Pl. Pigalle",
+      "postalCode": "75009",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8819903,
+        "lng": 2.3368769
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "11 Pl. Pigalle, 75009 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJrRjx3EVu5kcRR7YnfFgO15k",
+      "query": "Folie's Pigalle, 11 Pl. Pigalle, 75009 Paris, France",
+      "lastUpdated": "2026-06-02T13:35:34.478Z"
+    },
+    "le_flow_4_port_des_invalides_75007_paris_FR": {
+      "id": "le_flow_4_port_des_invalides_75007_paris_FR",
+      "name": "Le Flow",
+      "arrondissement": 7,
+      "address": "4 Port des Invalides",
+      "postalCode": "75007",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.863328,
+        "lng": 2.314865
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "4 Port des Invalides, 75007 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ4cnkH9Fv5kcR-oUZPDe5nJg",
+      "query": "Le Flow, 4 Port des Invalides, 75007 Paris, France",
+      "lastUpdated": "2026-06-02T13:39:41.238Z"
+    },
+    "14_avenue_parmentier_14_ave_parmentier_75011_paris_FR": {
+      "id": "14_avenue_parmentier_14_ave_parmentier_75011_paris_FR",
+      "name": "14 Avenue Parmentier",
+      "arrondissement": 11,
+      "address": "14 Ave Parmentier",
+      "postalCode": "75011",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8596416,
+        "lng": 2.3795832
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "14 Ave Parmentier 14, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "EikxNCBBdmUgUGFybWVudGllciAxNCwgNzUwMTEgUGFyaXMsIEZyYW5jZSIeGhwKFgoUChIJM9G3Rvdt5kcRMOt421hM1FASAjE0",
+      "query": "14 Avenue Parmentier, 14 Ave Parmentier, 75011 Paris, France",
+      "lastUpdated": "2026-06-02T14:02:46.418Z"
+    },
+    "1_rue_reaumur_1_rue_reaumur_75003_paris_FR": {
+      "id": "1_rue_reaumur_1_rue_reaumur_75003_paris_FR",
+      "name": "1 Rue Réaumur",
+      "arrondissement": 3,
+      "address": "1 Rue Réaumur",
+      "postalCode": "75003",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8646298,
+        "lng": 2.359374
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "1 Rue Réaumur, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJSV5MoAVu5kcR9YkrzzYGSEk",
+      "query": "1 Rue Réaumur, 75003 Paris, France",
+      "lastUpdated": "2026-06-02T14:07:31.799Z"
+    },
+    "bridge_club_3_port_des_champs_elysees_75008_paris_FR": {
+      "id": "bridge_club_3_port_des_champs_elysees_75008_paris_FR",
+      "name": "Bridge Club",
+      "arrondissement": 8,
+      "address": "3 Port des Champs-Élysées",
+      "postalCode": "75008",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.863766,
+        "lng": 2.313529
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "3 Port des Champs-Élysées, 75008 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJF4qP9rxv5kcR0d9sBBnsono",
+      "query": "Bridge Club, 3 Port des Champs-Élysées, 75008 Paris, France",
+      "lastUpdated": "2026-06-02T14:28:28.416Z"
+    },
+    "metaxu_place_de_la_pointe_93500_pantin_FR": {
+      "id": "metaxu_place_de_la_pointe_93500_pantin_FR",
+      "name": "METAXU",
+      "arrondissement": "greater-paris",
+      "address": "Place de la Pointe",
+      "postalCode": "93500",
+      "city": "Pantin",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8948533,
+        "lng": 2.4148045
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Place de la pointe, Place de la pointe, 93500 Pantin, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ_7X_qCdt5kcRJrisddLj1bw",
+      "query": "METAXU, Place de la Pointe, 93500 Pantin, France",
+      "lastUpdated": "2026-06-02T14:36:56.173Z"
+    },
+    "2_quai_de_la_tournelle_2_quai_de_la_tournelle_75005_paris_FR": {
+      "id": "2_quai_de_la_tournelle_2_quai_de_la_tournelle_75005_paris_FR",
+      "name": "2 Quai de la Tournelle",
+      "arrondissement": 5,
+      "address": "2 Quai de la Tournelle",
+      "postalCode": "75005",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8507836,
+        "lng": 2.3531542
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "2 Quai de la Tournelle, 75005 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJc57KnORx5kcRk_2coBI31_E",
+      "query": "2 Quai de la Tournelle, 75005 Paris, France",
+      "lastUpdated": "2026-06-02T15:03:16.649Z"
+    },
+    "le_boa_4_rue_daunou_75002_paris_FR": {
+      "id": "le_boa_4_rue_daunou_75002_paris_FR",
+      "name": "Le BOA",
+      "arrondissement": 2,
+      "address": "4 Rue Daunou",
+      "postalCode": "75002",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8693234,
+        "lng": 2.3323095
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "4 Rue Daunou, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJXxB8fg5v5kcRwabkEHVIe_U",
+      "query": "Le BOA, 4 Rue Daunou, 75002 Paris, France",
+      "lastUpdated": "2026-06-02T15:15:41.111Z"
+    },
+    "19_rue_des_gravilliers_19_rue_des_gravilliers_75003_paris_FR": {
+      "id": "19_rue_des_gravilliers_19_rue_des_gravilliers_75003_paris_FR",
+      "name": "19 Rue des Gravilliers",
+      "arrondissement": 3,
+      "address": "19 Rue des Gravilliers",
+      "postalCode": "75003",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.863641,
+        "lng": 2.3570553
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "19 Rue des Gravilliers, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJbb6LO8tv5kcRV6KoOVZLv2o",
+      "query": "19 Rue des Gravilliers, 75003 Paris, France",
+      "lastUpdated": "2026-06-02T15:24:51.283Z"
+    },
+    "jo_and_joe_paris_gentilly_89_93_avenue_paul_vaillant_couturier_94250_gentilly_FR": {
+      "id": "jo_and_joe_paris_gentilly_89_93_avenue_paul_vaillant_couturier_94250_gentilly_FR",
+      "name": "JO&JOE Paris Gentilly",
+      "arrondissement": "greater-paris",
+      "address": "89-93 Avenue Paul Vaillant Couturier",
+      "postalCode": "94250",
+      "city": "Gentilly",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8163491,
+        "lng": 2.3382857
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "89-93 Av. Paul Vaillant Couturier, 94250 Gentilly, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJVfqc7c9x5kcRS42v9lHAbBk",
+      "query": "JO&JOE Paris Gentilly, 89-93 Avenue Paul Vaillant Couturier, 94250 Gentilly, France",
+      "lastUpdated": "2026-06-02T15:33:21.122Z"
+    },
+    "17_rue_tiquetonne_17_rue_tiquetonne_75002_paris_FR": {
+      "id": "17_rue_tiquetonne_17_rue_tiquetonne_75002_paris_FR",
+      "name": "17 Rue Tiquetonne",
+      "arrondissement": 2,
+      "address": "17 Rue Tiquetonne",
+      "postalCode": "75002",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8645506,
+        "lng": 2.348493200000001
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "17 Rue Tiquetonne, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJf9tesBlu5kcRwBDXQu8capI",
+      "query": "17 Rue Tiquetonne, 75002 Paris, France",
+      "lastUpdated": "2026-06-02T18:27:23.235Z"
+    },
+    "the_next_17_rue_tiquetonne_75002_paris_FR": {
+      "id": "the_next_17_rue_tiquetonne_75002_paris_FR",
+      "name": "The Next",
+      "arrondissement": 2,
+      "address": "17 Rue Tiquetonne",
+      "postalCode": "75002",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8645937,
+        "lng": 2.3486127
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "17 Rue Tiquetonne, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ88rPsBlu5kcREsV3u2lhALM",
+      "query": "The Next, 17 Rue Tiquetonne, 75002 Paris, France",
+      "lastUpdated": "2026-06-02T18:31:57.181Z"
+    },
+    "g_la_dalle_chatelet_44_rue_saint_denis_75001_paris_FR": {
+      "id": "g_la_dalle_chatelet_44_rue_saint_denis_75001_paris_FR",
+      "name": "G La Dalle -Chatelet",
+      "arrondissement": 1,
+      "address": "44 Rue Saint Denis",
+      "postalCode": "75001",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8604969,
+        "lng": 2.3486283
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "44 Rue St Denis, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJxR8qd2hv5kcRrxc3LvDCNos",
+      "query": "G La Dalle -Chatelet, 44 Rue Saint Denis, 75001 Paris, France",
+      "lastUpdated": "2026-06-03T23:04:08.487Z"
+    },
+    "la_fav_18_rue_du_faubourg_du_temple_75011_paris_FR": {
+      "id": "la_fav_18_rue_du_faubourg_du_temple_75011_paris_FR",
+      "name": "La Fav",
+      "arrondissement": 11,
+      "address": "18 Rue du Faubourg du Temple",
+      "postalCode": "75011",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.86824,
+        "lng": 2.366323
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "18 Rue du Faubourg du Temple, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJUefdSKtv5kcRzHYRk1Vg60k",
+      "query": "La Fav, 18 Rue du Faubourg du Temple, 75011 Paris, France",
+      "lastUpdated": "2026-06-03T23:07:48.409Z"
+    },
+    "generator_paris_9_11_pl_du_colonel_fabien_75010_paris_FR": {
+      "id": "generator_paris_9_11_pl_du_colonel_fabien_75010_paris_FR",
+      "name": "Generator Paris",
+      "arrondissement": 10,
+      "address": "9-11 Pl. du Colonel Fabien",
+      "postalCode": "75010",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.87824759999999,
+        "lng": 2.3696032
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "9-11 Pl. du Colonel Fabien, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJFSBjnt9t5kcRb33P22PJ-RE",
+      "query": "Generator Paris, 9-11 Pl. du Colonel Fabien, 75010 Paris, France",
+      "lastUpdated": "2026-06-03T23:15:34.785Z"
+    },
+    "central_chapelle_4_esp_alice_milliat_75018_paris_FR": {
+      "id": "central_chapelle_4_esp_alice_milliat_75018_paris_FR",
+      "name": "Central Chapelle",
+      "arrondissement": 18,
+      "address": "4 Esp. Alice Milliat",
+      "postalCode": "75018",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.898847,
+        "lng": 2.360604
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "4 Esp. Alice Milliat, 75018 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJbVp3NYZu5kcROigWu06Ivjc",
+      "query": "Central Chapelle, 4 Esp. Alice Milliat, 75018 Paris, France",
+      "lastUpdated": "2026-06-03T23:26:10.093Z"
+    },
+    "chez_clo_62_rue_jean_pierre_timbaud_75011_paris_FR": {
+      "id": "chez_clo_62_rue_jean_pierre_timbaud_75011_paris_FR",
+      "name": "Chez Clo",
+      "arrondissement": 11,
+      "address": "62 Rue Jean-Pierre Timbaud",
+      "postalCode": "75011",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8667216,
+        "lng": 2.3740564
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "62 Rue Jean-Pierre Timbaud, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJzxEaCwBt5kcR4wbMpgyplpI",
+      "query": "Chez Clo, 62 Rue Jean-Pierre Timbaud, 75011 Paris, France",
+      "lastUpdated": "2026-06-03T23:31:55.016Z"
+    },
+    "wukong_the_grand_master_32_rue_beaurepaire_75010_paris_FR": {
+      "id": "wukong_the_grand_master_32_rue_beaurepaire_75010_paris_FR",
+      "name": "Wukong The Grand Master",
+      "arrondissement": 10,
+      "address": "32 Rue Beaurepaire",
+      "postalCode": "75010",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8713765,
+        "lng": 2.3644516
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "32 Rue Beaurepaire, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ64rCAxNv5kcRp0WLKP9nbB4",
+      "query": "Wukong The Grand Master, 32 Rue Beaurepaire, 75010 Paris, France",
+      "lastUpdated": "2026-06-03T23:36:48.623Z"
+    },
+    "le_rouge_77_rue_jean_baptiste_pigalle_75009_paris_FR": {
+      "id": "le_rouge_77_rue_jean_baptiste_pigalle_75009_paris_FR",
+      "name": "Le Rouge",
+      "arrondissement": 9,
+      "address": "77 Rue Jean-Baptiste Pigalle",
+      "postalCode": "75009",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.88191519999999,
+        "lng": 2.3369623
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "77 Rue Jean-Baptiste Pigalle, 75009 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJldwn3EVu5kcRFZHv_aWEwlo",
+      "query": "Le Rouge, 77 Rue Jean-Baptiste Pigalle, 75009 Paris, France",
+      "lastUpdated": "2026-06-03T23:41:29.929Z"
+    },
+    "place_pigalle_pl_pigalle_75009_paris_FR": {
+      "id": "place_pigalle_pl_pigalle_75009_paris_FR",
+      "name": "Place Pigalle",
+      "arrondissement": 9,
+      "address": "Pl. Pigalle",
+      "postalCode": "75009",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8821204,
+        "lng": 2.3375043
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "1 Pl. Pigalle, 75009 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJIThMc-Fv5kcRh_7fpgXTbcg",
+      "query": "Place Pigalle, Pl. Pigalle, 75009 Paris, France",
+      "lastUpdated": "2026-06-03T23:46:17.551Z"
+    },
+    "56_rue_volta_56_rue_volta_75003_paris_FR": {
+      "id": "56_rue_volta_56_rue_volta_75003_paris_FR",
+      "name": "56 Rue Volta",
+      "arrondissement": 3,
+      "address": "56 Rue Volta",
+      "postalCode": "75003",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.86702750000001,
+        "lng": 2.3584376
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "56 Rue Volta, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJN5a_lg9u5kcR6x9usO5rmZ0",
+      "query": "56 Rue Volta, 75003 Paris, France",
+      "lastUpdated": "2026-06-03T23:54:31.814Z"
+    },
+    "46_48_rue_notre_dame_de_nazareth_46_48_rue_notre_dame_de_nazareth_75003_paris_FR": {
+      "id": "46_48_rue_notre_dame_de_nazareth_46_48_rue_notre_dame_de_nazareth_75003_paris_FR",
+      "name": "46-48 Rue Notre Dame de Nazareth",
+      "arrondissement": 3,
+      "address": "46-48 Rue Notre Dame de Nazareth",
+      "postalCode": "75003",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8676413,
+        "lng": 2.3580962
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "46 Rue Notre Dame de Nazareth, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJT-WvuA9u5kcR7T0nJch_Z7Q",
+      "query": "46-48 Rue Notre Dame de Nazareth, 75003 Paris, France",
+      "lastUpdated": "2026-06-04T00:02:29.045Z"
+    },
+    "place_de_la_bastille_pl_de_la_bastille_75004_paris_FR": {
+      "id": "place_de_la_bastille_pl_de_la_bastille_75004_paris_FR",
+      "name": "Place de la Bastille",
+      "arrondissement": 4,
+      "address": "Pl. de la Bastille",
+      "postalCode": "75004",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8532379,
+        "lng": 2.3688654
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Pl. de la Bastille, 75004 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJKZKprAFy5kcREOvlZ8mwHiM",
+      "query": "Place de la Bastille, Pl. de la Bastille, 75004 Paris, France",
+      "lastUpdated": "2026-06-08T21:22:32.687Z"
+    },
+    "chez_lulu_66_rue_jean_jacques_rousseau_75001_paris_1": {
+      "id": "chez_lulu_66_rue_jean_jacques_rousseau_75001_paris_1",
+      "name": "Chez Lulu, 66 Rue Jean-Jacques Rousseau 75001, Paris",
+      "arrondissement": 1,
+      "coordinates": {
+        "lat": 48.8641703,
+        "lng": 2.3439768
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "66 Rue Jean-Jacques Rousseau, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJFbLmFKtv5kcRwjvMIgSZ_nI",
+      "query": "Chez Lulu, 66 Rue Jean-Jacques Rousseau 75001, Paris, 1e arrondissement, Paris, France",
+      "lastUpdated": "2026-06-18T11:49:13.711Z"
+    },
+    "barapapa_11_port_de_la_rapee_paris_france_75012_paris_FR": {
+      "id": "barapapa_11_port_de_la_rapee_paris_france_75012_paris_FR",
+      "name": "Barapapa",
+      "arrondissement": 12,
+      "address": "11 Port de la Rapée, Paris, France",
+      "postalCode": "75012",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8420863,
+        "lng": 2.3712582
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "11 Port de la Rapée, 75012 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ49nPdRxy5kcRqlHrocPt0oU",
+      "query": "Barapapa, 11 Port de la Rapée, Paris, France, 75012 Paris, France",
+      "lastUpdated": "2026-06-18T11:53:49.897Z"
+    },
+    "42_rue_de_montreuil_42_rue_de_montreuil_75011_paris_FR": {
+      "id": "42_rue_de_montreuil_42_rue_de_montreuil_75011_paris_FR",
+      "name": "42 Rue de Montreuil",
+      "arrondissement": 11,
+      "address": "42 Rue de Montreuil",
+      "postalCode": "75011",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8503341,
+        "lng": 2.3874586
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "42 Rue de Montreuil, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ_8YYYAty5kcRhdL2VgjVPlM",
+      "query": "42 Rue de Montreuil, 75011 Paris, France",
+      "lastUpdated": "2026-06-18T11:56:32.345Z"
+    },
+    "48_rue_notre_dame_de_nazareth_48_rue_notre_dame_de_nazareth_75003_paris_FR": {
+      "id": "48_rue_notre_dame_de_nazareth_48_rue_notre_dame_de_nazareth_75003_paris_FR",
+      "name": "48 Rue Notre Dame de Nazareth",
+      "arrondissement": 3,
+      "address": "48 Rue Notre Dame de Nazareth",
+      "postalCode": "75003",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8676825,
+        "lng": 2.3580154
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "48 Rue Notre Dame de Nazareth, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJy_5Pxw9u5kcRqhQxSki47j4",
+      "query": "48 Rue Notre Dame de Nazareth, 75003 Paris, France",
+      "lastUpdated": "2026-06-18T12:03:48.539Z"
+    },
+    "porte_de_la_villette_porte_de_la_villette_75019_paris_FR": {
+      "id": "porte_de_la_villette_porte_de_la_villette_75019_paris_FR",
+      "name": "Porte de la Villette",
+      "arrondissement": 19,
+      "address": "Porte de la Villette",
+      "postalCode": "75019",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.89747999999999,
+        "lng": 2.38784
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Porte de la Villette, 75019 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJi4gRYzNs5kcRn5w2EVS87tM",
+      "query": "Porte de la Villette, 75019 Paris, France",
+      "lastUpdated": "2026-06-18T12:05:34.093Z"
+    },
+    "redlight_34_36_rue_du_depart_75015_paris_FR": {
+      "id": "redlight_34_36_rue_du_depart_75015_paris_FR",
+      "name": "Redlight",
+      "arrondissement": 15,
+      "address": "34 - 36 Rue du Départ",
+      "postalCode": "75015",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.841627,
+        "lng": 2.3219224
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "36 Rue du Départ 34, 75015 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "EikzNiBSdWUgZHUgRMOpcGFydCAzNCwgNzUwMTUgUGFyaXMsIEZyYW5jZSIeGhwKFgoUChIJGzy9oMxx5kcRMKvAkEPLfrkSAjM0",
+      "query": "Redlight, 34 - 36 Rue du Départ, 75015 Paris, France",
+      "lastUpdated": "2026-06-18T12:08:01.023Z"
+    },
+    "les_lionnes_palais_de_la_porte_doree_293_av_daumesnil_paris_france_75012_paris_FR": {
+      "id": "les_lionnes_palais_de_la_porte_doree_293_av_daumesnil_paris_france_75012_paris_FR",
+      "name": "Les Lionnes - Palais de la Porte Dorée",
+      "arrondissement": 19,
+      "address": "293 Av. Daumesnil, Paris, France",
+      "postalCode": "75012",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8351201,
+        "lng": 2.4090523
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "293 Av. Daumesnil, 75012 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJsUo6vuZz5kcRD3e3BAbDgQ8",
+      "query": "Les Lionnes - Palais de la Porte Dorée, 293 Av. Daumesnil, Paris, France, 75012 Paris, France",
+      "lastUpdated": "2026-06-18T13:19:59.744Z"
+    },
+    "journey_44_rue_des_petits_carreaux_paris_france_75002_paris_FR": {
+      "id": "journey_44_rue_des_petits_carreaux_paris_france_75002_paris_FR",
+      "name": "Journey",
+      "arrondissement": 2,
+      "address": "44 Rue des Petits Carreaux, Paris, France",
+      "postalCode": "75002",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.868333,
+        "lng": 2.3477653
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "44 Rue des Petits Carreaux, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJF5wyeQBv5kcR4FgQ0saiRNo",
+      "query": "Journey, 44 Rue des Petits Carreaux, Paris, France, 75002 Paris, France",
+      "lastUpdated": "2026-06-18T13:23:13.793Z"
+    },
+    "21_bd_richard_lenoir_21_bd_richard_lenoir_75011_paris_FR": {
+      "id": "21_bd_richard_lenoir_21_bd_richard_lenoir_75011_paris_FR",
+      "name": "21 Bd Richard-Lenoir",
+      "arrondissement": 11,
+      "address": "21 Bd Richard-Lenoir",
+      "postalCode": "75011",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.856704,
+        "lng": 2.3702516
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "21 Bd Richard-Lenoir, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJbQ3Wc_9t5kcRwHIFamdaTvI",
+      "query": "21 Bd Richard-Lenoir, 75011 Paris, France",
+      "lastUpdated": "2026-06-18T13:26:15.266Z"
+    },
+    "7_rue_notre_dame_des_victoires_7_rue_notre_dame_des_victoires_75002_paris_FR": {
+      "id": "7_rue_notre_dame_des_victoires_7_rue_notre_dame_des_victoires_75002_paris_FR",
+      "name": "7 Rue Notre Dame des Victoires",
+      "arrondissement": 2,
+      "address": "7 Rue Notre Dame des Victoires",
+      "postalCode": "75002",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8674983,
+        "lng": 2.3414063
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "7 Rue Notre Dame des Victoires, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJFR66wTxu5kcRxG9hXArzzek",
+      "query": "7 Rue Notre Dame des Victoires, 75002 Paris, France",
+      "lastUpdated": "2026-06-18T23:56:15.148Z"
+    },
+    "khayma_rooftop_9_11_pl_du_colonel_fabien_75010_paris_FR": {
+      "id": "khayma_rooftop_9_11_pl_du_colonel_fabien_75010_paris_FR",
+      "name": "KHAYMA ROOFTOP",
+      "arrondissement": 10,
+      "address": "9-11 Pl. du Colonel Fabien,",
+      "postalCode": "75010",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8782927,
+        "lng": 2.369454
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "9-11 Pl. du Colonel Fabien, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJxxKKmdtt5kcRVg2RxDVldLQ",
+      "query": "KHAYMA ROOFTOP, 9-11 Pl. du Colonel Fabien,, 75010 Paris, France",
+      "lastUpdated": "2026-06-18T23:57:46.914Z"
+    },
+    "esp_alice_milliat_esp_alice_milliat_75018_paris_FR": {
+      "id": "esp_alice_milliat_esp_alice_milliat_75018_paris_FR",
+      "name": "Esp. Alice Milliat",
+      "arrondissement": 18,
+      "address": "Esp. Alice Milliat",
+      "postalCode": "75018",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8991139,
+        "lng": 2.3602329
+      },
+      "confidence": 0.55,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Esp. Alice Milliat, 75018 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJE9atOYZu5kcR9NsmCxhr6Zk",
+      "query": "Esp. Alice Milliat, 75018 Paris, France",
+      "lastUpdated": "2026-06-19T00:05:46.508Z"
+    },
+    "mama_kossa_8_rue_myrha_75018_paris_FR": {
+      "id": "mama_kossa_8_rue_myrha_75018_paris_FR",
+      "name": "Mama Kossa",
+      "arrondissement": 18,
+      "address": "8 RUE MYRHA",
+      "postalCode": "75018",
+      "city": "PARIS",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8873341,
+        "lng": 2.3556023
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "8 Rue Myrha, 75018 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJm2_X0Epv5kcR1FNVIA1G_zo",
+      "query": "Mama Kossa, 8 RUE MYRHA, 75018 PARIS, France",
+      "lastUpdated": "2026-06-19T00:06:29.181Z"
+    },
+    "canphoria_201_rue_saint_maur_75010_paris_FR": {
+      "id": "canphoria_201_rue_saint_maur_75010_paris_FR",
+      "name": "Canphoria",
+      "arrondissement": 10,
+      "address": "201 RUE SAINT MAUR",
+      "postalCode": "75010",
+      "city": "PARIS",
+      "coordinates": {
+        "lat": 48.8720119,
+        "lng": 2.3715269
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "201 Rue Saint-Maur, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJV2N7ruZt5kcRXBM-xGX97So",
+      "query": "Canphoria, 201 RUE SAINT MAUR, 75010 PARIS, France",
+      "lastUpdated": "2026-06-19T00:09:38.330Z"
+    },
+    "5_avenue_de_l_opera_5_av_de_l_opera_75001_paris_FR": {
+      "id": "5_avenue_de_l_opera_5_av_de_l_opera_75001_paris_FR",
+      "name": "5 Avenue de l'Opéra",
+      "arrondissement": 1,
+      "address": "5 Av. de l'Opéra",
+      "postalCode": "75001",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.86479019999999,
+        "lng": 2.3345004
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "5 Av. de l'Opéra 5, 75001 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "Eig1IEF2LiBkZSBsJ09ww6lyYSA1LCA3NTAwMSBQYXJpcywgRnJhbmNlIh0aGwoWChQKEgkt9G5lJW7mRxHCKYS91DOMYRIBNQ",
+      "query": "5 Avenue de l'Opéra, 5 Av. de l'Opéra, 75001 Paris, France",
+      "lastUpdated": "2026-06-19T19:21:01.775Z"
+    },
+    "divine_61_rue_d_hauteville_75010_paris_FR": {
+      "id": "divine_61_rue_d_hauteville_75010_paris_FR",
+      "name": "Divine",
+      "arrondissement": 10,
+      "address": "61 rue d'Hauteville",
+      "postalCode": "75010",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8752262,
+        "lng": 2.3507204
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "61 Rue d'Hauteville, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJRcJ6G4Vv5kcR6WU3YxhmKGc",
+      "query": "Divine, 61 rue d'Hauteville, 75010 Paris, France",
+      "lastUpdated": "2026-06-19T19:21:41.898Z"
+    },
+    "17_bd_morland_17_bd_morland_75004_paris_FR": {
+      "id": "17_bd_morland_17_bd_morland_75004_paris_FR",
+      "name": "17 Bd Morland",
+      "arrondissement": 4,
+      "address": "17 Bd Morland",
+      "postalCode": "75004",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8501062,
+        "lng": 2.3630729
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "17 Bd Morland, 75004 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJDVFzJflx5kcRGUWUEMls83c",
+      "query": "17 Bd Morland, 75004 Paris, France",
+      "lastUpdated": "2026-06-19T19:25:14.405Z"
+    },
+    "192_rue_saint_denis_192_rue_saint_denis_75002_paris_FR": {
+      "id": "192_rue_saint_denis_192_rue_saint_denis_75002_paris_FR",
+      "name": "192 Rue Saint Denis",
+      "arrondissement": 2,
+      "address": "192 Rue Saint Denis",
+      "postalCode": "75002",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.86696,
+        "lng": 2.3514791
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "192 Rue St Denis, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJAQAEsRBu5kcRzT0oLL8_GBY",
+      "query": "192 Rue Saint Denis, 75002 Paris, France",
+      "lastUpdated": "2026-06-19T19:25:17.145Z"
+    },
+    "l_adressee_bar_3_rue_beaurepaire_75010_paris_france_75010_paris_FR": {
+      "id": "l_adressee_bar_3_rue_beaurepaire_75010_paris_france_75010_paris_FR",
+      "name": "L'Adressee Bar",
+      "arrondissement": 10,
+      "address": "3 Rue Beaurepaire, 75010 Paris, France",
+      "postalCode": "75010",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.86916009999999,
+        "lng": 2.3631498
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "3 Rue Beaurepaire, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJx_10MAlu5kcRE4aLUGR2XV4",
+      "query": "L'Adressee Bar, 3 Rue Beaurepaire, 75010 Paris, France, 75010 Paris, France",
+      "lastUpdated": "2026-06-19T21:04:43.159Z"
+    },
+    "7_rue_de_tracy_paris_7_rue_de_tracy_75002_paris_75002_paris_FR": {
+      "id": "7_rue_de_tracy_paris_7_rue_de_tracy_75002_paris_75002_paris_FR",
+      "name": "7 RUE DE TRACY, PARIS",
+      "arrondissement": 2,
+      "address": "7 RUE DE TRACY, 75002 PARIS",
+      "postalCode": "75002",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8679761,
+        "lng": 2.3525587
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "7 Rue de Tracy 7, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "EiU3IFJ1ZSBkZSBUcmFjeSA3LCA3NTAwMiBQYXJpcywgRnJhbmNlIh0aGwoWChQKEgk18gjoEG7mRxG84s3KAAOSHBIBNw",
+      "query": "7 RUE DE TRACY, PARIS, 7 RUE DE TRACY, 75002 PARIS, 75002 Paris, France",
+      "lastUpdated": "2026-06-19T21:05:17.162Z"
+    },
+    "210_quai_de_jemmapes_75010_paris_france_210_quai_de_jemmapes_75010_paris_france_75010_parisfr_FR": {
+      "id": "210_quai_de_jemmapes_75010_paris_france_210_quai_de_jemmapes_75010_paris_france_75010_parisfr_FR",
+      "name": "210 Quai de Jemmapes, 75010 Paris, France",
+      "arrondissement": 10,
+      "address": "210 Quai de Jemmapes, 75010 Paris, France",
+      "postalCode": "75010",
+      "city": "ParisFR",
+      "coordinates": {
+        "lat": 48.8811086,
+        "lng": 2.3696215
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "210 Quai de Jemmapes, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJr5sHa_Bt5kcRR_UHfb9lSJ8",
+      "query": "210 Quai de Jemmapes, 75010 Paris, France, 75010 ParisFR, France",
+      "lastUpdated": "2026-06-19T21:05:38.496Z"
+    },
+    "le_bateau_phare_3_port_de_la_gare_75013_paris_FR": {
+      "id": "le_bateau_phare_3_port_de_la_gare_75013_paris_FR",
+      "name": "LE BATEAU PHARE",
+      "arrondissement": 13,
+      "address": "3 Port de la Gare",
+      "postalCode": "75013",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.833321,
+        "lng": 2.3790502
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "3 Port de la Gare, 75013 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJrZsuazhz5kcR1Cr98qUi5jI",
+      "query": "LE BATEAU PHARE, 3 Port de la Gare, 75013 Paris, France",
+      "lastUpdated": "2026-06-19T21:07:08.404Z"
+    },
+    "gumbo_yaya_3_rue_charles_robin_75010_paris_FR": {
+      "id": "gumbo_yaya_3_rue_charles_robin_75010_paris_FR",
+      "name": "Gumbo Yaya",
+      "arrondissement": 10,
+      "address": "3 rue charles robin",
+      "postalCode": "75010",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8771923,
+        "lng": 2.369995
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "3 Rue Charles Robin, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ7U1sld9t5kcRJaXCQ5yHEe0",
+      "query": "Gumbo Yaya, 3 rue charles robin, 75010 Paris, France",
+      "lastUpdated": "2026-06-19T21:07:42.174Z"
+    },
+    "bisso_na_bisso_9_rue_berzelius_75017_paris_france_75017_paris_FR": {
+      "id": "bisso_na_bisso_9_rue_berzelius_75017_paris_france_75017_paris_FR",
+      "name": "Bisso Na Bisso",
+      "arrondissement": 17,
+      "address": "9 Rue Berzélius, 75017 Paris, France",
+      "postalCode": "75017",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.89253799999999,
+        "lng": 2.318255600000001
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "9 Rue Berzélius, 75017 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJdyfWTqlv5kcROp0ge8AISlk",
+      "query": "Bisso Na Bisso, 9 Rue Berzélius, 75017 Paris, France, 75017 Paris, France",
+      "lastUpdated": "2026-06-19T21:08:39.187Z"
+    },
+    "18_boulevard_de_sebastopol_18_boulevard_de_sebastopol_75001_paris_FR": {
+      "id": "18_boulevard_de_sebastopol_18_boulevard_de_sebastopol_75001_paris_FR",
+      "name": "18 Boulevard de Sebastopol",
+      "arrondissement": 1,
+      "address": "18 Boulevard de Sebastopol",
+      "postalCode": "75001",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8601514,
+        "lng": 2.3494167
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "18 Bd de Sébastopol, 75004 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJd0oRvB5u5kcRCFLYVAndIRA",
+      "query": "18 Boulevard de Sebastopol, 75001 Paris, France",
+      "lastUpdated": "2026-06-19T21:09:09.592Z"
+    },
+    "19_rue_de_la_mare_19_rue_de_la_mare_75020_paris_75020_paris_FR": {
+      "id": "19_rue_de_la_mare_19_rue_de_la_mare_75020_paris_75020_paris_FR",
+      "name": "19 Rue de la Mare",
+      "arrondissement": 20,
+      "address": "19 Rue de la Mare, 75020 Paris",
+      "postalCode": "75020",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8701611,
+        "lng": 2.3890183
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "19 Rue de la Mare 19, 75020 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "EikxOSBSdWUgZGUgbGEgTWFyZSAxOSwgNzUwMjAgUGFyaXMsIEZyYW5jZSIeGhwKFgoUChIJo6_enuxt5kcRtYIMt7kLz-4SAjE5",
+      "query": "19 Rue de la Mare, 19 Rue de la Mare, 75020 Paris, 75020 Paris, France",
+      "lastUpdated": "2026-06-19T21:09:47.065Z"
+    },
+    "96_rue_jean_pierre_timbaud_96_rue_jean_pierre_timbaud_75011_75011_paris_FR": {
+      "id": "96_rue_jean_pierre_timbaud_96_rue_jean_pierre_timbaud_75011_75011_paris_FR",
+      "name": "96 Rue Jean-Pierre Timbaud",
+      "arrondissement": 11,
+      "address": "96 Rue Jean-Pierre Timbaud 75011",
+      "postalCode": "75011",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8676211,
+        "lng": 2.3781504
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "96 Rue Jean-Pierre Timbaud 96, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "EjI5NiBSdWUgSmVhbi1QaWVycmUgVGltYmF1ZCA5NiwgNzUwMTEgUGFyaXMsIEZyYW5jZSIeGhwKFgoUChIJnXyQceVt5kcRg17afqfIUU0SAjk2",
+      "query": "96 Rue Jean-Pierre Timbaud, 96 Rue Jean-Pierre Timbaud 75011, 75011 Paris, France",
+      "lastUpdated": "2026-06-19T21:10:24.408Z"
+    },
+    "rue_commines_rue_commines_75003_75003_paris_FR": {
+      "id": "rue_commines_rue_commines_75003_75003_paris_FR",
+      "name": "Rue Commines",
+      "arrondissement": 3,
+      "address": "Rue Commines 75003",
+      "postalCode": "75003",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8620121,
+        "lng": 2.3658367
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Rue Commines, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJH2VsPgdu5kcRpoFnBMyHCec",
+      "query": "Rue Commines, Rue Commines 75003, 75003 Paris, France",
+      "lastUpdated": "2026-06-19T21:10:45.422Z"
+    },
+    "dkr_19_rue_de_la_roquette_75011_paris_FR": {
+      "id": "dkr_19_rue_de_la_roquette_75011_paris_FR",
+      "name": "DKR",
+      "arrondissement": 11,
+      "address": "19 Rue de la Roquette",
+      "postalCode": "75011",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8545987,
+        "lng": 2.3718853
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "19 Rue de la Roquette, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJV2YDtwBy5kcRVkksP1pMQe0",
+      "query": "DKR, 19 Rue de la Roquette, 75011 Paris, France",
+      "lastUpdated": "2026-06-19T21:11:10.693Z"
+    },
+    "210_quai_de_jemmapes_210_quai_de_jemmapes_75010_paris_france_75010_paris_FR": {
+      "id": "210_quai_de_jemmapes_210_quai_de_jemmapes_75010_paris_france_75010_paris_FR",
+      "name": "210 Quai de Jemmapes",
+      "arrondissement": 10,
+      "address": "210 Quai de Jemmapes, 75010 Paris, France",
+      "postalCode": "75010",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8811086,
+        "lng": 2.3696215
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "210 Quai de Jemmapes, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJr5sHa_Bt5kcRR_UHfb9lSJ8",
+      "query": "210 Quai de Jemmapes, 210 Quai de Jemmapes, 75010 Paris, France, 75010 Paris, France",
+      "lastUpdated": "2026-06-19T21:12:28.936Z"
+    },
+    "35_rue_du_chateau_d_eau_35_rue_du_chateau_d_eau_75010_paris_FR": {
+      "id": "35_rue_du_chateau_d_eau_35_rue_du_chateau_d_eau_75010_paris_FR",
+      "name": "35 RUE DU CHÂTEAU D'EAU",
+      "arrondissement": 10,
+      "address": "35 RUE DU CHÂTEAU D'EAU",
+      "postalCode": "75010",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8712464,
+        "lng": 2.3580071
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "35 Rue du Château d'Eau, 75010 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJjWt94Q1u5kcR-N9khBE4-3M",
+      "query": "35 RUE DU CHÂTEAU D'EAU, 75010 Paris, France",
+      "lastUpdated": "2026-06-19T21:13:18.244Z"
+    },
+    "bouche_85_rue_jean_pierre_timbaud_75011_paris_FR": {
+      "id": "bouche_85_rue_jean_pierre_timbaud_75011_paris_FR",
+      "name": "Bouche",
+      "arrondissement": 11,
+      "address": "85 Rue Jean-Pierre Timbaud",
+      "postalCode": "75011",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8682045,
+        "lng": 2.3783885
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "85 Rue Jean-Pierre Timbaud, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJOVTwFt5t5kcRvIpKiXQKGi8",
+      "query": "Bouche, 85 Rue Jean-Pierre Timbaud, 75011 Paris, France",
+      "lastUpdated": "2026-06-19T21:14:13.576Z"
+    },
+    "22_rue_reaumur_paris_22_rue_reaumur_paris_75003_paris_FR": {
+      "id": "22_rue_reaumur_paris_22_rue_reaumur_paris_75003_paris_FR",
+      "name": "22 RUE RÉAUMUR PARIS",
+      "arrondissement": 3,
+      "address": "22 RUE RÉAUMUR PARIS",
+      "postalCode": "75003",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8651833,
+        "lng": 2.3585197
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "22 Rue Réaumur, 75003 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJR8bWbwVu5kcRVYmQNnMfm0Q",
+      "query": "22 RUE RÉAUMUR PARIS, 75003 Paris, France",
+      "lastUpdated": "2026-06-19T21:14:20.901Z"
+    },
+    "riz_djondjon_291_rue_st_denis_75002_paris_france_75002_paris_FR": {
+      "id": "riz_djondjon_291_rue_st_denis_75002_paris_france_75002_paris_FR",
+      "name": "Riz Djondjon",
+      "arrondissement": 2,
+      "address": "291 Rue St Denis, 75002 Paris, France",
+      "postalCode": "75002",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8694795,
+        "lng": 2.352353
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "291 Rue St Denis, 75002 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJ-WLtEPVv5kcReapyyyOP_to",
+      "query": "Riz Djondjon, 291 Rue St Denis, 75002 Paris, France, 75002 Paris, France",
+      "lastUpdated": "2026-06-19T21:23:13.738Z"
+    },
+    "los_andes_coffee_lab_48_rue_notre_dame_de_lorette_75009_paris_france_75009_paris_FR": {
+      "id": "los_andes_coffee_lab_48_rue_notre_dame_de_lorette_75009_paris_france_75009_paris_FR",
+      "name": "Los Andes Coffee LAB",
+      "arrondissement": 9,
+      "address": "48 Rue Notre Dame de Lorette, 75009 Paris, France",
+      "postalCode": "75009",
+      "city": "Paris",
+      "countryCode": "FR",
+      "coordinates": {
+        "lat": 48.8796261,
+        "lng": 2.3362413
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "48 Rue Notre Dame de Lorette, 75009 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJm3HLGKlv5kcRRHoTQTmZZTI",
+      "query": "Los Andes Coffee LAB, 48 Rue Notre Dame de Lorette, 75009 Paris, France, 75009 Paris, France",
+      "lastUpdated": "2026-06-19T21:43:54.952Z"
+    },
+    "10_bd_des_filles_du_calvaire_10_bd_des_filles_du_calvaire_75011_paris_FR": {
+      "id": "10_bd_des_filles_du_calvaire_10_bd_des_filles_du_calvaire_75011_paris_FR",
+      "name": "10 Bd des Filles du Calvaire",
+      "arrondissement": 11,
+      "address": "10 Bd des Filles du Calvaire",
+      "postalCode": "75011",
+      "city": "Paris",
+      "coordinates": {
+        "lat": 48.8611967,
+        "lng": 2.3674596
+      },
+      "confidence": 1,
+      "source": "geocoded",
+      "precision": "exact",
+      "formattedAddress": "10 Bd des Filles du Calvaire, 75011 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJHanr-P1t5kcRNTxTLf2YoIQ",
+      "query": "10 Bd des Filles du Calvaire, 75011 Paris, France",
+      "lastUpdated": "2026-06-20T04:11:53.064Z"
+    },
+    "rue_raffet_rue_raffet_75016_paris_FR": {
+      "id": "rue_raffet_rue_raffet_75016_paris_FR",
+      "name": "Rue Raffet",
+      "arrondissement": 16,
+      "address": "Rue Raffet",
+      "postalCode": "75016",
+      "city": "Paris",
+      "coordinates": {
+        "lat": 48.8520468,
+        "lng": 2.2644036
+      },
+      "confidence": 0.75,
+      "source": "geocoded",
+      "precision": "venue",
+      "formattedAddress": "Rue Raffet, 75016 Paris, France",
+      "provider": "google",
+      "providerPlaceId": "ChIJnYJTlLF65kcRRYiWxnpzHu4",
+      "query": "Rue Raffet, 75016 Paris, France",
+      "lastUpdated": "2026-06-21T10:53:12.906Z"
     }
-  }
+  },
+  "exportedAt": "2026-06-26T11:14:44.878Z",
+  "sourceUpdatedAt": "2026-06-21T10:53:12.921Z"
 }

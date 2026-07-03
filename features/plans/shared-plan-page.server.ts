@@ -2,6 +2,7 @@ import "server-only";
 
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { toHomepageEventPayload } from "@/features/events/homepage-event-payload";
+import { resolveArchivePublishedPlanAlias } from "@/features/plans/archive-published-plan-store";
 import {
 	OFFICIAL_FETE_PLAN,
 	isDeprecatedOfficialFeteSourceToken,
@@ -14,6 +15,7 @@ import type {
 } from "@/features/plans/published-plan-types";
 import type { SharedPlan } from "@/features/plans/types";
 import { getPublicSlidingBannerSettingsCached } from "@/features/site-settings/queries";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { getPublishedPlanRepository } from "@/lib/platform/postgres/published-plan-repository";
 import { getUserPlanRepository } from "@/lib/platform/postgres/user-plan-repository";
 import { buildSiteUrl } from "@/lib/site-url";
@@ -52,6 +54,8 @@ export type PublicPlanResolution =
 export const getSharedPlanByToken = async (
 	shareToken: string,
 ): Promise<SharedPlan | null> => {
+	if (isArchiveModeEnabled()) return null;
+
 	const repository = getUserPlanRepository();
 	if (!repository) return null;
 	return repository.findSharedPlan({ shareToken });
@@ -115,6 +119,10 @@ const buildSharedPresentation = (plan: SharedPlan): SharedPlanPresentation => ({
 const resolvePublishedAlias = async (
 	id: string,
 ): Promise<PublishedPlanAliasResolution | null> => {
+	if (isArchiveModeEnabled()) {
+		return resolveArchivePublishedPlanAlias(id);
+	}
+
 	const repository = getPublishedPlanRepository();
 	if (!repository) return null;
 	try {

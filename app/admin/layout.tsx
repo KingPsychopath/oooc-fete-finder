@@ -1,11 +1,13 @@
 import { getAdminSessionStatus } from "@/features/auth/actions";
 import { getTicketExchangeRepository } from "@/features/ticket-exchange/repository";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { getEventSubmissionRepository } from "@/lib/platform/postgres/event-submission-repository";
 import { getPartnerActivationRepository } from "@/lib/platform/postgres/partner-activation-repository";
 import { buildSiteUrl } from "@/lib/site-url";
 import { generateMainOGImage, generateOGMetadata } from "@/lib/social/og-utils";
 import type { Metadata } from "next";
 import { AdminAuthClient } from "./AdminAuthClient";
+import { ArchiveAdminStatus } from "./ArchiveAdminStatus";
 import { AdminShell } from "./components/AdminShell";
 
 export const metadata: Metadata = generateOGMetadata({
@@ -34,13 +36,13 @@ const computeNotificationCounts = async () => {
 	const ticketExchangeRepository = getTicketExchangeRepository();
 	const [eventSubmissionsResult, placementsResult, ticketReportsResult] =
 		await Promise.allSettled([
-		eventSubmissionRepository?.getPendingNotificationSummary() ??
-			Promise.resolve(emptyNotificationSummary),
-		partnerActivationRepository?.getPendingNotificationSummary() ??
-			Promise.resolve(emptyNotificationSummary),
-		ticketExchangeRepository?.getPendingReportNotificationSummary() ??
-			Promise.resolve(emptyNotificationSummary),
-	]);
+			eventSubmissionRepository?.getPendingNotificationSummary() ??
+				Promise.resolve(emptyNotificationSummary),
+			partnerActivationRepository?.getPendingNotificationSummary() ??
+				Promise.resolve(emptyNotificationSummary),
+			ticketExchangeRepository?.getPendingReportNotificationSummary() ??
+				Promise.resolve(emptyNotificationSummary),
+		]);
 	const eventSubmissionsSummary =
 		eventSubmissionsResult.status === "fulfilled"
 			? eventSubmissionsResult.value
@@ -94,6 +96,10 @@ export default async function AdminLayout({
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
+	if (isArchiveModeEnabled()) {
+		return <ArchiveAdminStatus />;
+	}
+
 	const sessionStatus = await getAdminSessionStatus();
 	const isAuthenticated =
 		sessionStatus.success && sessionStatus.isValid === true;

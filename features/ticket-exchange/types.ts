@@ -221,6 +221,8 @@ export interface TicketExchangePageData {
 	supported: boolean;
 	emailEnabled: boolean;
 	examplesEnabled: boolean;
+	mode: "live" | "demo";
+	demoNotice?: string;
 }
 
 export interface TicketExchangeActionResult {

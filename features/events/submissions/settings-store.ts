@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { getKVStore, getKVStoreInfo } from "@/lib/platform/kv/kv-store-factory";
 import type {
 	EventSubmissionPublicSettings,
@@ -15,6 +16,12 @@ const DEFAULT_SETTINGS: EventSubmissionSettings = {
 	eventUpdatesEnabled: true,
 	updatedAt: new Date(0).toISOString(),
 	updatedBy: "system-default",
+};
+
+const ARCHIVE_PUBLIC_SETTINGS: EventSubmissionPublicSettings = {
+	newEventsEnabled: false,
+	eventUpdatesEnabled: false,
+	updatedAt: new Date(0).toISOString(),
 };
 
 export type EventSubmissionSettingKey = "new_events" | "event_updates";
@@ -95,6 +102,10 @@ export class EventSubmissionSettingsStore {
 	}
 
 	static async getPublicSettings(): Promise<EventSubmissionPublicSettings> {
+		if (isArchiveModeEnabled()) {
+			return ARCHIVE_PUBLIC_SETTINGS;
+		}
+
 		const settings = await this.readSettings();
 		return toPublicSettings(settings);
 	}

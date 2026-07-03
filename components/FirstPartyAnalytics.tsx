@@ -1,6 +1,7 @@
 "use client";
 
 import { trackPageView } from "@/features/events/engagement/client-tracking";
+import { isFirstPartyAnalyticsEnabled } from "@/lib/archive-mode";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
@@ -33,6 +34,10 @@ export function FirstPartyAnalytics() {
 	const previousPathname = useRef<string | null>(null);
 
 	useEffect(() => {
+		if (!isFirstPartyAnalyticsEnabled()) {
+			previousPathname.current = pathname;
+			return;
+		}
 		if (shouldSuppressPageViewForHost(window.location.hostname)) {
 			previousPathname.current = pathname;
 			return;

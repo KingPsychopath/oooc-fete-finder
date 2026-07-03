@@ -1,5 +1,6 @@
 import { isAuthorizedTicketExchangeBotRequest } from "@/features/ticket-exchange/bot-auth";
 import { getTicketExchangeRepository } from "@/features/ticket-exchange/repository";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	DEFAULT_JSON_BODY_LIMIT_BYTES,
@@ -13,6 +14,12 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(request: NextRequest) {
 	if (!isAuthorizedTicketExchangeBotRequest(request)) {
 		return forbiddenNoStoreResponse();
+	}
+	if (isArchiveModeEnabled()) {
+		return NextResponse.json(
+			{ success: true, skipped: true, archiveMode: true },
+			{ headers: NO_STORE_HEADERS },
+		);
 	}
 	if (!isJsonContentType(request)) {
 		return NextResponse.json(

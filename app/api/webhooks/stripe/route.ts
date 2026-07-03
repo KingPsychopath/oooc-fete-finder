@@ -2,7 +2,9 @@ import {
 	handleStripeWebhookPayload,
 	verifyStripeWebhookSignature,
 } from "@/features/partners/stripe-webhook";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { env } from "@/lib/config/env";
+import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	isWithinBodySizeLimit,
 	tooLargeNoStoreResponse,
@@ -15,6 +17,12 @@ const STRIPE_WEBHOOK_BODY_LIMIT_BYTES = 256 * 1024;
 export async function POST(request: Request) {
 	if (!isWithinBodySizeLimit(request, STRIPE_WEBHOOK_BODY_LIMIT_BYTES)) {
 		return tooLargeNoStoreResponse();
+	}
+	if (isArchiveModeEnabled()) {
+		return Response.json(
+			{ ok: true, skipped: true, archiveMode: true },
+			{ status: 200, headers: NO_STORE_HEADERS },
+		);
 	}
 
 	const webhookSecret = env.STRIPE_WEBHOOK_SECRET?.trim();

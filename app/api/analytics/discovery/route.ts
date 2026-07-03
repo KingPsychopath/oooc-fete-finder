@@ -12,6 +12,7 @@ import {
 	checkTrackDiscoverySessionLimit,
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
+import { isFirstPartyAnalyticsEnabled } from "@/lib/archive-mode";
 import {
 	TRACKING_JSON_BODY_LIMIT_BYTES,
 	acceptedNoStoreResponse,
@@ -134,6 +135,9 @@ const isBotUserAgent = (userAgent: string | null): boolean => {
 };
 
 export async function POST(request: Request) {
+	if (!isFirstPartyAnalyticsEnabled()) {
+		return accepted();
+	}
 	if (!isSameOriginRequest(request)) {
 		return accepted();
 	}

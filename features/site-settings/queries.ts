@@ -1,5 +1,7 @@
 import "server-only";
 
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
+import { ARCHIVE_KV_KEYS, getArchiveKVValue } from "@/lib/archive-static-data";
 import { unstable_cache } from "next/cache";
 import {
 	SLIDING_BANNER_CACHE_KEY,
@@ -21,6 +23,12 @@ const getCachedSlidingBannerSettings = unstable_cache(
 );
 
 export async function getPublicSlidingBannerSettingsCached(): Promise<SlidingBannerPublicSettings> {
+	if (isArchiveModeEnabled()) {
+		return SlidingBannerStore.getPublicSettingsFromValue(
+			getArchiveKVValue(ARCHIVE_KV_KEYS.slidingBanner),
+		);
+	}
+
 	try {
 		return await getCachedSlidingBannerSettings();
 	} catch {

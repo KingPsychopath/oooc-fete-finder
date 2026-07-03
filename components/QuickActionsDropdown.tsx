@@ -11,6 +11,7 @@ import { trackNavigationClick } from "@/features/events/engagement/client-tracki
 import { requestFeteFinderTour } from "@/features/events/tour-events";
 import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { cn } from "@/lib/utils";
 import {
 	ChevronDown,
@@ -60,6 +61,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 	const [isOpen, setIsOpen] = useState(false);
 	const [isIOS, setIsIOS] = useState(false);
 	const [isAndroid, setIsAndroid] = useState(false);
+	const archiveMode = isArchiveModeEnabled();
 
 	useEffect(() => {
 		const userAgent = navigator.userAgent.toLowerCase();
@@ -132,7 +134,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 		};
 	};
 
-	const showAdminTool = isAdminAuthenticated;
+	const showAdminTool = !archiveMode && isAdminAuthenticated;
 	const showSettingsTool = Boolean(onSettingsOpen);
 	const showToolsSection = showAdminTool || showSettingsTool;
 	const toiletFinderData = getToiletFinderData();
@@ -182,7 +184,7 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 								<div className="px-3 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
 									Tools
 								</div>
-								{isAdminAuthenticated && (
+								{showAdminTool && (
 									<Link
 										href={`${basePath || ""}/admin`}
 										prefetch={false}
@@ -228,23 +230,27 @@ const QuickActionsDropdown: React.FC<QuickActionsDropdownProps> = ({
 						<div className="px-3 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
 							Quick actions
 						</div>
-						<Link
-							href={`${basePath || ""}/submit-event`}
-							onClick={() => handleInternalLinkClick("submit_event")}
-							className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors text-left"
-						>
-							<div className="w-10 flex items-center justify-center">
-								<PlusCircle className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
-							</div>
-							<div className="flex-1 min-w-0">
-								<div className="font-medium">Submit event</div>
-								<div className="text-xs text-muted-foreground line-clamp-2">
-									Send us something we should list
-								</div>
-							</div>
-						</Link>
+						{archiveMode ? null : (
+							<>
+								<Link
+									href={`${basePath || ""}/submit-event`}
+									onClick={() => handleInternalLinkClick("submit_event")}
+									className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors text-left"
+								>
+									<div className="w-10 flex items-center justify-center">
+										<PlusCircle className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
+									</div>
+									<div className="flex-1 min-w-0">
+										<div className="font-medium">Submit event</div>
+										<div className="text-xs text-muted-foreground line-clamp-2">
+											Send us something we should list
+										</div>
+									</div>
+								</Link>
 
-						<div className="my-1 h-px bg-border" />
+								<div className="my-1 h-px bg-border" />
+							</>
+						)}
 						<Link
 							href={`${basePath || ""}/how-it-works`}
 							onClick={() => handleInternalLinkClick("how_it_works")}

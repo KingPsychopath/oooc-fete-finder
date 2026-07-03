@@ -1,4 +1,5 @@
 import { cleanupAuthVerifyRateLimits } from "@/features/security/rate-limiter";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -15,6 +16,12 @@ export async function GET(request: NextRequest) {
 		return NextResponse.json(
 			{ error: "Unauthorized" },
 			{ status: 401, headers: NO_STORE_HEADERS },
+		);
+	}
+	if (isArchiveModeEnabled()) {
+		return NextResponse.json(
+			{ ok: true, skipped: true, archiveMode: true },
+			{ headers: NO_STORE_HEADERS },
 		);
 	}
 

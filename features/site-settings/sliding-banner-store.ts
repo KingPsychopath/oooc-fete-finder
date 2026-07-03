@@ -148,6 +148,17 @@ export class SlidingBannerStore {
 		return toPublicSettings(this.getDefaultSettings());
 	}
 
+	static getPublicSettingsFromValue(
+		value: unknown,
+	): SlidingBannerPublicSettings {
+		return toPublicSettings(
+			normalizeSettings(
+				value as Partial<SlidingBannerSettings> | null | undefined,
+				FALLBACK_SETTINGS,
+			),
+		);
+	}
+
 	static async getSettings(): Promise<SlidingBannerSettings> {
 		return this.readSettings();
 	}

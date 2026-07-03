@@ -151,6 +151,15 @@ export class SearchChipSettingsStore {
 		return toPublicSettings(this.getDefaultSettings());
 	}
 
+	static getPublicSettingsFromValue(value: unknown): SearchChipPublicSettings {
+		return toPublicSettings(
+			normalizeSettings(
+				value as Partial<SearchChipSettings> | null | undefined,
+				FALLBACK_SETTINGS,
+			),
+		);
+	}
+
 	static async getSettings(): Promise<SearchChipSettings> {
 		return this.readSettings();
 	}

@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "exportedAt": "2026-06-26T11:14:44.878Z",
+  "aliases": [
+    {
+      "pathSlug": "fete",
+      "publishedPlanId": "13afa868-f50b-4194-8207-f7eb4315903b",
+      "targetVersionId": "f21f6491-e478-4a57-8104-3f040110c242",
+      "canonicalSlug": "fete",
+      "status": "active",
+      "redirectToSlug": null,
+      "createdAt": "2026-06-21T10:00:53.293Z",
+      "updatedAt": "2026-06-21T10:00:53.293Z"
+    },
+    {
+      "pathSlug": "fete-2026",
+      "publishedPlanId": "13afa868-f50b-4194-8207-f7eb4315903b",
+      "targetVersionId": "f21f6491-e478-4a57-8104-3f040110c242",
+      "canonicalSlug": "fete-2026",
+      "status": "active",
+      "redirectToSlug": null,
+      "createdAt": "2026-06-21T10:00:53.293Z",
+      "updatedAt": "2026-06-21T10:00:53.293Z"
+    }
+  ],
+  "resolutions": [
+    {
+      "plan": {
+        "id": "13afa868-f50b-4194-8207-f7eb4315903b",
+        "title": "OOOC’s route for Fête",
+        "kind": "official_plan",
+        "status": "active",
+        "activeVersionId": "f21f6491-e478-4a57-8104-3f040110c242",
+        "sourcePlanId": null,
+        "sourceShareToken": null,
+        "createdBy": null,
+        "updatedBy": null,
+        "createdAt": "2026-06-21T10:00:53.293Z",
+        "updatedAt": "2026-06-21T10:00:53.293Z"
+      },
+      "version": {
+        "id": "f21f6491-e478-4a57-8104-3f040110c242",
+        "publishedPlanId": "13afa868-f50b-4194-8207-f7eb4315903b",
+        "versionNumber": 1,
+        "title": "OOOC’s route for Fête",
+        "description": "A handmade Fête day route you can edit, save, or open in maps.",
+        "planDate": "2026-06-21",
+        "stops": [
+          {
+            "eventKey": "evt_0993c43c493b5559",
+            "stopOrder": 1,
+            "locked": true,
+            "arrivalTime": "14:50",
+            "departureTime": "00:00",
+            "travelMinutesFromPrevious": null
+          },
+          {
+            "eventKey": "evt_4bb1fc78f90aa0d8",
+            "stopOrder": 2,
+            "locked": true,
+            "arrivalTime": "16:20",
+            "departureTime": "23:59",
+            "travelMinutesFromPrevious": 12
+          },
+          {
+            "eventKey": "evt_7a28b9642d83d9e0",
+            "stopOrder": 3,
+            "locked": true,
+            "arrivalTime": "18:00",
+            "departureTime": "00:00",
+            "travelMinutesFromPrevious": 15
+          },
+          {
+            "eventKey": "evt_93aadde8b0bb9448",
+            "stopOrder": 4,
+            "locked": true,
+            "arrivalTime": "18:45",
+            "departureTime": "00:00",
+            "travelMinutesFromPrevious": 9
+          },
+          {
+            "eventKey": "evt_459743fc0bd9a00b",
+            "stopOrder": 5,
+            "locked": true,
+            "arrivalTime": "19:10",
+            "departureTime": "00:00",
+            "travelMinutesFromPrevious": 10
+          },
+          {
+            "eventKey": "evt_6c2084d91103892a",
+            "stopOrder": 6,
+            "locked": true,
+            "arrivalTime": "21:20",
+            "departureTime": "00:30",
+            "travelMinutesFromPrevious": 22
+          },
+          {
+            "eventKey": "evt_8a1f0eadb6c4cbd0",
+            "stopOrder": 7,
+            "locked": true,
+            "arrivalTime": "22:10",
+            "departureTime": "00:30",
+            "travelMinutesFromPrevious": 8
+          }
+        ],
+        "sourcePlanUpdatedAt": "2026-06-21T09:06:38.909Z",
+        "publishedBy": null,
+        "publishedAt": "2026-06-21T10:00:53.293Z",
+        "archivedAt": "2026-06-21T10:00:53.293Z"
+      },
+      "alias": {
+        "pathSlug": "fete",
+        "publishedPlanId": "13afa868-f50b-4194-8207-f7eb4315903b",
+        "targetVersionId": "f21f6491-e478-4a57-8104-3f040110c242",
+        "canonicalSlug": "fete",
+        "status": "active",
+        "redirectToSlug": null,
+        "createdAt": "2026-06-21T10:00:53.293Z",
+        "updatedAt": "2026-06-21T10:00:53.293Z"
+      },
+      "canonicalSlug": "fete"
+    },
+    {
+      "plan": {
+        "id": "13afa868-f50b-4194-8207-f7eb4315903b",
+        "title": "OOOC’s route for Fête",
+        "kind": "official_plan",
+        "status": "active",
+        "activeVersionId": "f21f6491-e478-4a57-8104-3f040110c242",
+        "sourcePlanId": null,
+        "sourceShareToken": null,
+        "createdBy": null,
+        "updatedBy": null,
+        "createdAt": "2026-06-21T10:00:53.293Z",
+        "updatedAt": "2026-06-21T10:00:53.293Z"
+      },
+      "version": {
+        "id": "f21f6491-e478-4a57-8104-3f040110c242",
+        "publishedPlanId": "13afa868-f50b-4194-8207-f7eb4315903b",
+        "versionNumber": 1,
+        "title": "OOOC’s route for Fête",
+        "description": "A handmade Fête day route you can edit, save, or open in maps.",
+        "planDate": "2026-06-21",
+        "stops": [
+          {
+            "eventKey": "evt_0993c43c493b5559",
+            "stopOrder": 1,
+            "locked": true,
+            "arrivalTime": "14:50",
+            "departureTime": "00:00",
+            "travelMinutesFromPrevious": null
+          },
+          {
+            "eventKey": "evt_4bb1fc78f90aa0d8",
+            "stopOrder": 2,
+            "locked": true,
+            "arrivalTime": "16:20",
+            "departureTime": "23:59",
+            "travelMinutesFromPrevious": 12
+          },
+          {
+            "eventKey": "evt_7a28b9642d83d9e0",
+            "stopOrder": 3,
+            "locked": true,
+            "arrivalTime": "18:00",
+            "departureTime": "00:00",
+            "travelMinutesFromPrevious": 15
+          },
+          {
+            "eventKey": "evt_93aadde8b0bb9448",
+            "stopOrder": 4,
+            "locked": true,
+            "arrivalTime": "18:45",
+            "departureTime": "00:00",
+            "travelMinutesFromPrevious": 9
+          },
+          {
+            "eventKey": "evt_459743fc0bd9a00b",
+            "stopOrder": 5,
+            "locked": true,
+            "arrivalTime": "19:10",
+            "departureTime": "00:00",
+            "travelMinutesFromPrevious": 10
+          },
+          {
+            "eventKey": "evt_6c2084d91103892a",
+            "stopOrder": 6,
+            "locked": true,
+            "arrivalTime": "21:20",
+            "departureTime": "00:30",
+            "travelMinutesFromPrevious": 22
+          },
+          {
+            "eventKey": "evt_8a1f0eadb6c4cbd0",
+            "stopOrder": 7,
+            "locked": true,
+            "arrivalTime": "22:10",
+            "departureTime": "00:30",
+            "travelMinutesFromPrevious": 8
+          }
+        ],
+        "sourcePlanUpdatedAt": "2026-06-21T09:06:38.909Z",
+        "publishedBy": null,
+        "publishedAt": "2026-06-21T10:00:53.293Z",
+        "archivedAt": "2026-06-21T10:00:53.293Z"
+      },
+      "alias": {
+        "pathSlug": "fete-2026",
+        "publishedPlanId": "13afa868-f50b-4194-8207-f7eb4315903b",
+        "targetVersionId": "f21f6491-e478-4a57-8104-3f040110c242",
+        "canonicalSlug": "fete-2026",
+        "status": "active",
+        "redirectToSlug": null,
+        "createdAt": "2026-06-21T10:00:53.293Z",
+        "updatedAt": "2026-06-21T10:00:53.293Z"
+      },
+      "canonicalSlug": "fete-2026"
+    }
+  ]
+}

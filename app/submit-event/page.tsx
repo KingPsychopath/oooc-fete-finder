@@ -1,3 +1,4 @@
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { buildSiteUrl, getBasePath } from "@/lib/site-url";
 import {
 	generateOGMetadata,
@@ -23,6 +24,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default function SubmitEventPage() {
+	const archiveMode = isArchiveModeEnabled();
+
 	return (
 		<main
 			id="main-content"
@@ -49,18 +52,32 @@ export default function SubmitEventPage() {
 					different.
 				</p>
 				<div className="border-t border-border" role="presentation" />
-				<p className="text-xs text-muted-foreground">
-					Already listed and want extra visibility? Why are you here.{" "}
-					<Link
-						href={`${basePath}/feature-event`}
-						className="text-foreground underline underline-offset-4 transition-colors hover:text-foreground/80"
-					>
-						Promote yours here.
-					</Link>
-				</p>
-				<Suspense fallback={<SubmitEventFormSectionLoading />}>
-					<SubmitEventFormSection />
-				</Suspense>
+				{archiveMode ? (
+					<div className="rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground">
+						<p className="font-medium text-foreground">
+							Submissions are closed for the archive.
+						</p>
+						<p className="mt-2 leading-relaxed">
+							Fête Finder is serving the frozen public archive, so new listings
+							and event edits are not being accepted here right now.
+						</p>
+					</div>
+				) : (
+					<>
+						<p className="text-xs text-muted-foreground">
+							Already listed and want extra visibility? Why are you here.{" "}
+							<Link
+								href={`${basePath}/feature-event`}
+								className="text-foreground underline underline-offset-4 transition-colors hover:text-foreground/80"
+							>
+								Promote yours here.
+							</Link>
+						</p>
+						<Suspense fallback={<SubmitEventFormSectionLoading />}>
+							<SubmitEventFormSection />
+						</Suspense>
+					</>
+				)}
 			</section>
 		</main>
 	);

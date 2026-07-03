@@ -5,6 +5,7 @@ import {
 	getUserAuthCookieOptions,
 } from "@/features/auth/user-session-cookie";
 import { getUserActionPolicyDecision } from "@/features/users/policy";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	forbiddenNoStoreResponse,
@@ -15,6 +16,27 @@ import { getUserRepository } from "@/lib/platform/postgres/user-repository";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
+	if (isArchiveModeEnabled()) {
+		const response = NextResponse.json(
+			{
+				success: true,
+				isAuthenticated: false,
+				isAdminAuthenticated: false,
+				email: null,
+				userId: null,
+				archiveMode: true,
+			},
+			{
+				headers: NO_STORE_HEADERS,
+			},
+		);
+		response.cookies.set(USER_AUTH_COOKIE_NAME, "", {
+			...getUserAuthCookieOptions(),
+			maxAge: 0,
+		});
+		return response;
+	}
+
 	const [session, adminSession] = await Promise.all([
 		getCanonicalUserSessionFromCookieHeader(
 			request.cookies.get(USER_AUTH_COOKIE_NAME)?.value,

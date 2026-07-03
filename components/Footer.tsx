@@ -3,6 +3,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { legalEntityName } from "@/lib/legal";
 import { Croissant, ExternalLink, Globe } from "lucide-react";
 import Link from "next/link";
@@ -74,6 +75,8 @@ const socialLinks = [
 ] as const;
 
 const Footer = () => {
+	const archiveMode = isArchiveModeEnabled();
+
 	return (
 		<footer className="relative overflow-hidden border-t border-border/35 bg-card/36 pb-[calc(var(--oooc-mobile-nav-clearance,5.75rem)+env(safe-area-inset-bottom))] backdrop-blur-[2px] lg:pb-0 dark:border-[#f0b668]/18 dark:bg-transparent">
 			<div
@@ -129,24 +132,28 @@ const Footer = () => {
 							>
 								How it works
 							</Link>
-							<Link
-								href="/submit-event"
-								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-							>
-								Submit your event
-							</Link>
+							{archiveMode ? null : (
+								<Link
+									href="/submit-event"
+									className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+								>
+									Submit your event
+								</Link>
+							)}
 							<Link
 								href="/exchange"
 								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
 							>
 								Ticket Exchange
 							</Link>
-							<Link
-								href="/feature-event"
-								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-							>
-								Promote
-							</Link>
+							{archiveMode ? null : (
+								<Link
+									href="/feature-event"
+									className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+								>
+									Promote
+								</Link>
+							)}
 							<Link
 								href="/privacy"
 								className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"

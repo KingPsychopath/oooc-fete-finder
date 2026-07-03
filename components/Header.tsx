@@ -12,6 +12,7 @@ import Countdown from "@/features/events/components/Countdown";
 import { trackNavigationClick } from "@/features/events/engagement/client-tracking";
 import { getDefaultSlidingBannerMessages } from "@/features/site-settings/default-sliding-banner-messages";
 import type { SlidingBannerPublicSettings } from "@/features/site-settings/types";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 // Note: Using process.env directly to avoid server-side env variable access on client
 import { LogOut, Route, Ticket, UserRoundPlus } from "lucide-react";
 import Image from "next/image";
@@ -78,6 +79,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 			? normalizedPathname.slice(basePath.length) || "/"
 			: normalizedPathname;
 	const isHomePage = pathWithoutBasePath === "/";
+	const archiveMode = isArchiveModeEnabled();
 	const isPromotePage =
 		pathWithoutBasePath === "/feature-event" ||
 		pathWithoutBasePath.startsWith("/feature-event/") ||
@@ -267,15 +269,17 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 								<Route className="h-3.5 w-3.5" />
 								Plans
 							</Link>
-							<Link
-								href={`${basePath || ""}/feature-event`}
-								onClick={() => trackHeaderNav("feature_event")}
-								className={`whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
-									isPromotePage ? "text-foreground" : "text-foreground/75"
-								}`}
-							>
-								Promote
-							</Link>
+							{archiveMode ? null : (
+								<Link
+									href={`${basePath || ""}/feature-event`}
+									onClick={() => trackHeaderNav("feature_event")}
+									className={`whitespace-nowrap text-sm tracking-wide underline-offset-4 transition-colors hover:text-foreground hover:underline ${
+										isPromotePage ? "text-foreground" : "text-foreground/75"
+									}`}
+								>
+									Promote
+								</Link>
+							)}
 							{EXTERNAL_NAV_LINKS.map((link) => (
 								<Link
 									key={link.href}
@@ -300,7 +304,9 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 							</div>
 
 							<QuickActionsDropdown
-								isAdminAuthenticated={isAdminAuthenticated}
+								isAdminAuthenticated={
+									archiveMode ? false : isAdminAuthenticated
+								}
 								basePath={basePath}
 								onMusicSelect={() => setIsMusicModalOpen(true)}
 								onSettingsOpen={() => setIsSettingsOpen(true)}
@@ -313,7 +319,7 @@ const Header = ({ bannerSettings = DEFAULT_BANNER_SETTINGS }: HeaderProps) => {
 									className="h-9 w-9 rounded-full border border-border/80 bg-background/70 hover:bg-accent"
 								/>
 							</div>
-							{isAuthenticated && isAuthResolved ? (
+							{archiveMode ? null : isAuthenticated && isAuthResolved ? (
 								<Button
 									variant="ghost"
 									size="sm"

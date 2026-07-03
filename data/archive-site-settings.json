@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "exportedAt": "2026-06-26T11:14:44.878Z",
+  "values": {
+    "events:submissions:settings:v1": {
+      "updatedAt": "2026-04-21T19:07:04.621Z",
+      "value": {
+        "version": 1,
+        "enabled": true,
+        "updatedAt": "2026-04-21T19:07:04.580Z",
+        "updatedBy": "admin-panel"
+      }
+    },
+    "ui:search-chips:v1": {
+      "updatedAt": "2026-05-08T16:23:56.861Z",
+      "value": {
+        "version": 1,
+        "dynamicChipsEnabled": true,
+        "maxDynamicChips": 4,
+        "updatedAt": "2026-05-08T16:23:56.550Z",
+        "updatedBy": "admin-panel"
+      }
+    },
+    "ui:sliding-banner:v1": {
+      "updatedAt": "2026-04-24T13:42:20.393Z",
+      "value": {
+        "version": 1,
+        "enabled": true,
+        "messages": [
+          "Curated by Out Of Office Collective",
+          "Paris summer rhythm, mapped live",
+          "Tap essentials for playlist, food and toilets"
+        ],
+        "messageDurationMs": 4200,
+        "desktopMessageCount": 2,
+        "updatedAt": "2026-04-24T13:42:20.354Z",
+        "updatedBy": "admin-panel"
+      }
+    }
+  }
+}

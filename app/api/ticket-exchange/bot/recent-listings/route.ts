@@ -1,14 +1,15 @@
+import { formatDayWithDate } from "@/features/events/types";
 import {
 	isAuthorizedTicketExchangeBotRequest,
 	parseTicketExchangeBotLimit,
 } from "@/features/ticket-exchange/bot-auth";
-import { formatDayWithDate } from "@/features/events/types";
 import { getTicketExchangeRepository } from "@/features/ticket-exchange/repository";
 import {
 	findTicketExchangeEventByKey,
 	getTicketExchangeEvents,
 } from "@/features/ticket-exchange/service";
 import { buildTicketExchangeEventPath } from "@/features/ticket-exchange/urls";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -26,6 +27,12 @@ export async function GET(request: NextRequest) {
 		return NextResponse.json(
 			{ success: false, error: "Forbidden" },
 			{ status: 403, headers: NO_STORE_HEADERS },
+		);
+	}
+	if (isArchiveModeEnabled()) {
+		return NextResponse.json(
+			{ success: true, archiveMode: true, listings: [] },
+			{ headers: NO_STORE_HEADERS },
 		);
 	}
 	const repository = getTicketExchangeRepository();

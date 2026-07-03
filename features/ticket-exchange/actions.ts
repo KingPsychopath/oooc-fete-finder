@@ -1,5 +1,8 @@
 "use server";
 
+import { recordAdminActivity } from "@/features/admin/activity/record";
+import { assertUserActionAllowed } from "@/features/users/policy";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getTicketExchangeSession } from "./auth";
@@ -13,8 +16,6 @@ import { sendTicketExchangeInterestEmail } from "./email";
 import { parseTicketExchangePriceLabel } from "./pricing";
 import { getTicketExchangeReportReasonLabel } from "./reporting";
 import { getTicketExchangeRepository } from "./repository";
-import { assertUserActionAllowed } from "@/features/users/policy";
-import { recordAdminActivity } from "@/features/admin/activity/record";
 import {
 	findTicketExchangeEventByKey,
 	getTicketExchangeEvents,
@@ -60,6 +61,11 @@ const contactMethodSchema = z.enum(TICKET_EXCHANGE_CONTACT_METHODS);
 const reportReasonSchema = z.enum(TICKET_EXCHANGE_REPORT_REASONS);
 
 const getAuthenticatedContext = async () => {
+	if (isArchiveModeEnabled()) {
+		throw new Error(
+			"Ticket Exchange is running as a local demo in archive mode.",
+		);
+	}
 	const session = await getTicketExchangeSession();
 	if (!session.isAuthenticated || !session.userId || !session.email) {
 		throw new Error("Login is required to use Ticket Exchange.");

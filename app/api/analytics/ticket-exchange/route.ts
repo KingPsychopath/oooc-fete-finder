@@ -4,14 +4,15 @@ import {
 	getCanonicalUserSessionFromCookieHeader,
 } from "@/features/auth/user-session-cookie";
 import {
-	TICKET_EXCHANGE_ANALYTICS_ACTIONS,
-	TICKET_EXCHANGE_ANALYTICS_SURFACES,
-} from "@/features/ticket-exchange/analytics-events";
-import {
 	checkTrackDiscoveryIpLimit,
 	checkTrackDiscoverySessionLimit,
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
+import {
+	TICKET_EXCHANGE_ANALYTICS_ACTIONS,
+	TICKET_EXCHANGE_ANALYTICS_SURFACES,
+} from "@/features/ticket-exchange/analytics-events";
+import { isFirstPartyAnalyticsEnabled } from "@/lib/archive-mode";
 import {
 	TRACKING_JSON_BODY_LIMIT_BYTES,
 	acceptedNoStoreResponse,
@@ -83,6 +84,9 @@ const isExchangePath = (path: string | undefined): boolean => {
 };
 
 export async function POST(request: Request) {
+	if (!isFirstPartyAnalyticsEnabled()) {
+		return accepted();
+	}
 	if (!isSameOriginRequest(request)) {
 		return accepted();
 	}

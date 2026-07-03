@@ -1,5 +1,17 @@
 # Environment Variables
 
+## Archive Mode
+
+- `ARCHIVE_MODE`: Server-side archive switch. Defaults to `false`. When `true`,
+  event reads are forced to the bundled CSV and database-backed writes are
+  disabled or accepted as no-ops.
+- `NEXT_PUBLIC_ARCHIVE_MODE`: Client-side archive switch. Defaults to `false`.
+  Must match `ARCHIVE_MODE` for a production archive deploy.
+- `NEXT_PUBLIC_ANALYTICS_ENABLED`: Client/server switch for first-party
+  analytics. Defaults to `true`; set `false` with archive mode.
+- `NEXT_TELEMETRY_DISABLED`: Set to `1` in production to disable Next.js
+  telemetry.
+
 Validation schema for core runtime variables: `lib/config/env.ts`.
 Some optional diagnostics and maintenance-script variables are read directly from
 `process.env` and are still listed here and in `.env.example`.

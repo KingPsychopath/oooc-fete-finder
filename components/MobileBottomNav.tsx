@@ -20,6 +20,7 @@ import { requestFeteFinderTour } from "@/features/events/tour-events";
 import { COMMUNITY_INVITE_CONFIG } from "@/features/social/config";
 import { useAppHaptics } from "@/hooks/useAppHaptics";
 import { useLocalAppSettings } from "@/hooks/useLocalAppSettings";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { LAYERS } from "@/lib/ui/layers";
 import { OVERLAY_BODY_ATTRIBUTE } from "@/lib/ui/overlay-state";
 import { cn } from "@/lib/utils";
@@ -311,6 +312,7 @@ export function MobileBottomNav() {
 		refreshSession,
 	} = useOptionalAuth();
 	const { settings: localAppSettings } = useLocalAppSettings();
+	const archiveMode = isArchiveModeEnabled();
 	const [activeSection, setActiveSection] = useState<NavKey | null>(null);
 	const [isPinned, setIsPinned] = useState(false);
 	const [isMoreOpen, setIsMoreOpen] = useState(false);
@@ -946,7 +948,8 @@ export function MobileBottomNav() {
 		moreItemClassName,
 		"grid min-h-11 grid-cols-[1.75rem_1fr_auto] items-center gap-2",
 	);
-	const hasAccountItems = isAdminAuthenticated || isAuthenticated || isOnline;
+	const hasAccountItems =
+		archiveMode || isAdminAuthenticated || isAuthenticated || isOnline;
 
 	return (
 		<>
@@ -1044,35 +1047,39 @@ export function MobileBottomNav() {
 										</span>
 										<span>How it works</span>
 									</Link>
-									<Link
-										href={`${basePath || ""}/feature-event`}
-										onClick={() => handleMoreLinkClick("feature_event")}
-										className={moreInternalItemClassName}
-									>
-										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
-											<Megaphone className="h-3.5 w-3.5" />
-										</span>
-										<span>Promote</span>
-									</Link>
-									<Link
-										href={`${basePath || ""}/submit-event`}
-										onClick={() => handleMoreLinkClick("submit_event")}
-										className={moreInternalItemClassName}
-									>
-										<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
-											<PlusCircle className="h-3.5 w-3.5" />
-										</span>
-										<span>Submit event</span>
-									</Link>
+									{archiveMode ? null : (
+										<>
+											<Link
+												href={`${basePath || ""}/feature-event`}
+												onClick={() => handleMoreLinkClick("feature_event")}
+												className={moreInternalItemClassName}
+											>
+												<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+													<Megaphone className="h-3.5 w-3.5" />
+												</span>
+												<span>Promote</span>
+											</Link>
+											<Link
+												href={`${basePath || ""}/submit-event`}
+												onClick={() => handleMoreLinkClick("submit_event")}
+												className={moreInternalItemClassName}
+											>
+												<span className="flex size-7 items-center justify-center rounded-full bg-background/70 text-muted-foreground">
+													<PlusCircle className="h-3.5 w-3.5" />
+												</span>
+												<span>Submit event</span>
+											</Link>
+										</>
+									)}
 								</div>
 							</div>
 							{hasAccountItems && (
 								<div className="rounded-2xl border border-border/60 bg-background/36 p-2">
 									<p className="px-1 pb-1.5 text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-										Account
+										{archiveMode ? "Settings" : "Account"}
 									</p>
 									<div className="grid gap-0.5">
-										{isAdminAuthenticated && (
+										{!archiveMode && isAdminAuthenticated && (
 											<Link
 												href={`${basePath || ""}/admin`}
 												prefetch={false}
@@ -1085,7 +1092,7 @@ export function MobileBottomNav() {
 												<span>Admin</span>
 											</Link>
 										)}
-										{isAuthenticated ? (
+										{!archiveMode && isAuthenticated ? (
 											<button
 												type="button"
 												onClick={handleLogout}
@@ -1096,7 +1103,7 @@ export function MobileBottomNav() {
 												</span>
 												<span>Sign out</span>
 											</button>
-										) : (
+										) : !archiveMode ? (
 											isOnline && (
 												<button
 													type="button"
@@ -1109,7 +1116,7 @@ export function MobileBottomNav() {
 													<span>Login</span>
 												</button>
 											)
-										)}
+										) : null}
 										<button
 											type="button"
 											onClick={handleSettingsOpen}

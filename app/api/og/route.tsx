@@ -9,6 +9,7 @@ import {
 	formatLocationAreaLong,
 	formatPrice,
 } from "@/features/events/types";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
 import { log } from "@/lib/platform/logger";
 import {
@@ -234,6 +235,10 @@ const parseRateState = (raw: string | null): RateState | null => {
 };
 
 const isRateLimited = async (request: NextRequest): Promise<boolean> => {
+	if (isArchiveModeEnabled()) {
+		return false;
+	}
+
 	const ip = getClientIp(request);
 	const now = Date.now();
 	const key = `${RATE_LIMIT_KEY_PREFIX}${hashIp(ip)}`;

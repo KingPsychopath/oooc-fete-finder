@@ -8,6 +8,7 @@ import type {
 	TicketExchangeAnalyticsAction,
 	TicketExchangeAnalyticsSurface,
 } from "@/features/ticket-exchange/analytics-events";
+import { isFirstPartyAnalyticsEnabled } from "@/lib/archive-mode";
 
 const SESSION_STORAGE_KEY = "oooc:event-engagement-session";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
@@ -359,6 +360,7 @@ const scheduleRetryFlush = (name: QueueName) => {
 };
 
 const flushQueue = (name: QueueName, preferBeacon = false) => {
+	if (!isFirstPartyAnalyticsEnabled()) return;
 	if (typeof window === "undefined") return;
 	loadQueue(name);
 	if (!preferBeacon && isBrowserOffline()) {
@@ -392,6 +394,7 @@ const flushQueue = (name: QueueName, preferBeacon = false) => {
 };
 
 const enqueuePayload = (name: QueueName, payload: unknown) => {
+	if (!isFirstPartyAnalyticsEnabled()) return;
 	if (typeof window === "undefined") return;
 	loadQueue(name);
 	const queue = queues[name];

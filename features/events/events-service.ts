@@ -10,9 +10,14 @@ import "server-only";
 import { getLiveEvents } from "@/features/data-management/runtime-service";
 import { buildFeaturedStatusEvents } from "@/features/events/featured/service";
 import type { Event } from "@/features/events/types";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { log } from "@/lib/platform/logger";
 
 export async function getFeaturedStatusEvents(): Promise<Event[]> {
+	if (isArchiveModeEnabled()) {
+		return [];
+	}
+
 	try {
 		const result = await getLiveEvents({
 			includeFeaturedProjection: false,

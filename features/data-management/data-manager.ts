@@ -6,6 +6,7 @@
 
 import { DEFAULT_GENRE_TAXONOMY } from "@/features/events/genre-normalization";
 import { Event } from "@/features/events/types";
+import { getRuntimeDataMode, isArchiveModeEnabled } from "@/lib/archive-mode";
 import { env } from "@/lib/config/env";
 import { getEventStoreBackupRepository } from "@/lib/platform/postgres/event-store-backup-repository";
 import { loadGenreTaxonomySnapshot } from "@/lib/platform/postgres/music-genre-taxonomy-repository";
@@ -276,7 +277,9 @@ export class DataManager {
 	static async getEventsData(
 		options?: DataReadOptions,
 	): Promise<DataManagerResult> {
-		const configuredMode = env.DATA_MODE as ConfiguredDataMode;
+		const configuredMode = getRuntimeDataMode(
+			env.DATA_MODE as ConfiguredDataMode,
+		);
 
 		if (configuredMode === "test") {
 			return runTestMode();
@@ -284,7 +287,7 @@ export class DataManager {
 
 		const genreTaxonomy =
 			options?.genreTaxonomy ??
-			(process.env.NODE_ENV === "test"
+			(isArchiveModeEnabled() || process.env.NODE_ENV === "test"
 				? DEFAULT_GENRE_TAXONOMY
 				: await loadGenreTaxonomySnapshot());
 		const readOptions = {

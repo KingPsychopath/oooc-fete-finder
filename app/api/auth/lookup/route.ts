@@ -5,6 +5,7 @@ import {
 	checkAuthLookupIpLimit,
 	extractClientIpFromHeaders,
 } from "@/features/security/rate-limiter";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	DEFAULT_JSON_BODY_LIMIT_BYTES,
@@ -95,6 +96,17 @@ const logLimiterUnavailable = (decision: RateLimitDecision): void => {
 export async function POST(request: Request) {
 	if (!isSameOriginRequest(request)) {
 		return forbiddenNoStoreResponse();
+	}
+	if (isArchiveModeEnabled()) {
+		return NextResponse.json(
+			{
+				success: false,
+				error:
+					"Account login is disabled while Fête Finder is in archive mode.",
+				archiveMode: true,
+			},
+			{ status: 503, headers: NO_STORE_HEADERS },
+		);
 	}
 	if (!isJsonContentType(request)) {
 		return NextResponse.json(

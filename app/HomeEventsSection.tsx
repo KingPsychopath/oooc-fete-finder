@@ -11,6 +11,7 @@ import { buildDynamicSearchChips } from "@/features/events/search-chips";
 import { EventSubmissionSettingsStore } from "@/features/events/submissions/settings-store";
 import type { MapLoadStrategy } from "@/features/maps/components/events-map-card";
 import { getTicketExchangeSummariesForEvents } from "@/features/ticket-exchange/service";
+import { getRuntimeDataMode } from "@/lib/archive-mode";
 import { env } from "@/lib/config/env";
 import { log } from "@/lib/platform/logger";
 
@@ -61,7 +62,7 @@ export async function HomeEventsSection({
 		});
 	});
 	const defaultDateRange = getDefaultDateRangeForEvents(homepageEvents);
-	const isRemoteMode = env.DATA_MODE === "remote";
+	const isRemoteMode = getRuntimeDataMode(env.DATA_MODE) === "remote";
 	const isBackupFallback = isRemoteMode && result.source === "backup";
 	const isLocalFallback = isRemoteMode && result.source === "local";
 	const dynamicSearchChips =

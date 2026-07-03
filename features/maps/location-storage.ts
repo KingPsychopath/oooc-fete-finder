@@ -1,4 +1,6 @@
 import type { EventLocation } from "@/features/events/types";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
+import { getArchiveLocationPayload } from "@/lib/archive-static-data";
 import { getKVStore } from "@/lib/platform/kv/kv-store-factory";
 import { log } from "@/lib/platform/logger";
 
@@ -27,6 +29,17 @@ export class LocationStorage {
 	 * Load all stored locations from KV
 	 */
 	static async load(): Promise<Map<string, EventLocation>> {
+		if (isArchiveModeEnabled()) {
+			const data = getArchiveLocationPayload();
+			if (data.version !== STORAGE_CONFIG.version) {
+				log.warn("maps.storage", "Archive location version mismatch", {
+					expected: STORAGE_CONFIG.version,
+					found: data.version,
+				});
+			}
+			return new Map(Object.entries(data.locations));
+		}
+
 		try {
 			const store = await getKVStore();
 			const content = await store.get(STORAGE_CONFIG.storageKey);
@@ -67,6 +80,17 @@ export class LocationStorage {
 	 * Save all locations to KV
 	 */
 	static async save(locations: Map<string, EventLocation>): Promise<void> {
+		if (isArchiveModeEnabled()) {
+			log.warn(
+				"maps.storage",
+				"Skipped location storage save in archive mode",
+				{
+					count: locations.size,
+				},
+			);
+			return;
+		}
+
 		try {
 			const store = await getKVStore();
 			const data: StoragePayloadData = {
@@ -90,6 +114,14 @@ export class LocationStorage {
 	 * Clear all stored locations
 	 */
 	static async clear(): Promise<void> {
+		if (isArchiveModeEnabled()) {
+			log.warn(
+				"maps.storage",
+				"Skipped location storage clear in archive mode",
+			);
+			return;
+		}
+
 		const store = await getKVStore();
 		await store.delete(STORAGE_CONFIG.storageKey);
 	}

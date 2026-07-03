@@ -8,6 +8,7 @@ import {
 	getUserActionPolicyDecision,
 	getUserRestrictionMessage,
 } from "@/features/users/policy";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import {
 	DEFAULT_JSON_BODY_LIMIT_BYTES,
@@ -77,7 +78,11 @@ const parseCookieByName = (
 
 const getUserPlanIdentity = async (
 	request: Request,
-): Promise<{ userId: string; email: string | null; ownerKey: string } | null> => {
+): Promise<{
+	userId: string;
+	email: string | null;
+	ownerKey: string;
+} | null> => {
 	const cookieHeader = request.headers.get("cookie");
 	const userCookie = parseCookieByName(cookieHeader, USER_AUTH_COOKIE_NAME);
 	const userSession = await getCanonicalUserSessionFromCookieHeader(userCookie);
@@ -89,7 +94,25 @@ const getUserPlanIdentity = async (
 	};
 };
 
+const archivePlanSyncResponse = (): NextResponse =>
+	NextResponse.json(
+		{
+			success: false,
+			error:
+				"Plan account sync is disabled in archive mode. Routes are saved locally on this device.",
+			archiveMode: true,
+		},
+		{ status: 409, headers: NO_STORE_HEADERS },
+	);
+
 export async function GET(request: Request) {
+	if (isArchiveModeEnabled()) {
+		return NextResponse.json(
+			{ success: true, plans: [], archiveMode: true },
+			{ headers: NO_STORE_HEADERS },
+		);
+	}
+
 	const repository = getUserPlanRepository();
 	const identity = await getUserPlanIdentity(request);
 	if (!repository || !identity) {
@@ -117,6 +140,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+	if (isArchiveModeEnabled()) {
+		return archivePlanSyncResponse();
+	}
+
 	if (
 		!isSameOriginRequest(request) ||
 		!isJsonContentType(request) ||
@@ -216,6 +243,10 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+	if (isArchiveModeEnabled()) {
+		return archivePlanSyncResponse();
+	}
+
 	if (
 		!isSameOriginRequest(request) ||
 		!isJsonContentType(request) ||

@@ -1,5 +1,7 @@
 "use client";
 
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
+
 export type ClientAuthMode = "signed-out" | "live" | "offline-grace";
 export type ClientSyncMode = "live-sync" | "local-only" | "offline-grace";
 export type PendingSyncStatus = "idle" | "offline" | "retrying";
@@ -15,6 +17,7 @@ export function getClientSyncMode({
 	isAuthenticated,
 	isOnline,
 }: ClientSyncModeInput): ClientSyncMode {
+	if (isArchiveModeEnabled()) return "local-only";
 	if (isAuthenticated && authMode === "live" && isOnline) return "live-sync";
 	if (isAuthenticated && authMode === "offline-grace") return "offline-grace";
 	return "local-only";

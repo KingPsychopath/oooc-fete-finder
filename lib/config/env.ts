@@ -136,6 +136,7 @@ export const env = createEnv({
 		DATABASE_URL: z.string().optional(),
 		POSTGRES_POOL_MAX: z.string().optional(),
 		DATA_MODE: z.enum(["remote", "local", "test"]).default("remote"),
+		ARCHIVE_MODE: z.enum(["true", "false"]).default("false"),
 		ADMIN_RESET_PASSCODE: z.string().optional(),
 
 		// Google configuration
@@ -168,6 +169,8 @@ export const env = createEnv({
 	client: {
 		NEXT_PUBLIC_BASE_PATH: z.string().default(""),
 		NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
+		NEXT_PUBLIC_ARCHIVE_MODE: z.enum(["true", "false"]).default("false"),
+		NEXT_PUBLIC_ANALYTICS_ENABLED: z.enum(["true", "false"]).default("true"),
 		NEXT_PUBLIC_WHATSAPP_URL: z.string().url().optional(),
 		NEXT_PUBLIC_SPOTIFY_PLAYLIST_URL: z.string().url().optional(),
 		NEXT_PUBLIC_APPLE_MUSIC_PLAYLIST_URL: z.string().url().optional(),
@@ -205,6 +208,7 @@ export const env = createEnv({
 		DATABASE_URL: process.env.DATABASE_URL,
 		POSTGRES_POOL_MAX: process.env.POSTGRES_POOL_MAX,
 		DATA_MODE: process.env.DATA_MODE,
+		ARCHIVE_MODE: process.env.ARCHIVE_MODE,
 		ADMIN_RESET_PASSCODE: process.env.ADMIN_RESET_PASSCODE,
 
 		// Google configuration
@@ -237,6 +241,8 @@ export const env = createEnv({
 		// Client
 		NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH,
 		NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+		NEXT_PUBLIC_ARCHIVE_MODE: process.env.NEXT_PUBLIC_ARCHIVE_MODE,
+		NEXT_PUBLIC_ANALYTICS_ENABLED: process.env.NEXT_PUBLIC_ANALYTICS_ENABLED,
 		NEXT_PUBLIC_WHATSAPP_URL: process.env.NEXT_PUBLIC_WHATSAPP_URL,
 		NEXT_PUBLIC_SPOTIFY_PLAYLIST_URL:
 			process.env.NEXT_PUBLIC_SPOTIFY_PLAYLIST_URL,

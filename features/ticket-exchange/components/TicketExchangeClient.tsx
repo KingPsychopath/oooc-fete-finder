@@ -44,6 +44,7 @@ import type {
 	TicketExchangeContactMethod,
 	TicketExchangeContactProfile,
 	TicketExchangeContactSnapshot,
+	TicketExchangeInterestView,
 	TicketExchangeListingStatus,
 	TicketExchangeListingType,
 	TicketExchangeListingView,
@@ -160,6 +161,9 @@ const TICKET_EXCHANGE_TIMEOUT_RESULT = {
 		"This is taking longer than expected. Check your connection and try again.",
 } satisfies TicketExchangeActionResult;
 const TICKET_EXCHANGE_AGREEMENT_STORAGE_KEY = `oooc_ticket_exchange_agreement_${TICKET_EXCHANGE_RULES_VERSION}`;
+const TICKET_EXCHANGE_DEMO_STORAGE_KEY = "oooc:ticket-exchange-demo:v1";
+const TICKET_EXCHANGE_DEMO_USER_ID = "demo-user";
+const TICKET_EXCHANGE_DEMO_EMAIL = "demo@example.com";
 const CONTROL_TRANSITION =
 	"transition-[background-color,border-color,color,box-shadow,transform] duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] active:scale-[0.98]";
 const TICKET_EXCHANGE_SQUIRCLE_BUTTON_CLASS = "rounded-xl";
@@ -175,6 +179,10 @@ type TicketExchangeExampleListing = {
 	quantityLabel: string;
 	priceLabel: string;
 	note: string;
+};
+type TicketExchangeDemoState = {
+	profile: TicketExchangeContactProfile | null;
+	listings: TicketExchangeListingView[];
 };
 const TICKET_EXCHANGE_EXAMPLE_LISTINGS = [
 	{
@@ -529,6 +537,143 @@ const withTicketExchangeTimeout = async (
 	}
 };
 
+const createDemoId = (prefix: string): string =>
+	`${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const readTicketExchangeDemoState = (): TicketExchangeDemoState | null => {
+	if (typeof window === "undefined") return null;
+	try {
+		const raw = window.localStorage.getItem(TICKET_EXCHANGE_DEMO_STORAGE_KEY);
+		if (!raw) return null;
+		const parsed = JSON.parse(raw) as Partial<TicketExchangeDemoState>;
+		return {
+			profile: parsed.profile ?? null,
+			listings: Array.isArray(parsed.listings) ? parsed.listings : [],
+		};
+	} catch {
+		window.localStorage.removeItem(TICKET_EXCHANGE_DEMO_STORAGE_KEY);
+		return null;
+	}
+};
+
+const writeTicketExchangeDemoState = (data: TicketExchangePageData): void => {
+	if (typeof window === "undefined" || data.mode !== "demo") return;
+	window.localStorage.setItem(
+		TICKET_EXCHANGE_DEMO_STORAGE_KEY,
+		JSON.stringify({
+			profile: data.profile,
+			listings: data.listings,
+		} satisfies TicketExchangeDemoState),
+	);
+};
+
+const buildDemoSummaries = (
+	events: Event[],
+	listings: TicketExchangeListingView[],
+): TicketExchangeSummary[] => {
+	const summaryByEventKey = new Map<string, TicketExchangeSummary>();
+	for (const event of events) {
+		summaryByEventKey.set(event.eventKey, {
+			eventKey: event.eventKey,
+			sellingCount: 0,
+			lookingCount: 0,
+			latestListingAt: null,
+		});
+	}
+	for (const listing of listings) {
+		if (listing.effectiveStatus !== "active") continue;
+		const summary = summaryByEventKey.get(listing.eventKey);
+		if (!summary) continue;
+		if (listing.listingType === "selling") summary.sellingCount += 1;
+		if (listing.listingType === "looking") summary.lookingCount += 1;
+		if (
+			!summary.latestListingAt ||
+			listing.createdAt > summary.latestListingAt
+		) {
+			summary.latestListingAt = listing.createdAt;
+		}
+	}
+	return events.map(
+		(event) =>
+			summaryByEventKey.get(event.eventKey) ?? {
+				eventKey: event.eventKey,
+				sellingCount: 0,
+				lookingCount: 0,
+				latestListingAt: null,
+			},
+	);
+};
+
+const withDemoDerivedData = (
+	data: TicketExchangePageData,
+	state: Partial<TicketExchangeDemoState>,
+): TicketExchangePageData => {
+	const eventKeys = new Set(data.events.map((event) => event.eventKey));
+	const listings =
+		state.listings
+			?.filter((listing) => eventKeys.has(listing.eventKey))
+			.map((listing) => ({
+				...listing,
+				isOwner: listing.ownerUserId === TICKET_EXCHANGE_DEMO_USER_ID,
+			})) ?? data.listings;
+	return {
+		...data,
+		profile: state.profile ?? data.profile,
+		listings,
+		summaries: buildDemoSummaries(data.events, listings),
+		isAuthenticated: true,
+		userEmail: TICKET_EXCHANGE_DEMO_EMAIL,
+		userId: TICKET_EXCHANGE_DEMO_USER_ID,
+		supported: true,
+		emailEnabled: false,
+		examplesEnabled: false,
+		mode: "demo",
+	};
+};
+
+const buildDemoContactSnapshot = (
+	profile: TicketExchangeContactProfile,
+): TicketExchangeContactSnapshot => ({
+	displayName: profile.displayName,
+	email: profile.alternateEmail || profile.accountEmail,
+	whatsapp: profile.whatsappNumber,
+	instagram: profile.instagramHandle,
+	x: profile.xHandle,
+});
+
+const buildDemoListingOwnerContact = (
+	listing: TicketExchangeListingView,
+): TicketExchangeContactSnapshot => ({
+	displayName: listing.listingType === "selling" ? "Demo Seller" : "Demo Buyer",
+	email: listing.ownerEmail || "exchange@example.com",
+	whatsapp: "",
+	instagram: listing.listingType === "selling" ? "ooocdemo_seller" : "",
+	x: listing.listingType === "looking" ? "ooocdemo_buyer" : "",
+});
+
+const buildDemoProfile = (
+	current: TicketExchangeContactProfile | null,
+	form: ProfileFormState,
+	acceptRules: boolean,
+): TicketExchangeContactProfile => {
+	const now = new Date().toISOString();
+	return {
+		userId: TICKET_EXCHANGE_DEMO_USER_ID,
+		accountEmail: TICKET_EXCHANGE_DEMO_EMAIL,
+		displayName: validateTicketExchangeDisplayName(form.displayName),
+		alternateEmail: normalizeOptionalEmail(form.alternateEmail),
+		whatsappNumber: normalizeWhatsAppNumber(form.whatsappNumber),
+		instagramHandle: normalizeInstagramHandle(form.instagramHandle),
+		xHandle: normalizeXHandle(form.xHandle),
+		rulesAcceptedAt: acceptRules ? now : (current?.rulesAcceptedAt ?? null),
+		rulesVersion: acceptRules
+			? TICKET_EXCHANGE_RULES_VERSION
+			: (current?.rulesVersion ?? null),
+		createdAt: current?.createdAt ?? now,
+		updatedAt: now,
+	};
+};
+
 const getPreferredMarketplaceTab = (
 	summaries: TicketExchangeSummary[],
 	selectedEventKey: string | null,
@@ -650,6 +795,19 @@ export function TicketExchangeClient({
 		useState<TicketExchangeEventModalIslandComponent | null>(null);
 	const [isEventUpdateOpen, setIsEventUpdateOpen] = useState(false);
 	const hasUserSelectedTabRef = useRef(false);
+	const isDemoMode = data.mode === "demo";
+	const exchangeAuthenticated =
+		isDemoMode || data.isAuthenticated || auth.isAuthenticated;
+
+	useEffect(() => {
+		if (initialData.mode !== "demo") return;
+		const stored = readTicketExchangeDemoState();
+		if (!stored) return;
+		const nextData = withDemoDerivedData(initialData, stored);
+		setData(nextData);
+		setSelectedEventKey(nextData.selectedEventKey);
+		setProfileForm(createProfileFormState(nextData.profile));
+	}, [initialData]);
 
 	useEffect(() => {
 		if (hasUserSelectedTabRef.current) return;
@@ -734,8 +892,7 @@ export function TicketExchangeClient({
 	);
 	const isContactReady =
 		draftContactMethodCount >= TICKET_EXCHANGE_REQUIRED_CONTACT_METHOD_COUNT;
-	const shouldShowContactReadiness =
-		data.isAuthenticated || auth.isAuthenticated;
+	const shouldShowContactReadiness = exchangeAuthenticated;
 	const draftProfile = useMemo(
 		() => createDraftContactProfile(data.profile, data.userEmail, profileForm),
 		[data.profile, data.userEmail, profileForm],
@@ -1071,6 +1228,97 @@ export function TicketExchangeClient({
 		setProfileErrors({});
 	};
 
+	const commitDemoState = (
+		state: Partial<TicketExchangeDemoState>,
+		success: string,
+	): TicketExchangePageData => {
+		const nextData = withDemoDerivedData(data, state);
+		writeTicketExchangeDemoState(nextData);
+		setData(nextData);
+		setSelectedEventKey(nextData.selectedEventKey);
+		setProfileForm(createProfileFormState(nextData.profile));
+		setProfileErrors({});
+		setErrorMessage(null);
+		setPendingMessage(success);
+		return nextData;
+	};
+
+	const saveDemoProfile = (
+		acceptRules: boolean,
+		success: string,
+	): TicketExchangeContactProfile => {
+		const profile = buildDemoProfile(data.profile, profileForm, acceptRules);
+		commitDemoState(
+			{
+				profile,
+				listings: data.listings,
+			},
+			success,
+		);
+		return profile;
+	};
+
+	const createDemoListing = (
+		form: ListingFormState,
+		profile: TicketExchangeContactProfile,
+	): TicketExchangeListingView => {
+		const event = eventByKey.get(form.eventKey);
+		if (!event) {
+			throw new Error("Choose a valid event.");
+		}
+		const quantityLabel = validateTicketExchangeQuantityLabel(
+			form.quantityLabel,
+		);
+		const priceLabel = validateTicketExchangePriceLabel(form.priceLabel);
+		const parsedPrice = parseTicketExchangePriceLabel(priceLabel);
+		const now = new Date();
+		const nowIso = now.toISOString();
+		const expiresAt = new Date(
+			now.getTime() + form.expiryHours * 60 * 60 * 1000,
+		).toISOString();
+		return {
+			id: createDemoId("demo-listing"),
+			eventKey: event.eventKey,
+			eventSlug: event.slug,
+			eventName: event.name,
+			listingType: form.listingType,
+			quantityLabel,
+			priceLabel,
+			priceAmountMinor: parsedPrice.amountMinor,
+			priceCurrency: parsedPrice.currency,
+			priceBasis: parsedPrice.basis,
+			priceSource: parsedPrice.isFaceValue ? "face_value" : "user",
+			note: validateTicketExchangeNote(form.note),
+			status: "active",
+			effectiveStatus: "active",
+			ownerUserId: TICKET_EXCHANGE_DEMO_USER_ID,
+			ownerEmail: TICKET_EXCHANGE_DEMO_EMAIL,
+			contactMethods: form.contactMethods,
+			contactSnapshot: buildDemoContactSnapshot(profile),
+			expiresAt,
+			createdAt: nowIso,
+			updatedAt: nowIso,
+			resolvedAt: null,
+			interestCount: 0,
+			isOwner: true,
+			myInterest: null,
+			interests: [],
+		};
+	};
+
+	const createDemoInterest = (
+		listing: TicketExchangeListingView,
+		profile: TicketExchangeContactProfile,
+	): TicketExchangeInterestView => ({
+		id: createDemoId("demo-interest"),
+		listingId: listing.id,
+		actorUserId: TICKET_EXCHANGE_DEMO_USER_ID,
+		actorEmail: TICKET_EXCHANGE_DEMO_EMAIL,
+		contactMethods: getDefaultContactMethods(profile),
+		contactSnapshot: buildDemoContactSnapshot(profile),
+		createdAt: new Date().toISOString(),
+	});
+
 	const clearProfileError = (field: keyof ProfileFormState): void => {
 		setProfileErrors((current) => {
 			if (!current[field]) return current;
@@ -1166,6 +1414,18 @@ export function TicketExchangeClient({
 				return null;
 			}
 			setPendingMessage("Saving contact details...");
+			if (isDemoMode) {
+				const profile = saveDemoProfile(
+					false,
+					"Contact details saved locally.",
+				);
+				trackTicketExchangeAnalytics({
+					actionType: "profile_save",
+					eventKey: selectedEventKey,
+					surface: "listing_form",
+				});
+				return profile;
+			}
 			const result = await withTicketExchangeTimeout(
 				saveTicketExchangeContactProfile({
 					...profileForm,
@@ -1199,7 +1459,7 @@ export function TicketExchangeClient({
 		>[0]["surface"] = "marketplace",
 		listing?: TicketExchangeListingView | null,
 	) => {
-		if (data.isAuthenticated || auth.isAuthenticated) return true;
+		if (exchangeAuthenticated) return true;
 		trackExchangeFriction({
 			reason: "login_required",
 			surface,
@@ -1390,6 +1650,38 @@ export function TicketExchangeClient({
 		setInterestListingId(listing.id);
 		setPendingMessage("Sharing contact details...");
 		try {
+			if (isDemoMode) {
+				const interest = createDemoInterest(
+					listing,
+					profile as TicketExchangeContactProfile,
+				);
+				const listings = data.listings.map((current) => {
+					if (current.id !== listing.id) return current;
+					if (current.myInterest) return current;
+					return {
+						...current,
+						contactSnapshot:
+							current.contactSnapshot ?? buildDemoListingOwnerContact(current),
+						myInterest: interest,
+						interestCount: current.interestCount + 1,
+						updatedAt: new Date().toISOString(),
+					};
+				});
+				commitDemoState(
+					{ profile: data.profile, listings },
+					"Contact details are now visible in this browser.",
+				);
+				trackTicketExchangeAnalytics({
+					actionType: "contact_unlock",
+					eventKey: listing.eventKey,
+					listingId: listing.id,
+					listingType: listing.listingType,
+					listingStatus: listing.effectiveStatus,
+					surface: "listing_card",
+					immediate: true,
+				});
+				return;
+			}
 			const result = await withTicketExchangeTimeout(
 				expressTicketExchangeInterest({
 					listingId: listing.id,
@@ -1493,6 +1785,17 @@ export function TicketExchangeClient({
 		setIsSavingProfile(true);
 		setPendingMessage("Saving contact profile...");
 		try {
+			if (isDemoMode) {
+				saveDemoProfile(false, "Contact profile saved locally.");
+				trackTicketExchangeAnalytics({
+					actionType: "profile_save",
+					eventKey: selectedEventKey,
+					surface: "profile_panel",
+					immediate: true,
+				});
+				closeContactDetails();
+				return;
+			}
 			const result = await withTicketExchangeTimeout(
 				saveTicketExchangeContactProfile({
 					...profileForm,
@@ -1604,6 +1907,32 @@ export function TicketExchangeClient({
 					listingForm.quantityLabel,
 				),
 			};
+			if (isDemoMode) {
+				const listing = createDemoListing(canonicalListingForm, savedProfile);
+				commitDemoState(
+					{
+						profile: savedProfile,
+						listings: [listing, ...data.listings],
+					},
+					"Listing posted locally in demo mode.",
+				);
+				trackTicketExchangeAnalytics({
+					actionType: "listing_create",
+					eventKey: canonicalListingForm.eventKey,
+					listingType: canonicalListingForm.listingType,
+					surface: "listing_form",
+					immediate: true,
+				});
+				closeCreateListing();
+				setListingForm(
+					createListingFormState(
+						selectedEventKey,
+						listingForm.listingType,
+						getDefaultContactMethods(savedProfile),
+					),
+				);
+				return;
+			}
 			const result = await withTicketExchangeTimeout(
 				createTicketExchangeListing(canonicalListingForm),
 			);
@@ -1672,6 +2001,56 @@ export function TicketExchangeClient({
 		setIsAcceptingAgreement(true);
 		setPendingMessage("Saving Ticket Exchange agreement...");
 		try {
+			if (isDemoMode) {
+				const errors = validateProfileForm();
+				if (Object.keys(errors).length > 0) {
+					const firstError = Object.values(errors)[0];
+					setProfileErrors(errors);
+					setPendingMessage(null);
+					setErrorMessage(firstError ?? "Check your contact details.");
+					focusFirstProfileError(errors);
+					trackExchangeValidationError("contact_profile", "agreement_modal");
+					return;
+				}
+				const nextProfile = saveDemoProfile(
+					true,
+					"Ticket Exchange agreement accepted locally.",
+				);
+				trackTicketExchangeAnalytics({
+					actionType: "agreement_accept",
+					eventKey:
+						pendingAgreementIntent?.kind === "interest"
+							? pendingAgreementIntent.listing.eventKey
+							: selectedEventKey,
+					listingId:
+						pendingAgreementIntent?.kind === "interest"
+							? pendingAgreementIntent.listing.id
+							: undefined,
+					listingType:
+						pendingAgreementIntent?.kind === "interest"
+							? pendingAgreementIntent.listing.listingType
+							: pendingAgreementIntent?.listingType,
+					surface: "agreement_modal",
+					detail: pendingAgreementIntent?.kind ?? "review",
+					immediate: true,
+				});
+				setIsAgreementOpen(false);
+				setPendingAgreementIntent(null);
+				setAgreementChecked(false);
+				if (
+					!ensureContactDetailsReady(nextProfile, "agreement_modal", "accepted")
+				) {
+					return;
+				}
+				if (pendingAgreementIntent?.kind === "create") {
+					startCreateListing(pendingAgreementIntent.listingType, nextProfile);
+					return;
+				}
+				if (pendingAgreementIntent?.kind === "interest") {
+					await submitInterest(pendingAgreementIntent.listing, nextProfile);
+				}
+				return;
+			}
 			const result = await withTicketExchangeTimeout(
 				saveTicketExchangeContactProfile({
 					...profileForm,
@@ -1734,6 +2113,36 @@ export function TicketExchangeClient({
 		setStatusListingId(listing.id);
 		setPendingMessage("Updating listing...");
 		try {
+			if (isDemoMode) {
+				const now = new Date().toISOString();
+				const listings = data.listings.map((current) => {
+					if (current.id !== listing.id) return current;
+					return {
+						...current,
+						status,
+						effectiveStatus: status,
+						resolvedAt: status === "resolved" ? now : current.resolvedAt,
+						updatedAt: now,
+					};
+				});
+				commitDemoState(
+					{ profile: data.profile, listings },
+					status === "removed"
+						? "Listing removed locally."
+						: "Listing updated locally.",
+				);
+				trackTicketExchangeAnalytics({
+					actionType: "listing_status_update",
+					eventKey: listing.eventKey,
+					listingId: listing.id,
+					listingType: listing.listingType,
+					listingStatus: status,
+					surface: "listing_card",
+					detail: status,
+					immediate: true,
+				});
+				return;
+			}
 			const result = await withTicketExchangeTimeout(
 				updateTicketExchangeListingStatus({
 					listingId: listing.id,
@@ -1790,6 +2199,23 @@ export function TicketExchangeClient({
 		);
 		setIsReporting(true);
 		try {
+			if (isDemoMode) {
+				setErrorMessage(null);
+				setPendingMessage("Report noted locally in demo mode.");
+				trackTicketExchangeAnalytics({
+					actionType: "report_submit",
+					eventKey: reportedListing?.eventKey ?? selectedEventKey,
+					listingId: reportListingId,
+					listingType: reportedListing?.listingType,
+					listingStatus: reportedListing?.effectiveStatus,
+					surface: "report_modal",
+					detail: reportReason,
+					immediate: true,
+				});
+				setReportListingId(null);
+				setReportDetails("");
+				return;
+			}
 			const result = await withTicketExchangeTimeout(
 				reportTicketExchangeListing({
 					listingId: reportListingId,
@@ -1855,6 +2281,43 @@ export function TicketExchangeClient({
 		);
 		setIsReposting(true);
 		try {
+			if (isDemoMode && repostedListing) {
+				const now = new Date();
+				const nowIso = now.toISOString();
+				const expiresAt = new Date(
+					now.getTime() + TICKET_EXCHANGE_DEFAULT_EXPIRY_HOURS * 60 * 60 * 1000,
+				).toISOString();
+				const listings = data.listings.map((listing) =>
+					listing.id === repostListingId
+						? {
+								...listing,
+								quantityLabel: canonicalRepostQuantity,
+								status: "active" as const,
+								effectiveStatus: "active" as const,
+								expiresAt,
+								createdAt: nowIso,
+								updatedAt: nowIso,
+								resolvedAt: null,
+							}
+						: listing,
+				);
+				commitDemoState(
+					{ profile: data.profile, listings },
+					"Fresh listing posted locally.",
+				);
+				trackTicketExchangeAnalytics({
+					actionType: "listing_repost",
+					eventKey: repostedListing.eventKey,
+					listingId: repostListingId,
+					listingType: repostedListing.listingType,
+					listingStatus: repostedListing.effectiveStatus,
+					surface: "listing_card",
+					immediate: true,
+				});
+				setRepostListingId(null);
+				setRepostQuantity("");
+				return;
+			}
 			const result = await withTicketExchangeTimeout(
 				repostTicketExchangeListing({
 					listingId: repostListingId,
@@ -1968,7 +2431,14 @@ export function TicketExchangeClient({
 				</div>
 			</section>
 
-			{!data.supported && (
+			{isDemoMode && (
+				<div className="order-2 rounded-xl border border-sky-500/30 bg-sky-500/10 p-3 text-sm text-sky-950 dark:text-sky-100">
+					{data.demoNotice ??
+						"Archive demo mode: listings, replies, and contact details stay in this browser only."}
+				</div>
+			)}
+
+			{!isDemoMode && !data.supported && (
 				<div className="order-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-950 dark:text-amber-100">
 					Ticket Exchange needs database storage before listings can go live.
 				</div>
@@ -2765,7 +3235,7 @@ export function TicketExchangeClient({
 							</p>
 						) : null}
 					</div>
-					{(data.isAuthenticated || auth.isAuthenticated) &&
+					{exchangeAuthenticated &&
 						data.profile &&
 						!hasAcceptedCurrentAgreement(data.profile) && (
 							<div className="rounded-xl border border-amber-500/25 bg-amber-500/8 px-3 py-2 text-sm text-muted-foreground">
@@ -2815,7 +3285,7 @@ export function TicketExchangeClient({
 									listing={listing}
 									isReplyTourTarget={listing.id === firstReplyTourListingId}
 									profile={data.profile}
-									isAuthenticated={data.isAuthenticated || auth.isAuthenticated}
+									isAuthenticated={exchangeAuthenticated}
 									contactMethodCount={draftContactMethodCount}
 									onLogin={() => setIsLoginOpen(true)}
 									onAgreementOpen={() => openAgreement(null)}
@@ -3017,7 +3487,7 @@ export function TicketExchangeClient({
 			{selectedModalEvent && TicketExchangeEventModalIsland && (
 				<TicketExchangeEventModalIsland
 					event={selectedModalEvent}
-					isAuthenticated={data.isAuthenticated || auth.isAuthenticated}
+					isAuthenticated={exchangeAuthenticated}
 					isRequestUpdateOpen={isEventUpdateOpen}
 					onClose={() => {
 						setSelectedModalEvent(null);

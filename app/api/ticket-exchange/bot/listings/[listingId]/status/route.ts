@@ -1,5 +1,6 @@
 import { isAuthorizedTicketExchangeBotRequest } from "@/features/ticket-exchange/bot-auth";
 import { getTicketExchangeRepository } from "@/features/ticket-exchange/repository";
+import { isArchiveModeEnabled } from "@/lib/archive-mode";
 import { NO_STORE_HEADERS } from "@/lib/http/cache-control";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -15,6 +16,12 @@ export async function GET(
 		return NextResponse.json(
 			{ success: false, error: "Forbidden" },
 			{ status: 403, headers: NO_STORE_HEADERS },
+		);
+	}
+	if (isArchiveModeEnabled()) {
+		return NextResponse.json(
+			{ success: true, announceable: false, archiveMode: true },
+			{ headers: NO_STORE_HEADERS },
 		);
 	}
 	const rawParams = await params;
