@@ -1,15 +1,6 @@
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "lenis";
-import {
-	Bookmark,
-	CalendarDays,
-	Link,
-	Map,
-	MapPin,
-	Shuffle,
-	createIcons,
-} from "lucide";
 import "./styles.css";
 
 (() => {
@@ -20,7 +11,6 @@ import "./styles.css";
 	const tasteSection = document.querySelector(".taste");
 
 	root.classList.add("has-js");
-	createIcons({ icons: { Bookmark, CalendarDays, Link, Map, MapPin, Shuffle } });
 
 	gsap.registerPlugin(ScrollTrigger);
 
@@ -43,7 +33,7 @@ import "./styles.css";
 
 	const revealTargets = [
 		...document.querySelectorAll(
-			".poster-cell, .hero-stat, .stat-card, .day-chart, .signal-item, .genre-list div, .top-events li, .nearby-ledger span, .cta-ticket",
+			".story, .hero-stat, .stat-card, .day-chart, .feature-story, .signal-item, .nearby, .nearby-ledger span, .taste, .genre-list div, .top-events, .top-events li, .mobile-note, .cta, .cta-ticket",
 		),
 	];
 	const countTargets = [...document.querySelectorAll("[data-count]")];
@@ -97,13 +87,6 @@ import "./styles.css";
 			.from(".tiny-note", { y: 14, autoAlpha: 0, duration: 0.65 }, "-=0.42")
 			.from(".scroll-cue", { y: -8, autoAlpha: 0, duration: 0.6 }, "-=0.22");
 
-		setTimeout(() => {
-			gsap.set(".quiet-brand, #page-title span, .opening, .tiny-note, .scroll-cue", {
-				clearProps: "all",
-			});
-			gsap.set(".marker", { "--marker-scale": 1 });
-		}, 1500);
-
 		gsap.to(".hero", {
 			"--hero-scale": 1.04,
 			ease: "none",
@@ -143,7 +126,7 @@ import "./styles.css";
 					animateCount(target);
 				}
 			}
-		}, 1200);
+		}, 1600);
 
 		gsap.from(".ticker-track", {
 			xPercent: -4,
@@ -157,9 +140,11 @@ import "./styles.css";
 		});
 
 		gsap.from(".stats-showcase > *", {
-			y: 30,
+			y: 42,
+			rotate: (index) => [-1.2, 0.8, -0.55, 1][index] || 0,
 			autoAlpha: 0,
-			duration: 0.95,
+			duration: 1.05,
+			immediateRender: false,
 			stagger: 0.08,
 			ease: "power3.out",
 			scrollTrigger: {
@@ -180,15 +165,31 @@ import "./styles.css";
 			},
 		});
 
+		gsap.from(".signal-item svg", {
+			y: 12,
+			rotate: -4,
+			autoAlpha: 0,
+			duration: 0.7,
+			immediateRender: false,
+			stagger: 0.06,
+			ease: "power3.out",
+			scrollTrigger: {
+				trigger: ".signal-board",
+				start: "top 76%",
+				once: true,
+			},
+		});
+
 		gsap.from(".cta-ticket", {
-			y: 24,
-			rotate: -10,
+			y: 28,
+			rotate: -14,
 			autoAlpha: 0,
 			duration: 0.9,
-			ease: "elastic.out(1, 0.74)",
+			immediateRender: false,
+			ease: "elastic.out(1, 0.72)",
 			scrollTrigger: {
 				trigger: ".cta",
-				start: "top 75%",
+				start: "top 72%",
 				once: true,
 			},
 		});

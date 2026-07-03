@@ -38,10 +38,54 @@
 			</div>
 		</header>
 
-		<main id="recap" class="poster">
-			<section class="story intro poster-cell">
+		<main id="recap">
+			<section class="recap-opening">
 				<div>
-					<p class="section-kicker">OOOC / 2026 recap</p>
+					<svg
+						class="route-line"
+						viewBox="0 0 840 160"
+						role="img"
+						aria-hidden="true"
+						fill="none"
+					>
+						<circle class="route-stop stop-a" cx="160" cy="72" r="7" />
+						<circle class="route-stop stop-b" cx="432" cy="66" r="7" />
+						<circle class="route-stop stop-c" cx="695" cy="39" r="7" />
+						<path
+							d="M18 126 C126 28 208 142 314 70 C431 -9 506 152 615 75 C699 15 756 47 822 24"
+							fill="none"
+							stroke="rgba(31, 109, 85, 0.46)"
+							stroke-dasharray="18 16"
+							stroke-linecap="round"
+							stroke-width="9"
+						/>
+					</svg>
+				</div>
+			</section>
+
+			<section class="ticker" aria-label="Recap highlights">
+				<div class="ticker-track">
+					<span><strong>159</strong> listings</span>
+					<span><strong>78</strong> free</span>
+					<span><strong>155</strong> mapped listings</span>
+					<span><strong>109</strong> late-night options</span>
+					<span><strong>180</strong> places</span>
+					<span><strong>10,270</strong> outbound clicks</span>
+					<span><strong>2,855</strong> saves</span>
+					<span><strong>914</strong> map opens</span>
+					<span aria-hidden="true"><strong>159</strong> listings</span>
+					<span aria-hidden="true"><strong>78</strong> free</span>
+					<span aria-hidden="true"><strong>155</strong> mapped listings</span>
+					<span aria-hidden="true"><strong>109</strong> late-night options</span>
+					<span aria-hidden="true"><strong>180</strong> places</span>
+					<span aria-hidden="true"><strong>10,270</strong> outbound clicks</span>
+					<span aria-hidden="true"><strong>2,855</strong> saves</span>
+					<span aria-hidden="true"><strong>914</strong> map opens</span>
+				</div>
+			</section>
+
+			<section class="story intro">
+				<div>
 					<h2>It became a little street companion.</h2>
 				</div>
 				<p>
@@ -51,32 +95,31 @@
 				</p>
 			</section>
 
-			<section class="stats-showcase poster-cell" aria-label="Fete Finder recap numbers">
+			<section class="stats-showcase" aria-label="Fete Finder recap numbers">
 				<article class="hero-stat" tabindex="0">
 					<p>2026 listings in the live guide</p>
 					<span class="stat-number" data-count="159">159</span>
 					<small>Plus 80 legacy 2025 rows kept for the archive.</small>
 				</article>
 				<article class="stat-card green" tabindex="0">
-					<p>Free events found</p>
 					<span class="stat-number" data-count="78">78</span>
+					<p>Free events</p>
 					<small>Easy plans people could say yes to quickly.</small>
 				</article>
 				<article class="stat-card red" tabindex="0">
-					<p>Active sessions on 21 June</p>
 					<span class="stat-number" data-count="2003">2,003</span>
+					<p>Active sessions on 21 June</p>
 					<small>The busiest day of the season.</small>
 				</article>
-				<article class="stat-card blue" tabindex="0">
+				<article class="stat-card ink" tabindex="0">
+					<span class="stat-number" data-count="54295">54,295</span>
 					<p>Page views across June</p>
-					<span class="stat-number" data-count="54295">54.2k</span>
-					<small>Mostly from phones. Mostly in motion.</small>
+					<small>Mostly from phones, mostly in motion.</small>
 				</article>
 			</section>
 
-			<section class="story rhythm poster-cell">
-				<div class="rhythm-copy">
-					<p class="section-kicker">Activity rhythm</p>
+			<section class="story rhythm">
+				<div>
 					<h2>The city got louder through the weekend.</h2>
 					<p>
 						The curve says what the streets felt like: Friday warmed up,
@@ -150,9 +193,8 @@
 				</div>
 			</section>
 
-			<section class="feature-story poster-cell">
+			<section class="feature-story">
 				<div class="feature-copy">
-					<p class="section-kicker">Product signals</p>
 					<h2>What people cared about was simple.</h2>
 					<p>
 						The strongest signals were practical: free, date, night, OOOC
@@ -161,37 +203,50 @@
 				</div>
 				<div class="signal-board" aria-label="Most-used product actions">
 					<div class="signal-item">
-						<i data-lucide="calendar-days" aria-hidden="true"></i>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M8 2v4M16 2v4M4 10h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
+						</svg>
 						<span>Plan actions</span>
 						<strong data-count="13037">13,037</strong>
 						<small>Filters, dates, and quick choices before heading out.</small>
 					</div>
 					<div class="signal-item">
-						<i data-lucide="link" aria-hidden="true"></i>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1" />
+						</svg>
 						<span>Event link clicks</span>
 						<strong data-count="10270">10,270</strong>
 						<small>People leaving the guide to RSVP, book, or check details.</small>
 					</div>
 					<div class="signal-item">
-						<i data-lucide="map" aria-hidden="true"></i>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M3 6.5 9 4l6 2.5 6-2.5v13.5L15 20l-6-2.5L3 20V6.5ZM9 4v13.5M15 6.5V20" />
+						</svg>
 						<span>Event opens</span>
 						<strong data-count="7045">7,045</strong>
 						<small>Listings people paused on long enough to inspect.</small>
 					</div>
 					<div class="signal-item">
-						<i data-lucide="bookmark" aria-hidden="true"></i>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z" />
+						</svg>
 						<span>Saved toggles</span>
 						<strong data-count="2855">2,855</strong>
-						<small>Shortlist moments for later.</small>
+						<small>Shortlist moments: maybe later, maybe this is the one.</small>
 					</div>
 					<div class="signal-item">
-						<i data-lucide="map-pin" aria-hidden="true"></i>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M12 21s7-5.4 7-12a7 7 0 0 0-14 0c0 6.6 7 12 7 12Z" />
+							<circle cx="12" cy="9" r="2.4" />
+						</svg>
 						<span>Map interactions</span>
 						<strong data-count="2390">2,390</strong>
 						<small>Distance checks, street decisions, and nearby pivots.</small>
 					</div>
 					<div class="signal-item">
-						<i data-lucide="shuffle" aria-hidden="true"></i>
+						<svg viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M17 7H4m0 0 4-4M4 7l4 4M7 17h13m0 0-4-4m4 4-4 4" />
+						</svg>
 						<span>Ticket Exchange views</span>
 						<strong data-count="6533">6,533</strong>
 						<small>Demand when plans changed and spare tickets mattered.</small>
@@ -199,37 +254,39 @@
 				</div>
 			</section>
 
-			<section class="nearby poster-cell">
+			<section class="nearby">
+				<div class="phone-scene" aria-hidden="true">
+					<div class="phone">
+						<div class="phone-top"></div>
+						<div class="map-route"></div>
+						<div class="map-dot dot-a"></div>
+						<div class="map-dot dot-b"></div>
+						<div class="map-dot dot-c"></div>
+						<div class="map-pulse"></div>
+						<span class="map-label label-a">free nearby</span>
+						<span class="map-label label-b">open late</span>
+						<p>nearby now</p>
+					</div>
+				</div>
 				<div>
-					<p class="section-kicker">Near you, not far away</p>
-					<h2>Nearby became the pavement mode.</h2>
+					<h2>Nearby was the street feature.</h2>
 					<p>
 						There were <strong>407</strong> location requests and
-						<strong>116</strong> nearby sort changes: quick checks for what was
-						close, open, and worth crossing town for.
+						<strong>116</strong> nearby sort changes. For anyone deciding the
+						next move from the pavement, it turned the guide from a list into a
+						quick read of what was close, open, and worth crossing town for.
 					</p>
-				</div>
-				<div class="neighbourhood-map" aria-label="Nearby usage signals">
-					<div class="nearby-ledger">
+					<div class="nearby-ledger" aria-label="Nearby usage signals">
 						<span><strong>407</strong> location requests</span>
 						<span><strong>116</strong> nearby sorts</span>
 						<span><strong>180</strong> mapped places</span>
 					</div>
-					<div class="map-cluster" aria-hidden="true">
-						<span class="cluster-dot dot-1"></span>
-						<span class="cluster-dot dot-2"></span>
-						<span class="cluster-dot dot-3"></span>
-						<span class="cluster-dot dot-4"></span>
-						<span class="cluster-dot dot-5"></span>
-						<span class="cluster-river"></span>
-					</div>
 				</div>
 			</section>
 
-			<section class="taste poster-cell">
+			<section class="taste">
 				<div class="taste-head">
 					<div>
-						<p class="section-kicker">The soundtrack</p>
 						<h2>The soundtrack was not subtle.</h2>
 						<p class="taste-note">
 							From Afrobeats to Amapiano, the searches leaned warm, rhythmic,
@@ -247,18 +304,17 @@
 					src="/assets/mauvais-djo-pile-fete-recap-14-45.mp3"
 				></audio>
 				<div class="genre-list" aria-label="Top music categories">
-					<div style="--value: 85"><span>Afrobeats</span><b></b><strong>85</strong></div>
-					<div style="--value: 80"><span>Amapiano</span><b></b><strong>80</strong></div>
-					<div style="--value: 63"><span>Hip Hop</span><b></b><strong>63</strong></div>
-					<div style="--value: 52"><span>Dancehall</span><b></b><strong>52</strong></div>
-					<div style="--value: 44"><span>Afro</span><b></b><strong>44</strong></div>
-					<div style="--value: 40"><span>R&amp;B</span><b></b><strong>40</strong></div>
+					<div><span>Afrobeats</span><strong>85</strong></div>
+					<div><span>Amapiano</span><strong>80</strong></div>
+					<div><span>Hip Hop</span><strong>63</strong></div>
+					<div><span>Dancehall</span><strong>52</strong></div>
+					<div><span>Afro</span><strong>44</strong></div>
+					<div><span>R&amp;B</span><strong>40</strong></div>
 				</div>
 			</section>
 
-			<section class="top-events poster-cell">
+			<section class="top-events">
 				<div>
-					<p class="section-kicker">Top events</p>
 					<h2>The listings people returned to.</h2>
 					<p>
 						These are June attention signals, not attendance claims: opens,
@@ -274,8 +330,7 @@
 				</ol>
 			</section>
 
-			<section class="mobile-note poster-cell">
-				<p class="section-kicker">Pocket tool</p>
+			<section class="mobile-note">
 				<h2>It was overwhelmingly mobile.</h2>
 				<p>
 					<strong>10,315</strong> mobile discovery sessions versus
@@ -284,7 +339,7 @@
 				</p>
 			</section>
 
-			<section class="cta poster-cell" aria-labelledby="cta-title">
+			<section class="cta" aria-labelledby="cta-title">
 				<div>
 					<p>Fete Finder is sleeping. OOOC is not.</p>
 					<h2 id="cta-title">If Paris was your kind of chaos, come on the next trip.</h2>
