@@ -1,10 +1,14 @@
 :{$PORT:8080} {
 	root * /srv
-	file_server
 	header {
 		Cache-Control "public, max-age=300"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 	}
+
+	@old_routes not path / /favicon.svg /styles.css /recap.js
+	redir @old_routes / 302
+
+	file_server
 }
