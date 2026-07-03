@@ -33,7 +33,7 @@ import "./styles.css";
 
 	const revealTargets = [
 		...document.querySelectorAll(
-			".story, .hero-stat, .stat-card, .day-chart, .feature-story, .signal-item, .nearby, .taste, .top-events, .mobile-note, .cta",
+			".story, .hero-stat, .stat-card, .day-chart, .feature-story, .signal-item, .nearby, .nearby-ledger span, .taste, .genre-list div, .top-events, .top-events li, .mobile-note, .cta, .cta-ticket",
 		),
 	];
 	const countTargets = [...document.querySelectorAll("[data-count]")];
@@ -115,6 +115,19 @@ import "./styles.css";
 			});
 		}
 
+		setTimeout(() => {
+			for (const target of revealTargets) {
+				if (target.dataset.visible === "true") continue;
+				target.dataset.visible = "true";
+				for (const counter of target.querySelectorAll("[data-count]")) {
+					animateCount(counter);
+				}
+				if (target.matches("[data-count]")) {
+					animateCount(target);
+				}
+			}
+		}, 1600);
+
 		gsap.from(".ticker-track", {
 			xPercent: -4,
 			ease: "none",
@@ -131,6 +144,7 @@ import "./styles.css";
 			rotate: (index) => [-1.2, 0.8, -0.55, 1][index] || 0,
 			autoAlpha: 0,
 			duration: 1.05,
+			immediateRender: false,
 			stagger: 0.08,
 			ease: "power3.out",
 			scrollTrigger: {
@@ -147,6 +161,35 @@ import "./styles.css";
 			scrollTrigger: {
 				trigger: ".rhythm",
 				start: "top 66%",
+				once: true,
+			},
+		});
+
+		gsap.from(".signal-item svg", {
+			y: 12,
+			rotate: -4,
+			autoAlpha: 0,
+			duration: 0.7,
+			immediateRender: false,
+			stagger: 0.06,
+			ease: "power3.out",
+			scrollTrigger: {
+				trigger: ".signal-board",
+				start: "top 76%",
+				once: true,
+			},
+		});
+
+		gsap.from(".cta-ticket", {
+			y: 28,
+			rotate: -14,
+			autoAlpha: 0,
+			duration: 0.9,
+			immediateRender: false,
+			ease: "elastic.out(1, 0.72)",
+			scrollTrigger: {
+				trigger: ".cta",
+				start: "top 72%",
 				once: true,
 			},
 		});
