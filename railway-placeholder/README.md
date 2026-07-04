@@ -23,21 +23,16 @@ python3 -m http.server 8090
 Production build check:
 
 ```bash
-docker build -t oooc-fete-placeholder .
+docker build -t oooc-fete-placeholder ..
 ```
 
-Create or update a separate Railway service with this directory as its root:
+The repo root now has a `Dockerfile` and `railway.json` that deploy this folder
+as the live off-season site. Railway should build the root Dockerfile, which
+copies `railway-placeholder/public` into Caddy.
 
 ```bash
-railway up --service fete-placeholder --detach -m "Deploy static placeholder"
+railway up --detach -m "Deploy static placeholder"
 ```
-
-If configuring the service in the Railway dashboard, set:
-
-- Root directory: `railway-placeholder`
-- Builder: Dockerfile
-- Domain port: the Railway-provided `PORT` env var, with the container fallback
-  listening on `8080`
 
 The Caddy service serves `/`, `/styles.css`, and `/favicon.svg`. Other paths
 intentionally `302` redirect to `/` so old indexed Fete Finder URLs land on the

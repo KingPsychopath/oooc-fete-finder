@@ -259,6 +259,91 @@
 	mix-blend-mode: overlay;
 }
 
+.offseason-body {
+	margin: 0;
+	min-height: 100svh;
+	overflow-x: hidden;
+	background:
+		linear-gradient(rgba(246, 241, 232, 0.9), rgba(246, 241, 232, 0.9)),
+		var(--ooo-grain-image),
+		radial-gradient(
+			ellipse 42rem 28rem at 72% 34%,
+			rgba(196, 55, 45, 0.07),
+			transparent 64%
+		),
+		#f6f1e8;
+	background-size: auto, 260px 260px, auto, auto;
+	color: #17130f;
+	font-family: var(--ooo-font-body);
+}
+
+.offseason-placeholder {
+	box-sizing: border-box;
+	min-height: 100svh;
+	display: grid;
+	place-items: center;
+	padding: clamp(2rem, 6vw, 5rem);
+}
+
+.offseason-card {
+	width: min(58rem, 100%);
+	border-block: 1px solid rgba(23, 19, 15, 0.16);
+	padding-block: clamp(3.5rem, 8vw, 6rem);
+}
+
+.offseason-eyebrow {
+	margin: 0 0 clamp(2rem, 4vw, 3.5rem);
+	color: #b1322d;
+	font-size: clamp(0.82rem, 1.1vw, 1rem);
+	font-weight: 800;
+	letter-spacing: 0.18em;
+	line-height: 1;
+	text-transform: uppercase;
+}
+
+.offseason-card h1 {
+	max-width: 12ch;
+	margin: 0;
+	font-family: var(--ooo-font-display);
+	font-size: clamp(4.75rem, 11.5vw, 10.5rem);
+	font-weight: 400;
+	letter-spacing: -0.015em;
+	line-height: 0.98;
+	text-wrap: balance;
+}
+
+.offseason-copy {
+	max-width: 34rem;
+	margin: clamp(1.8rem, 3.5vw, 3rem) 0 0;
+	color: rgba(23, 19, 15, 0.68);
+	font-size: clamp(1.35rem, 2.3vw, 2.15rem);
+	font-weight: 500;
+	line-height: 1.35;
+}
+
+.offseason-note {
+	max-width: 32rem;
+	margin: clamp(2rem, 3.5vw, 3rem) 0 0;
+	color: rgba(23, 19, 15, 0.58);
+	font-size: clamp(1rem, 1.45vw, 1.35rem);
+	line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+	.offseason-placeholder {
+		align-items: start;
+		padding: 2rem 1.35rem;
+	}
+
+	.offseason-card {
+		padding-block: clamp(2rem, 14vw, 4rem);
+	}
+
+	.offseason-card h1 {
+		font-size: clamp(4.2rem, 20vw, 6.8rem);
+	}
+}
+
 .ooo-notice-card {
 	--ooo-notice-accent: #213f43;
 	--ooo-notice-surface: color-mix(in oklab, var(--card) 92%, var(--ooo-notice-accent) 8%);

@@ -18,6 +18,7 @@ import {
 	isArchiveModeEnabled,
 	isFirstPartyAnalyticsEnabled,
 } from "@/lib/archive-mode";
+import { isOffseasonPlaceholderEnabled } from "@/lib/offseason-placeholder";
 import { getSiteUrl } from "@/lib/site-url";
 import { generateMainOGImage } from "@/lib/social/og-utils";
 import { ThemeProvider } from "next-themes";
@@ -185,11 +186,14 @@ const prata = localFont({
 
 export const metadata: Metadata = {
 	title: {
-		default: "Fête Finder | Out Of Office Collective",
+		default: isOffseasonPlaceholderEnabled()
+			? "Fete Finder is resting | Out Of Office Collective"
+			: "Fête Finder | Out Of Office Collective",
 		template: "%s | Fête Finder",
 	},
-	description:
-		"Curated Paris music event guide by Out Of Office Collective. Browse the Fête archive, save picks, and plan future routes.",
+	description: isOffseasonPlaceholderEnabled()
+		? "Fete Finder is resting while the live guide stays offline between seasons."
+		: "Curated Paris music event guide by Out Of Office Collective. Browse the Fête archive, save picks, and plan future routes.",
 	keywords: [
 		"Fête de la Musique",
 		"Paris music events",
@@ -264,8 +268,38 @@ export default function RootLayout({
 }: Readonly<{
 	children: React.ReactNode;
 }>) {
+	const offseasonPlaceholder = isOffseasonPlaceholderEnabled();
 	const archiveMode = isArchiveModeEnabled();
 	const analyticsEnabled = isFirstPartyAnalyticsEnabled();
+
+	if (offseasonPlaceholder) {
+		return (
+			<html
+				lang="en"
+				className={`${degular.variable} ${prata.variable}`}
+				style={{ backgroundColor: "#f6f1e8" }}
+			>
+				<head>
+					<meta name="theme-color" content="#f6f1e8" />
+					<meta
+						name="viewport"
+						content="width=device-width, initial-scale=1, viewport-fit=cover"
+					/>
+					<link
+						rel="icon"
+						href={`${basePath}/favicon.svg`}
+						type="image/svg+xml"
+					/>
+					<link
+						rel="apple-touch-icon"
+						sizes="180x180"
+						href={`${basePath}/icons/icon-192x192.png`}
+					/>
+				</head>
+				<body className="offseason-body">{children}</body>
+			</html>
+		);
+	}
 
 	return (
 		<html

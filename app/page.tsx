@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { HomeEventsSection } from "./HomeEventsSection";
 import { HomeEventsSectionLoading } from "./HomeEventsSectionLoading";
 import { HomeHeader } from "./HomeHeader";
+import { OffseasonPlaceholder } from "@/components/OffseasonPlaceholder";
+import { isOffseasonPlaceholderEnabled } from "@/lib/offseason-placeholder";
 
 // Keep the HTML/module graph request-scoped; event data is cached separately.
 export const dynamic = "force-dynamic";
@@ -9,6 +11,10 @@ export const revalidate = 0;
 const homeMapLoadStrategy: "immediate" | "expand" | "idle" = "idle";
 
 export default function Home() {
+	if (isOffseasonPlaceholderEnabled()) {
+		return <OffseasonPlaceholder />;
+	}
+
 	return (
 		<div className="ooo-site-shell">
 			<HomeHeader />
