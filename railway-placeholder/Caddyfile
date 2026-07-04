@@ -7,7 +7,7 @@
 		X-Frame-Options "DENY"
 	}
 
-	@old_routes not path / /favicon.svg /assets/*
+	@old_routes not path / /styles.css /favicon.svg
 	redir @old_routes / 302
 
 	file_server
